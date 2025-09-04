@@ -29,7 +29,7 @@ int main(int, char**) {
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
-    if (!SDL_CreateWindowAndRenderer("Dino Runner", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("Dino Runner", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("Window creation failed: %s", SDL_GetError());
         SDL_Quit();
         return 1;
@@ -70,7 +70,7 @@ int main(int, char**) {
         if (tNow && !prevT) {
             ScaleMode current = Scaling::mode();
             Scaling::setMode(current == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel);
-            SDL_Log("🔍 Scaling mode changed to: %s",
+            SDL_Log("Scaling mode changed to: %s",
                 (Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional"));
         }
         prevT = tNow;

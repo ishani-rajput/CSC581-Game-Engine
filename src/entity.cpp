@@ -70,10 +70,13 @@ void Entity::render(SDL_Renderer* renderer, SDL_Window* win) {
         static_cast<float>(frameHeight)
     };
 
-    SDL_FRect scaledDst = Scaling::compute(dstRect, win);
+    SDL_FRect renderRect = dstRect;
 
-    SDL_RenderTexture(renderer, texture, &srcRect, &scaledDst);
+    renderRect = Scaling::compute(dstRect, win);
+    
+    SDL_RenderTexture(renderer, texture, &srcRect, &renderRect);
 }
+
 
 // Fallback version without scaling (not used anymore)
 void Entity::render(SDL_Renderer* renderer) {
