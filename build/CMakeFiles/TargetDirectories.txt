@@ -1,3 +1,0 @@
-C:/courses/GameEngine/CSC481-581-M1/build/CMakeFiles/main.dir
-C:/courses/GameEngine/CSC481-581-M1/build/CMakeFiles/edit_cache.dir
-C:/courses/GameEngine/CSC481-581-M1/build/CMakeFiles/rebuild_cache.dir
