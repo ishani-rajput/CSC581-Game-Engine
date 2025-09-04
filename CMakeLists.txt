@@ -7,7 +7,13 @@ find_package(SDL3 REQUIRED CONFIG)
 find_package(SDL3_image REQUIRED CONFIG)
 
 include_directories(include)
-add_executable(main ./src/main.cpp ./src/entity.cpp)
+add_executable(main
+    ./src/main.cpp
+    ./src/entity.cpp
+    ./src/input.cpp
+    ./src/physics.cpp
+    ./src/scaling.cpp
+)
 
 target_link_libraries(main
     PRIVATE

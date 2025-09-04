@@ -1,156 +1,138 @@
+// src/main.cpp
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include <SDL3_image/SDL_image.h>   // <-- added for PNG loading
+#include <SDL3_image/SDL_image.h>
 
-const int WINDOW_WIDTH = 1920;  /*  Width of the game window to be created*/
-const int WINDOW_HEIGHT = 1080; /*  Height of the game window to be created*/
-const int FRAME_COUNT = 8;     /*  Number of frames in the spritesheet */
-const int FRAME_WIDTH = 512;   /*  Width of the frame in the spritesheet */
-const int FRAME_HEIGHT = 512;  /*  Height of the frame in the spritesheet */
-const int ANIMATION_DELAY = 100;/* Number of iterations between the animation frames (determines delay) */
+#include "input.h"
+#include "scaling.h"
 
-/* Struct to store the current state*/
+const int WINDOW_WIDTH  = 1920;
+const int WINDOW_HEIGHT = 1080;
+
+const int FRAME_COUNT   = 8;
+const int FRAME_WIDTH   = 512;
+const int FRAME_HEIGHT  = 512;
+const int FRAME_DELAY_MS = 100; // animation speed
+
 struct AppState {
-    SDL_Texture *Texture = nullptr;
+    SDL_Texture* texture = nullptr;
     int currentFrame = 0;
-    Uint32 lastFrameTime = 0;
+    Uint32 lastFrameTick = 0;
 };
 
-int main(int argc, char *argv[])
-{
-    // Initialize the SDL library
+static SDL_Texture* loadSprite(SDL_Renderer* r) {
+    const char* pngs[] = {"../assets/skelly.png","assets/skelly.png"};
+    for (auto p : pngs) {
+        if (auto* t = IMG_LoadTexture(r, p)) return t;
+    }
+    const char* bmps[] = {
+        "../assets/spritesheet.bmp","assets/spritesheet.bmp",
+        "../assets/skelly.bmp","assets/skelly.bmp"
+    };
+    for (auto p : bmps) {
+        if (SDL_Surface* s = SDL_LoadBMP(p)) {
+            SDL_Texture* t = SDL_CreateTextureFromSurface(r, s);
+            SDL_DestroySurface(s);
+            if (t) return t;
+        }
+    }
+    SDL_Log("Failed to load texture. Last error: %s", SDL_GetError());
+    return nullptr;
+}
+
+int main(int, char**) {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
+        SDL_Log("SDL init failed: %s", SDL_GetError());
         return 1;
     }
 
-    // Create window and renderer
-    SDL_Window *window = nullptr;
-    SDL_Renderer *renderer = nullptr;
-    
-    // Initialize the window and renderer using SDL method
+    SDL_Window*   window   = nullptr;
+    SDL_Renderer* renderer = nullptr;
     if (!SDL_CreateWindowAndRenderer("Feeling Loopy", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer)) {
-        SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
+        SDL_Log("CreateWindowAndRenderer failed: %s", SDL_GetError());
         SDL_Quit();
         return 1;
     }
-    
-    // Load the texture from the assets folder
-    AppState state;
 
-    /* Load the texture into state.Texture (PNG via SDL3_image, fallback to BMP) */
-    {
-        // If you run from build/ use ../assets/skelly.png; from project root use assets/skelly.png
-        const char* pngs[] = {
-            "../assets/skelly.png",
-            "assets/skelly.png"
-        };
-        const char* bmps[] = {
-            "../assets/spritesheet.bmp",
-            "assets/spritesheet.bmp",
-            "../assets/skelly.bmp",
-            "assets/skelly.bmp"
-        };
-
-        // Try PNG first (SDL3_image auto-initializes loaders as needed)
-        for (const char* path : pngs) {
-            state.Texture = IMG_LoadTexture(renderer, path);
-            if (state.Texture) break;
-        }
-
-        // Fallback: BMP via SDL core (no SDL3_image needed)
-        if (!state.Texture) {
-            SDL_Surface* surf = nullptr;
-            for (const char* path : bmps) {
-                surf = SDL_LoadBMP(path);
-                if (surf) break;
-            }
-            if (surf) {
-                state.Texture = SDL_CreateTextureFromSurface(renderer, surf);
-                SDL_DestroySurface(surf);
-            }
-        }
-
-        if (!state.Texture) {
-            SDL_Log("Failed to load texture (PNG or BMP). Last error: %s", SDL_GetError());
-        }
+    AppState st;
+    st.texture = loadSprite(renderer);
+    if (!st.texture) {
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
     }
+    st.lastFrameTick = SDL_GetTicks();
+    st.currentFrame  = 0;
 
-    // Test to ensure texture was loaded
-    {
-        if (!state.Texture) {
-            SDL_Log("No texture loaded; exiting.");
-            SDL_DestroyRenderer(renderer);
-            SDL_DestroyWindow(window);
-            SDL_Quit();
-            return 1;
-        }
-    }
-
-    state.currentFrame = 0;
-    state.lastFrameTime = 1;
-
-    // Main game loop condition variable
+    // Start in Pixel mode; press T to toggle
+    Scaling::setMode(ScaleMode::Pixel);
     bool running = true;
+    SDL_Event ev;
 
-    // SDL_Event to capture event of window being closed
-    SDL_Event event;
+    // Rising-edge detection for 'T' (toggle)
+    bool prevT = false;
 
-    // The main game loop
     while (running) {
-
-        // Handle event of window close i.e. quit
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
-                running = false;
-            }
+        // Only handle window-close via events
+        while (SDL_PollEvent(&ev)) {
+            if (ev.type == SDL_EVENT_QUIT) running = false;
         }
 
-        // Update animation
-        state.lastFrameTime += 1;
+        // Poll keyboard state via Input system
+        Input::poll();
 
-        // Change the frame if enough interations performed since the last
-        {
-            if (state.lastFrameTime % ANIMATION_DELAY == 0) {
-                state.currentFrame = (state.currentFrame + 1) % FRAME_COUNT;
-            }
+        // Toggle scaling mode on T key press (edge)
+        const bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
+        if (tNow && !prevT) {
+            Scaling::setMode(Scaling::mode() == ScaleMode::Pixel
+                             ? ScaleMode::Proportional
+                             : ScaleMode::Pixel);
+            SDL_Log("Scaling mode: %s",
+                    (Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional"));
         }
-        
-        // Set Background color to white
+        prevT = tNow;
+
+        // Animate
+        const Uint32 now = SDL_GetTicks();
+        if (now - st.lastFrameTick >= (Uint32)FRAME_DELAY_MS) {
+            st.currentFrame = (st.currentFrame + 1) % FRAME_COUNT;
+            st.lastFrameTick = now;
+        }
+
+        // Clear (blue)
         SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-        // Clear screen
         SDL_RenderClear(renderer);
 
-        // Draw the sprite onto the window
-
-	    // Source (src) Rectangle is capturing the image from the spritesheet
-        SDL_FRect srcRect = { /* x(position), y(position), width, height */ 
-            (float)(state.currentFrame * FRAME_WIDTH), 
-            0.0f, 
-            (float)FRAME_WIDTH, 
-            (float)FRAME_HEIGHT 
+        // Build source rect from the sprite sheet
+        SDL_FRect src = {
+            (float)(st.currentFrame * FRAME_WIDTH),
+            0.0f,
+            (float)FRAME_WIDTH,
+            (float)FRAME_HEIGHT
         };
 
-        // Destination (dst) Rectangle is drawing the image on the window
-        SDL_FRect dstRect = { /* x(position), y(position), width, height */
-            0.0f, 
-            0.0f, 
-            FRAME_WIDTH, 
-            FRAME_HEIGHT 
-        };
+        // Build a "logical" destination:
+        // - Pixel mode: draw 512x512 at (100,100) px
+        // - Proportional: draw at 10% from top-left, size = 20% of window
+        SDL_FRect logicalDst;
+        if (Scaling::mode() == ScaleMode::Pixel) {
+            logicalDst = {100.f, 100.f, (float)FRAME_WIDTH, (float)FRAME_HEIGHT};
+        } else {
+            logicalDst = {0.10f, 0.10f, 0.20f, 0.20f}; // fractions of window
+        }
 
-        SDL_RenderTexture(renderer, state.Texture, &srcRect, &dstRect);
+        // Convert via the scaling system
+        SDL_FRect dst = Scaling::compute(logicalDst, window);
 
+        // Render
+        SDL_RenderTexture(renderer, st.texture, &src, &dst);
         SDL_RenderPresent(renderer);
     }
 
-    // Cleaning up the objects
-    if (state.Texture) {
-        SDL_DestroyTexture(state.Texture);
-    }
+    if (st.texture) SDL_DestroyTexture(st.texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
     return 0;
 }

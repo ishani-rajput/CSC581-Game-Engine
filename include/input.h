@@ -7,6 +7,6 @@ public:
     static bool isKeyPressed(SDL_Scancode sc);
 
 private:
-    static const Uint8* s_state;
+    static const bool* s_state; // SDL3: bools, not Uint8s
     static int s_len;
 };
