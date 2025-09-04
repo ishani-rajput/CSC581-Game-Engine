@@ -1,0 +1,3 @@
+/Users/ishanirajput/CSC581-Game-Engine/build/CMakeFiles/main.dir
+/Users/ishanirajput/CSC581-Game-Engine/build/CMakeFiles/edit_cache.dir
+/Users/ishanirajput/CSC581-Game-Engine/build/CMakeFiles/rebuild_cache.dir

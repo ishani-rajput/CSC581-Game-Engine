@@ -12,16 +12,18 @@ public:
     // no copying (texture ownership)
     Entity(const Entity&) = delete;
     Entity& operator=(const Entity&) = delete;
-    // allow moving if you like (optional)
     Entity(Entity&&) noexcept = default;
     Entity& operator=(Entity&&) noexcept = default;
 
-    void update();                          // advances animation by time
-    void render(SDL_Renderer* renderer);    // draws current frame
+    void update();                          
+    void render(SDL_Renderer* renderer);     
+    void render(SDL_Renderer* renderer, SDL_Window* win); 
 
-    // convenience
     void setPosition(float nx, float ny);
-    void setSize(float w, float h);         // scale on screen
+    void setSize(float w, float h);
+
+    void getPosition(float& outX, float& outY) const;
+    SDL_FRect getRect() const;
 
 private:
     float x, y;
@@ -31,6 +33,6 @@ private:
     int frameCount;
     int frameWidth, frameHeight;
     int currentFrame = 0;
-    Uint32 lastFrameTime = 0; // ms
-    int frameDelay = 0;       // ms per frame
+    Uint32 lastFrameTime = 0;
+    int frameDelay = 0;
 };
