@@ -40,7 +40,17 @@ int main(int, char**) {
     srand(static_cast<unsigned>(time(nullptr))); // RNG seed
 
     // === Entities ===
-    Entity player(renderer, PLAYER_ASSET, 100, 758, 256, 256, 1, 0);
+    // Entity player(renderer, PLAYER_ASSET, 100, 758, 256, 256, 1, 0);
+    int winW, winH;
+    SDL_GetWindowSize(window, &winW, &winH);
+
+    float playerX = 100.f;
+    float playerY = winH - 322.f; // 758 for 1080 height → scale proportionally
+    float playerW = 256.f;
+    float playerH = 256.f;
+
+    Entity player(renderer, PLAYER_ASSET, playerX, playerY, playerW, playerH, 1, 0);
+
     Body playerBody = { 0.f, 0.f, true };
 
     Entity platform(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
