@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/main.dir/src/main.cpp.o CMakeFiles/main.dir/src/entity.cpp.o -o main  -Wl,-rpath,/opt/homebrew/lib /opt/homebrew/lib/libSDL3_image.0.2.4.dylib /opt/homebrew/lib/libSDL3.0.dylib
