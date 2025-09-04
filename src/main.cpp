@@ -16,13 +16,6 @@ struct AppState {
     Uint32 lastFrameTime = 0;
 };
 
-/* Struct to store the current state*/
-struct AppState {
-    SDL_Texture *Texture = nullptr;
-    int currentFrame = 0;
-    Uint32 lastFrameTime = 0;
-};
-
 int main(int argc, char *argv[])
 {
     // Initialize the SDL library
