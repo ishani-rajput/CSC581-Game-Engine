@@ -7,11 +7,18 @@ protected:
     SDL_Texture* texture;
     SDL_FRect dstRect;
 
-public:
-    Entity(float x, float y, SDL_Texture* texture);
-    virtual ~Entity();
+    int frameCount;
+    int frameWidth, frameHeight;
+    int currentFrame;
+    Uint32 lastFrameTime;   // track when we last advanced
+    int frameDelay;         // how long to wait before advancing
 
-    virtual void update();
-    virtual void draw(SDL_Renderer* renderer);
-    void setPosition(float newX, float newY);
+public:
+    Entity(SDL_Renderer* renderer, const char* path,
+           float x, float y,
+           int frameWidth, int frameHeight,
+           int frameCount, int frameDelay);
+
+    void update();
+    void render(SDL_Renderer* renderer);
 };
