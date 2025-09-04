@@ -51,6 +51,14 @@ SDL_FRect Entity::getRect() const {
     return dstRect;
 }
 
+// 🟢 NEW: Return scaled rect in Proportional mode
+SDL_FRect Entity::getRect(SDL_Window* win) const {
+    if (Scaling::mode() == ScaleMode::Proportional)
+        return Scaling::compute(dstRect, win);
+    else
+        return dstRect;
+}
+
 void Entity::update() {
     if (frameCount <= 1) return;
 
@@ -61,7 +69,7 @@ void Entity::update() {
     }
 }
 
-// This version uses scaling
+// 🔄 Uses Scaling system for scaled rendering
 void Entity::render(SDL_Renderer* renderer, SDL_Window* win) {
     SDL_FRect srcRect = {
         static_cast<float>(currentFrame * frameWidth),
@@ -70,15 +78,11 @@ void Entity::render(SDL_Renderer* renderer, SDL_Window* win) {
         static_cast<float>(frameHeight)
     };
 
-    SDL_FRect renderRect = dstRect;
-
-    renderRect = Scaling::compute(dstRect, win);
-    
+    SDL_FRect renderRect = Scaling::compute(dstRect, win);
     SDL_RenderTexture(renderer, texture, &srcRect, &renderRect);
 }
 
-
-// Fallback version without scaling (not used anymore)
+// Legacy fallback (not used anymore)
 void Entity::render(SDL_Renderer* renderer) {
     SDL_FRect srcRect = {
         static_cast<float>(currentFrame * frameWidth),

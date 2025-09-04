@@ -15,15 +15,17 @@ public:
     Entity(Entity&&) noexcept = default;
     Entity& operator=(Entity&&) noexcept = default;
 
-    void update();                          
-    void render(SDL_Renderer* renderer);     
-    void render(SDL_Renderer* renderer, SDL_Window* win); 
+    void update();
+    void render(SDL_Renderer* renderer);
+    void render(SDL_Renderer* renderer, SDL_Window* win);
 
     void setPosition(float nx, float ny);
     void setSize(float w, float h);
 
     void getPosition(float& outX, float& outY) const;
-    SDL_FRect getRect() const;
+
+    SDL_FRect getRect() const;               // returns raw dstRect (pixel mode)
+    SDL_FRect getRect(SDL_Window* win) const; // returns scaled rect (proportional mode)
 
 private:
     float x, y;
