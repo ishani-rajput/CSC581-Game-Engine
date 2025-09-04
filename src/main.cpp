@@ -7,7 +7,14 @@ const int WINDOW_HEIGHT = 1080; /*  Height of the game window to be created*/
 const int FRAME_COUNT = 8;     /*  Number of frames in the spritesheet */
 const int FRAME_WIDTH = 512;   /*  Width of the frame in the spritesheet */
 const int FRAME_HEIGHT = 512;  /*  Height of the frame in the spritesheet */
-const int ANIMATION_DELAY = 500;/* Number of iterations between the animation frames (determines delay) */
+const int ANIMATION_DELAY = 100;/* Number of iterations between the animation frames (determines delay) */
+
+/* Struct to store the current state*/
+struct AppState {
+    SDL_Texture *Texture = nullptr;
+    int currentFrame = 0;
+    Uint32 lastFrameTime = 0;
+};
 
 /* Struct to store the current state*/
 struct AppState {
