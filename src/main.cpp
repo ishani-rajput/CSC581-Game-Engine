@@ -86,7 +86,7 @@ int main(int, char**) {
             
             if (e.type == SDL_EVENT_WINDOW_RESIZED) {
                 clampPlayerPosition(playerX, playerY, playerWidth, playerHeight);
-                SDL_Log("Window resized! Scaling system will handle automatically.");
+                SDL_Log("Window resized!");
             }
             
             if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_S) {
