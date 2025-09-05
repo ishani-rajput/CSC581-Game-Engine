@@ -14,6 +14,10 @@ Entity::Entity(SDL_Renderer* renderer, const char* path,
       frameDelay(frameDelay)
 {
     texture = IMG_LoadTexture(renderer, path);
+    if (texture) {
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
+}
+
     if (!texture) {
         SDL_Log("IMG_LoadTexture('%s') failed: %s", path, SDL_GetError());
     }
@@ -57,4 +61,12 @@ void Entity::setPosition(float nx, float ny) {
 void Entity::setSize(float w, float h) {
     dstRect.w = w;
     dstRect.h = h;
+}
+
+SDL_FRect Entity::getSrcRect() const {
+    SDL_FRect src = {
+        (float)(currentFrame * frameWidth), 0.0f,
+        (float)frameWidth, (float)frameHeight
+    };
+    return src;
 }

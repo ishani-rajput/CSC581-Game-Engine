@@ -12,16 +12,20 @@ public:
     // no copying (texture ownership)
     Entity(const Entity&) = delete;
     Entity& operator=(const Entity&) = delete;
-    // allow moving if you like (optional)
     Entity(Entity&&) noexcept = default;
     Entity& operator=(Entity&&) noexcept = default;
 
     void update();                          // advances animation by time
     void render(SDL_Renderer* renderer);    // draws current frame
 
-    // convenience
-    void setPosition(float nx, float ny);
-    void setSize(float w, float h);         // scale on screen
+    // Public API
+    void setPosition(float nx, float ny); // declared, defined in .cpp
+    void setSize(float w, float h);
+
+    // ✅ Getters for private members
+    SDL_FRect getRect() const { return dstRect; }
+    SDL_Texture* getTexture() const { return texture; }
+    SDL_FRect getSrcRect() const;
 
 private:
     float x, y;
