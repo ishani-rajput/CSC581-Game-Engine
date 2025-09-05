@@ -20,6 +20,7 @@ const char* PLAYER_ASSET   = "../assets/player.png";
 const char* GHOST_ASSET    = "../assets/ghost.png";
 const char* PLATFORM_ASSET = "../assets/platform.png";
 const char* GRAVE_ASSET    = "../assets/grave.png";
+const char* BG_SKY_ASSET   = "../assets/background_sky.png";
 
 int main(int, char**) {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -29,7 +30,7 @@ int main(int, char**) {
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
-    if (!SDL_CreateWindowAndRenderer("Dino Runner", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("Witch Runner", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("Window creation failed: %s", SDL_GetError());
         SDL_Quit();
         return 1;
@@ -37,20 +38,15 @@ int main(int, char**) {
 
     Scaling::setMode(ScaleMode::Pixel);
     Physics::setGravity(2000.f);
-    srand(static_cast<unsigned>(time(nullptr))); // RNG seed
+    srand(static_cast<unsigned>(time(nullptr))); 
+
+    SDL_Texture* bgSky = IMG_LoadTexture(renderer, BG_SKY_ASSET);
 
     // === Entities ===
-    // Entity player(renderer, PLAYER_ASSET, 100, 758, 256, 256, 1, 0);
     int winW, winH;
     SDL_GetWindowSize(window, &winW, &winH);
 
-    float playerX = 100.f;
-    float playerY = winH - 322.f; // 758 for 1080 height → scale proportionally
-    float playerW = 256.f;
-    float playerH = 256.f;
-
-    Entity player(renderer, PLAYER_ASSET, playerX, playerY, playerW, playerH, 1, 0);
-
+    Entity player(renderer, PLAYER_ASSET, 100, winH - 322.f, 256, 256, 1, 0);
     Body playerBody = { 0.f, 0.f, true };
 
     Entity platform(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
@@ -85,7 +81,6 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        // Delta time
         Uint32 now = SDL_GetTicks();
         float delta = (now - lastTick) / 1000.0f;
         lastTick = now;
@@ -100,25 +95,17 @@ int main(int, char**) {
             playerBody.vx = 0;
         }
 
-        // Flappy-style Jump
         if (Input::isKeyPressed(SDL_SCANCODE_SPACE)) {
             playerBody.vy = -900.f;
         }
 
-        // === Player Physics ===
+        // === Physics ===
         float px, py;
         player.getPosition(px, py);
         Physics::step(delta * 1000, px, py, playerBody);
 
-        // Clamp player to screen boundaries
-        if (py < 0) {
-            py = 0;
-            playerBody.vy = 0;
-        }
-        if (px < 0) {
-            px = 0;
-            playerBody.vx = 0;
-        }
+        if (py < 0) { py = 0; playerBody.vy = 0; }
+        if (px < 0) { px = 0; playerBody.vx = 0; }
         if (px > WINDOW_WIDTH - player.getRect().w) {
             px = WINDOW_WIDTH - player.getRect().w;
             playerBody.vx = 0;
@@ -127,7 +114,7 @@ int main(int, char**) {
         player.setPosition(px, py);
         player.update();
 
-        // === Ghost Physics ===
+        // === Ghost ===
         float gx, gy;
         ghost.getPosition(gx, gy);
         Physics::step(delta * 1000, gx, gy, ghostBody);
@@ -152,38 +139,36 @@ int main(int, char**) {
         ghost.update();
 
         // === Collisions ===
-
-        // Player + Platform
         if (aabbIntersect(player.getRect(), platform.getRect())) {
             playerBody.vy = 0;
             float newY = platform.getRect().y - player.getRect().h;
             player.setPosition(px, newY);
         }
 
-        // Player + Ghost
         if (aabbIntersect(player.getRect(), ghost.getRect())) {
-            std::cout << "👻 You hit the ghost! Resetting...\n";
-            player.setPosition(100, 758);
-            playerBody.vx = 0;
-            playerBody.vy = 0;
+            std::cout << "You hit the ghost! Resetting...\n";
+            player.setPosition(100, winH - 322.f);
+            playerBody = { 0, 0, true };
         }
 
-        // Player + Grave
         if (aabbIntersect(player.getRect(), grave.getRect())) {
             if (!graveTouched) {
-                std::cout << "🪦 You touched the grave! Resetting...\n";
+                std::cout << "You touched the grave! Resetting...\n";
                 graveTouched = true;
             }
-            player.setPosition(100, 758);
-            playerBody.vx = 0;
-            playerBody.vy = 0;
+            player.setPosition(100, winH - 322.f);
+            playerBody = { 0, 0, true };
         } else {
             graveTouched = false;
         }
 
         // === Rendering ===
-        SDL_SetRenderDrawColor(renderer, 50, 100, 255, 255);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
+
+        if (bgSky) {
+            SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
+        }
 
         platform.render(renderer, window);
         grave.render(renderer, window);
@@ -193,6 +178,8 @@ int main(int, char**) {
         SDL_RenderPresent(renderer);
     }
 
+    // Cleanup
+    SDL_DestroyTexture(bgSky);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
