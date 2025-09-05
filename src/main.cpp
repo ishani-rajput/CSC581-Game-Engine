@@ -29,7 +29,7 @@ void clampPlayerPosition(float& playerX, float& playerY, float playerWidth, floa
 
 int main(int, char**) {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("Feeling Spikey - Scaling System (Press S to toggle)", 
+    SDL_Window* window = SDL_CreateWindow("Feeling Spikey", 
                                          DESIGN_WIDTH, DESIGN_HEIGHT, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     Scaling::setMode(ScaleMode::Proportional);
