@@ -15,17 +15,17 @@ public:
     Entity(Entity&&) noexcept = default;
     Entity& operator=(Entity&&) noexcept = default;
 
-    void update();                          // advances animation by time
-    void render(SDL_Renderer* renderer);    // draws current frame
+    void update();
+    void render(SDL_Renderer* renderer);
+    void render(SDL_Renderer* renderer, SDL_Window* win);
 
-    // Public API
-    void setPosition(float nx, float ny); // declared, defined in .cpp
+    void setPosition(float nx, float ny);
     void setSize(float w, float h);
 
-    // ✅ Getters for private members
-    SDL_FRect getRect() const { return dstRect; }
-    SDL_Texture* getTexture() const { return texture; }
-    SDL_FRect getSrcRect() const;
+    void getPosition(float& outX, float& outY) const;
+
+    SDL_FRect getRect() const;               // returns raw dstRect (pixel mode)
+    SDL_FRect getRect(SDL_Window* win) const; // returns scaled rect (proportional mode)
 
 private:
     float x, y;
@@ -35,6 +35,6 @@ private:
     int frameCount;
     int frameWidth, frameHeight;
     int currentFrame = 0;
-    Uint32 lastFrameTime = 0; // ms
-    int frameDelay = 0;       // ms per frame
+    Uint32 lastFrameTime = 0;
+    int frameDelay = 0;
 };

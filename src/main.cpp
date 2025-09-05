@@ -8,50 +8,39 @@
 #include "physics.h"
 #include "collision.h"
 
-// Original design resolution - everything is designed for this size
-const int DESIGN_WIDTH = 1500;
+const int DESIGN_WIDTH = 1720;
 const int DESIGN_HEIGHT = 1080;
 
 const float PLAYER_SPEED = 300.f;
 const float JUMP_VELOCITY = -1000.f;
 
-// Global scaling variables
-float g_scaleX = 1.0f;
-float g_scaleY = 1.0f;
-
-// Simple function to update scale based on window size
-void updateScale(SDL_Window* window) {
-    int currentWidth, currentHeight;
-    SDL_GetWindowSize(window, &currentWidth, &currentHeight);
-    
-    g_scaleX = (float)currentWidth / (float)DESIGN_WIDTH;
-    g_scaleY = (float)currentHeight / (float)DESIGN_HEIGHT;
-}
-
-// Helper to scale any rectangle from design size to current window size
-SDL_FRect scaleRect(float x, float y, float w, float h) {
-    return { x * g_scaleX, y * g_scaleY, w * g_scaleX, h * g_scaleY };
-}
-
 bool checkCollision(const SDL_FRect& a, const SDL_FRect& b) {
     return aabbIntersect(a, b);
 }
 
+void clampPlayerPosition(float& playerX, float& playerY, float playerWidth, float playerHeight) {
+    if (playerX < 0) playerX = 0;
+    if (playerX + playerWidth > DESIGN_WIDTH) playerX = DESIGN_WIDTH - playerWidth;
+    
+    if (playerY > DESIGN_HEIGHT) {
+        playerY = DESIGN_HEIGHT - playerHeight;
+    }
+}
+
 int main(int, char**) {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("Feeling Spikey - Simple Scaling", 
+    SDL_Window* window = SDL_CreateWindow("Feeling Spikey - Scaling System (Press S to toggle)", 
                                          DESIGN_WIDTH, DESIGN_HEIGHT, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
+    Scaling::setMode(ScaleMode::Proportional);
 
     Physics::setGravity(2000.f);
 
-    // === Load assets ===
     Entity groundBottom(renderer, "../assets/ground_bottom.png", 0, 0, 64, 64, 1, 0);
     Entity groundTop(renderer, "../assets/ground.png", 0, 0, 64, 64, 1, 0);
     Entity platform(renderer, "../assets/platform.png", 0, 0, 384, 128, 1, 0);
     Entity spike(renderer, "../assets/spikes.png", 0, 0, 256, 256, 1, 0);
 
-    // Player setup - these are the DESIGN dimensions
     int frameCount = 8;
     int frameWidth = 128;
     int frameHeight = 128;
@@ -61,7 +50,6 @@ int main(int, char**) {
     
     Entity player(renderer, "../assets/player.png", 0, 0, frameWidth, frameHeight, frameCount, 150);
 
-    // === Game layout in DESIGN coordinates (1920x1080) ===
     float platformWidth = 400.f;
     float platformHeight = 500.f;
     float leftX = 0.f;
@@ -69,7 +57,6 @@ int main(int, char**) {
     float rightX = DESIGN_WIDTH - platformWidth;
     float rightY = DESIGN_HEIGHT - platformHeight;
 
-    // Moving platform in design coordinates
     SDL_FRect movingPlatform = { 
         DESIGN_WIDTH / 2.f - 192, 
         DESIGN_HEIGHT - platformHeight - 200, 
@@ -79,16 +66,12 @@ int main(int, char**) {
     float platformSpeed = 200.f;
     int platformDir = 1;
 
-    // Player spawn in design coordinates
     float playerX = leftX + 100.f;
     float playerY = leftY - playerHeight;
     Body playerBody = { 0.f, 0.f, true };
     
     float prevPlayerX = playerX;
     float prevPlayerY = playerY;
-
-    // Initialize scale
-    updateScale(window);
 
     Uint32 lastTicks = SDL_GetTicks();
     bool running = true;
@@ -101,10 +84,19 @@ int main(int, char**) {
             if (e.type == SDL_EVENT_QUIT) 
                 running = false;
             
-            // IMPORTANT: Update scaling when window is resized by mouse
             if (e.type == SDL_EVENT_WINDOW_RESIZED) {
-                updateScale(window);
-                SDL_Log("Window resized! New scale: %.2fx, %.2fy", g_scaleX, g_scaleY);
+                clampPlayerPosition(playerX, playerY, playerWidth, playerHeight);
+                SDL_Log("Window resized! Scaling system will handle automatically.");
+            }
+            
+            if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_S) {
+                if (Scaling::mode() == ScaleMode::Pixel) {
+                    Scaling::setMode(ScaleMode::Proportional);
+                    SDL_Log("Switched to Proportional scaling mode");
+                } else {
+                    Scaling::setMode(ScaleMode::Pixel);
+                    SDL_Log("Switched to Pixel scaling mode");
+                }
             }
         }
 
@@ -113,11 +105,12 @@ int main(int, char**) {
         Uint32 now = SDL_GetTicks();
         float dt = (now - lastTicks) / 1000.f;
         lastTicks = now;
+        
+        if (dt > 0.05f) dt = 0.05f;
 
         prevPlayerX = playerX;
         prevPlayerY = playerY;
 
-        // === Input - keep in design space ===
         playerBody.vx = 0.f;
         
         if (Input::isKeyPressed(SDL_SCANCODE_A)) {
@@ -130,37 +123,46 @@ int main(int, char**) {
             playerBody.vy = JUMP_VELOCITY;
         }
 
-        // === Physics - keep in design space ===
         Physics::step(dt * 1000, playerX, playerY, playerBody);
 
-        // === Collision detection - all in design coordinates ===
+        clampPlayerPosition(playerX, playerY, playerWidth, playerHeight);
+
         SDL_FRect playerRect = { playerX, playerY, playerWidth, playerHeight };
         isGrounded = false;
 
-        // Left platform collision
         SDL_FRect leftPlatformRect = { leftX, leftY, platformWidth, platformHeight };
         if (checkCollision(playerRect, leftPlatformRect)) {
-            if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= leftY + 10) {
+            if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= leftY + 20) {
                 playerY = leftY - playerHeight;
                 playerBody.vy = 0;
                 isGrounded = true;
+            } else if (playerBody.vx < 0 && prevPlayerX >= leftX + platformWidth - 10) {
+                playerX = leftX + platformWidth;
+                playerBody.vx = 0;
+            } else if (playerBody.vx > 0 && prevPlayerX + playerWidth <= leftX + 10) {
+                playerX = leftX - playerWidth;
+                playerBody.vx = 0;
             }
         }
 
-        // Right platform collision
         SDL_FRect rightPlatformRect = { rightX, rightY, platformWidth, platformHeight };
         if (checkCollision(playerRect, rightPlatformRect)) {
-            if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= rightY + 10) {
+            if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= rightY + 20) {
                 playerY = rightY - playerHeight;
                 playerBody.vy = 0;
                 isGrounded = true;
+            } else if (playerBody.vx < 0 && prevPlayerX >= rightX + platformWidth - 10) {
+                playerX = rightX + platformWidth;
+                playerBody.vx = 0;
+            } else if (playerBody.vx > 0 && prevPlayerX + playerWidth <= rightX + 10) {
+                playerX = rightX - playerWidth;
+                playerBody.vx = 0;
             }
         }
 
-        // Moving platform collision
         SDL_FRect movingPlatformRect = { movingPlatform.x, movingPlatform.y, movingPlatform.w, movingPlatform.h };
         if (checkCollision(playerRect, movingPlatformRect)) {
-            if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= movingPlatform.y + 10) {
+            if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= movingPlatform.y + 20) {
                 playerY = movingPlatform.y - playerHeight;
                 playerBody.vy = 0;
                 playerX += platformSpeed * platformDir * dt; // ride along
@@ -168,14 +170,12 @@ int main(int, char**) {
             }
         }
 
-        // === Spike collision ===
         float spikeW = 300.f;
         float spikeH = 389.f;
         float spikeY = DESIGN_HEIGHT - spikeH;
         for (float x = platformWidth; x < DESIGN_WIDTH - platformWidth; x += spikeW) {
             SDL_FRect spikeRect = { x, spikeY, spikeW, spikeH };
             if (checkCollision(playerRect, spikeRect)) {
-                // Reset player to starting point
                 playerX = leftX + 100.f;
                 playerY = leftY - playerHeight;
                 playerBody.vx = 0.f;
@@ -185,9 +185,15 @@ int main(int, char**) {
             }
         }
 
+        if (playerY > DESIGN_HEIGHT + 100) {
+            playerX = leftX + 100.f;
+            playerY = leftY - playerHeight;
+            playerBody.vx = 0.f;
+            playerBody.vy = 0.f;
+        }
+
         wasGrounded = isGrounded;
 
-        // === Move platform in design space ===
         movingPlatform.x += platformSpeed * platformDir * dt;
         if (movingPlatform.x < platformWidth) {
             movingPlatform.x = platformWidth;
@@ -197,62 +203,39 @@ int main(int, char**) {
             platformDir = -1;
         }
 
-        // === RENDERING - Scale everything to current window size ===
         SDL_SetRenderDrawColor(renderer, 135, 206, 235, 255);
         SDL_RenderClear(renderer);
 
-        // Render spikes - convert from design to screen coordinates
         for (float x = platformWidth; x < DESIGN_WIDTH - platformWidth; x += spikeW) {
-            SDL_FRect screenSpike = scaleRect(x, spikeY, spikeW, spikeH);
-            spike.setPosition(screenSpike.x, screenSpike.y);
-            spike.setSize(screenSpike.w, screenSpike.h);
-            spike.render(renderer);
+            spike.setPosition(x, spikeY);
+            spike.setSize(spikeW, spikeH);
+            spike.render(renderer, window);
         }
 
-        // Left platform bottom
-        SDL_FRect screenLeftBottom = scaleRect(leftX, leftY, platformWidth, platformHeight);
-        groundBottom.setPosition(screenLeftBottom.x, screenLeftBottom.y);
-        groundBottom.setSize(screenLeftBottom.w, screenLeftBottom.h);
-        groundBottom.render(renderer);
+        groundBottom.setPosition(leftX, leftY);
+        groundBottom.setSize(platformWidth, platformHeight);
+        groundBottom.render(renderer, window);
 
-        // Left platform top
-        SDL_FRect screenLeftTop = scaleRect(leftX, leftY - 64, platformWidth, 64);
-        groundTop.setPosition(screenLeftTop.x, screenLeftTop.y);
-        groundTop.setSize(screenLeftTop.w, screenLeftTop.h);
-        groundTop.render(renderer);
+        groundTop.setPosition(leftX, leftY - 64);
+        groundTop.setSize(platformWidth, 64);
+        groundTop.render(renderer, window);
 
-        // Right platform bottom
-        SDL_FRect screenRightBottom = scaleRect(rightX, rightY, platformWidth, platformHeight);
-        groundBottom.setPosition(screenRightBottom.x, screenRightBottom.y);
-        groundBottom.setSize(screenRightBottom.w, screenRightBottom.h);
-        groundBottom.render(renderer);
+        groundBottom.setPosition(rightX, rightY);
+        groundBottom.setSize(platformWidth, platformHeight);
+        groundBottom.render(renderer, window);
 
-        // Right platform top
-        SDL_FRect screenRightTop = scaleRect(rightX, rightY - 64, platformWidth, 64);
-        groundTop.setPosition(screenRightTop.x, screenRightTop.y);
-        groundTop.setSize(screenRightTop.w, screenRightTop.h);
-        groundTop.render(renderer);
+        groundTop.setPosition(rightX, rightY - 64);
+        groundTop.setSize(platformWidth, 64);
+        groundTop.render(renderer, window);
 
-        // Moving platform
-        SDL_FRect screenMoving = scaleRect(movingPlatform.x, movingPlatform.y, movingPlatform.w, movingPlatform.h);
-        platform.setPosition(screenMoving.x, screenMoving.y);
-        platform.setSize(screenMoving.w, screenMoving.h);
-        platform.render(renderer);
+        platform.setPosition(movingPlatform.x, movingPlatform.y);
+        platform.setSize(movingPlatform.w, movingPlatform.h);
+        platform.render(renderer, window);
 
-        // Player - scale from design coordinates to screen
-        SDL_FRect screenPlayer = scaleRect(playerX, playerY, playerWidth, playerHeight);
-        
-        // Debug: Log player position occasionally
-        static int debugCounter = 0;
-        if (++debugCounter % 120 == 0) { // Every 2 seconds at 60fps
-            SDL_Log("Player - Design: (%.1f,%.1f) Screen: (%.1f,%.1f) Scale: (%.2f,%.2f)", 
-                   playerX, playerY, screenPlayer.x, screenPlayer.y, g_scaleX, g_scaleY);
-        }
-        
-        player.setPosition(screenPlayer.x, screenPlayer.y);
-        player.setSize(screenPlayer.w, screenPlayer.h);
+        player.setPosition(playerX, playerY);
+        player.setSize(playerWidth, playerHeight);
         player.update(); // Update animation frame
-        player.render(renderer);
+        player.render(renderer, window);
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
