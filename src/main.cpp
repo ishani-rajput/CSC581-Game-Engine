@@ -9,7 +9,7 @@
 #include "collision.h"
 
 // Original design resolution - everything is designed for this size
-const int DESIGN_WIDTH = 1920;
+const int DESIGN_WIDTH = 1500;
 const int DESIGN_HEIGHT = 1080;
 
 const float PLAYER_SPEED = 300.f;
@@ -241,6 +241,14 @@ int main(int, char**) {
 
         // Player - scale from design coordinates to screen
         SDL_FRect screenPlayer = scaleRect(playerX, playerY, playerWidth, playerHeight);
+        
+        // Debug: Log player position occasionally
+        static int debugCounter = 0;
+        if (++debugCounter % 120 == 0) { // Every 2 seconds at 60fps
+            SDL_Log("Player - Design: (%.1f,%.1f) Screen: (%.1f,%.1f) Scale: (%.2f,%.2f)", 
+                   playerX, playerY, screenPlayer.x, screenPlayer.y, g_scaleX, g_scaleY);
+        }
+        
         player.setPosition(screenPlayer.x, screenPlayer.y);
         player.setSize(screenPlayer.w, screenPlayer.h);
         player.update(); // Update animation frame
