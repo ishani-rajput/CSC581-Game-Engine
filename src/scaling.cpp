@@ -19,8 +19,8 @@ SDL_FRect Scaling::compute(const SDL_FRect& logical, SDL_Window* win) {
     SDL_GetWindowSize(win, &ww, &wh);
 
     // Base (design) resolution - match your game's base resolution
-    constexpr float baseW = 1500.0f;
-    constexpr float baseH = 900.0f;
+    constexpr float baseW = 1920.0f;
+    constexpr float baseH = 1080.0f;
 
     float scaleX = ww / baseW;
     float scaleY = wh / baseH;
