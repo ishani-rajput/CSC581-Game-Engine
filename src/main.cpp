@@ -1,4 +1,3 @@
-
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
@@ -17,7 +16,7 @@ struct PipePair {
 };
 
 // Helpers
-static float frand(float a, float b){ 
+static float floatRand(float a, float b){ 
     return a + (b-a) * (float)rand()/(float)RAND_MAX; 
 }
 
@@ -61,10 +60,10 @@ int main(int, char**){
     const float FRAME_W=texW/FRAME_COUNT, FRAME_H=texH;
     int currentFrame=0; Uint32 lastAnimTick=SDL_GetTicks();
     // world & player
-    float WORLD_W=1920.f, WORLD_H=1080.f;  // Initial world size matching window
-    // Set character size 
-    float characterSize = 108.f;  // Fixed size for pixel mode (10% of 1080)
-    SDL_FRect skully={ 480.f, 540.f, characterSize, characterSize };  // Fixed position for pixel mode
+    float WORLD_W=1920.f, WORLD_H=1080.f;  
+
+    float characterSize = 108.f;  
+    SDL_FRect skully={ 480.f, 540.f, characterSize, characterSize };  
     Body skBody; skBody.affectedByGravity=true; Physics::setGravity(2400.f);
     const float JUMP_VELOCITY=-900.f;
     // ground
@@ -74,7 +73,6 @@ int main(int, char**){
     const float PIPE_SPEED=-450.f, PIPE_W=140.f, PIPE_GAP=280.f;
     const float PIPE_SPAWN_EVERY=1.4f; 
     float spawnTimer=0.f;
-    // timing/input
     Uint32 lastTicks=SDL_GetTicks(); 
     bool running=true; 
     SDL_Event ev; 
@@ -91,7 +89,7 @@ int main(int, char**){
         spawnTimer=0.f; 
     };
     auto spawnPipe=[&](){
-        float center = frand(1080.0f*0.30f, 1080.0f*0.70f);
+        float center = floatRand(1080.0f*0.30f, 1080.0f*0.70f);
         float topH = center - PIPE_GAP*0.5f;
         float bottomY = center + PIPE_GAP*0.5f;
         
@@ -158,7 +156,7 @@ int main(int, char**){
             } 
         }
         if(hit) resetPipesOnly();
-        // handle window resize 
+        // window resize 
         int ww=0, wh=0; SDL_GetWindowSize(window, &ww, &wh);
         if (ww != winW || wh != winH) {
             // Update stored window size
