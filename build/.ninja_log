@@ -1,15 +1,10 @@
 # ninja log v6
 21	237	7789941331606605	CMakeFiles/main.dir/src/physics.cpp.obj	a6f123edeffc9d60
-10	398	7789956001890001	CMakeFiles/main.dir/src/main.cpp.obj	c03f5bbd4bec7aea
+8	398	7790823832983022	CMakeFiles/main.dir/src/main.cpp.obj	c03f5bbd4bec7aea
 16	241	7789941331541458	CMakeFiles/main.dir/src/input.cpp.obj	d04128be9ce942e2
-13	178	7789948253247262	CMakeFiles/main.dir/src/scaling.cpp.obj	ffefd880ac1cfa29
+41	222	7790822843569331	CMakeFiles/main.dir/src/scaling.cpp.obj	ffefd880ac1cfa29
 12	529	7789941331511206	CMakeFiles/main.dir/src/entity.cpp.obj	ce5b929d76e22865
-398	542	7789956005822320	main.exe	d6ef488a71b08a91
-91	2580	7790662613497384	CMakeFiles/main.dir/src/scaling.cpp.obj	ffefd880ac1cfa29
-86	3820	7790662613462369	CMakeFiles/main.dir/src/main.cpp.obj	c03f5bbd4bec7aea
-3820	4196	7790662650794343	main.exe	d6ef488a71b08a91
-12	181	7790683417074976	CMakeFiles/main.dir/src/scaling.cpp.obj	ffefd880ac1cfa29
-8	412	7790683417048310	CMakeFiles/main.dir/src/main.cpp.obj	c03f5bbd4bec7aea
-412	560	7790683421072997	main.exe	d6ef488a71b08a91
-7	385	7790710048354096	CMakeFiles/main.dir/src/main.cpp.obj	c03f5bbd4bec7aea
-386	531	7790710052150655	main.exe	d6ef488a71b08a91
+399	586	7790823836951506	main.exe	d6ef488a71b08a91
+37	228	7790824737744016	CMakeFiles/main.dir/src/scaling.cpp.obj	ffefd880ac1cfa29
+31	472	7790824737685276	CMakeFiles/main.dir/src/main.cpp.obj	c03f5bbd4bec7aea
+481	619	7790824742182473	main.exe	d6ef488a71b08a91
