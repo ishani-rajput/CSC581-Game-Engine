@@ -1,5 +1,4 @@
-// Server with per-client asynchronous handling
-// Each client has its own thread and timeline
+// Server with per-client asynchronous handling + unified ghost timeline controls
 
 #include <SDL3/SDL.h>
 #include <unordered_map>
@@ -52,9 +51,12 @@ inline bool AABB(float ax,float ay,float aw,float ah,float bx,float by,float bw,
     return (ax < bx + bw) && (ax + aw > bx) && (ay < by + bh) && (ay + ah > by);
 }
 
-std::mutex mtx;
+std::mutex mtx; 
 std::unordered_map<int, Player> players;
 std::atomic<bool> serverRunning(true);
+
+// Global ghost timeline (shared by all clients)
+Timeline gGhostTime;
 
 void client_thread(void* ctx, int id) {
     void* rep = zmq_socket(ctx, ZMQ_REP);
@@ -75,23 +77,33 @@ void client_thread(void* ctx, int id) {
             buf[n] = 0;
             auto toks = split_ws(buf);
             std::string reply = "ERR";
-            if (toks.size() >= 1) {
+            if (!toks.empty()) {
                 if (toks[0] == "INPUT" && toks.size() == 4) {
                     float vx = std::stof(toks[2]);
                     int jump = std::stoi(toks[3]);
                     std::lock_guard<std::mutex> lk(mtx);
                     Player& p = players[id];
                     p.vx = vx;
-                    if (jump) {   // Flappy Bird style: always flap
+                    if (jump) {   // Flappy Bird style
                         p.vy = -900.f;
                         p.onGround = false;
                     }
                     reply = "OK";
                 } else if (toks[0] == "SPEED" && toks.size() == 2) {
-                    timeline.setScale(std::stod(toks[1]));
+                    double s = std::stod(toks[1]);
+                    timeline.setScale(s);        // player timeline
+                    {
+                        std::lock_guard<std::mutex> lk(mtx);
+                        gGhostTime.setScale(s);  // ghost timeline
+                    }
                     reply = "OK";
                 } else if (toks[0] == "PAUSE" && toks.size() == 2) {
-                    timeline.pause(toks[1] == "ON");
+                    bool on = (toks[1] == "ON");
+                    timeline.pause(on);
+                    {
+                        std::lock_guard<std::mutex> lk(mtx);
+                        gGhostTime.pause(on);
+                    }
                     reply = "OK";
                 }
             }
@@ -108,25 +120,21 @@ void client_thread(void* ctx, int id) {
             std::lock_guard<std::mutex> lk(mtx);
             Player& p = players[id];
 
-            // Integrate
             p.vy += Physics::gravity() * dt;
             p.x += p.vx * dt;
             p.y += p.vy * dt;
             p.onGround = false;
 
-            // World bounds
             if (p.y < 0) { p.y = 0; p.vy = 0; }
             if (p.x < 0) { p.x = 0; p.vx = 0; }
             if (p.x > WINDOW_WIDTH - 256) { p.x = WINDOW_WIDTH - 256; p.vx = 0; }
 
-            // Platform (0,950,1920,130)
             if (AABB(p.x,p.y,256,256, 0,950,1920,130)) {
                 p.vy = 0;
                 p.y = 950 - 256;
                 p.onGround = true;
             }
 
-            // Collisions with grave or ghost reset player
             if (AABB(p.x,p.y,256,256, 700,700,256,256) ||
                 AABB(p.x,p.y,256,256, ghost.x,ghost.y,256,256)) {
                 p = Player{};
@@ -143,9 +151,11 @@ int main() {
     Physics::setGravity(2000.f);
     srand(static_cast<unsigned>(time(nullptr)));
 
+    gGhostTime.anchorToRealTime();
+    gGhostTime.setScale(1.0);
+
     void* ctx = zmq_ctx_new();
 
-    // PUB for world snapshots
     void* pub = zmq_socket(ctx, ZMQ_PUB);
     zmq_bind(pub, "tcp://*:5556");
     int hwm = 1;
@@ -156,19 +166,14 @@ int main() {
     int nextId = 1;
     std::map<int, std::thread> clientThreads;
 
-    // JOIN listener
     void* joinSock = zmq_socket(ctx, ZMQ_REP);
     zmq_bind(joinSock, "tcp://*:5555");
     zmq_setsockopt(joinSock, ZMQ_LINGER, &linger0, sizeof(linger0));
 
-    // Ghost timeline
-    Timeline ghostTime;
-    ghostTime.anchorToRealTime();
-
     double accum = 0.0;
     Uint64 prev = SDL_GetTicks();
 
-    std::cout << "Server started. Listening for JOINs on port 5555, publishing STATE on port 5556...\n";
+    std::cout << "Server started. JOIN on 5555, STATE PUB on 5556, REQ on 6000+id\n";
 
     while (serverRunning) {
         Uint64 now = SDL_GetTicks();
@@ -191,12 +196,16 @@ int main() {
                 clientThreads[id] = std::thread(client_thread, ctx, id);
                 std::string reply = "ASSIGN " + std::to_string(id);
                 zmq_send(joinSock, reply.c_str(), (int)reply.size(), 0);
-                std::cout << "Client joined with id=" << id << "\n";
+                std::cout << "Client joined id=" << id << "\n";
             }
         }
 
         // Ghost AI step
-        float gdt = static_cast<float>(ghostTime.tick());
+        float gdt;
+        {
+            std::lock_guard<std::mutex> lk(mtx);
+            gdt = static_cast<float>(gGhostTime.tick());
+        }
         ghost.x += ghost.vx * gdt;
         ghost.y += ghost.vy * gdt;
 

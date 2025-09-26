@@ -1,13 +1,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
-#include <atomic>
-#include <thread>
-#include <mutex>
-#include <chrono>
 #include <iostream>
-#include <cstdlib>
-#include <ctime>
 #include <sstream>
 #include <unordered_map>
 #include <zmq.h>
@@ -41,9 +35,7 @@ int main(int, char**) {
     Scaling::setMode(ScaleMode::Pixel);
     Physics::setGravity(2000.f);
 
-    // === Networking ===
     void* ctx = zmq_ctx_new();
-    // Join
     void* join = zmq_socket(ctx, ZMQ_REQ);
     zmq_connect(join, "tcp://localhost:5555");
     zmq_send(join, "JOIN", 4, 0);
@@ -52,17 +44,14 @@ int main(int, char**) {
     zmq_close(join);
     std::cout << "Client joined as id=" << myId << "\n";
 
-    // Input socket
     void* req = zmq_socket(ctx, ZMQ_REQ);
     std::string addr = "tcp://localhost:" + std::to_string(6000 + myId);
     zmq_connect(req, addr.c_str());
 
-    // Subscribe to server state
     void* sub = zmq_socket(ctx, ZMQ_SUB);
     zmq_connect(sub, "tcp://localhost:5556");
     zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0);
 
-    // === Load assets ===
     SDL_Texture* bgSky = IMG_LoadTexture(renderer, BG_SKY_ASSET);
     Entity platformE(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
     Entity graveE(renderer, GRAVE_ASSET, 700, 700, 256, 256, 1, 0);
@@ -77,13 +66,17 @@ int main(int, char**) {
     bool paused = false;
     SDL_Event ev;
 
+    auto send_cmd = [&](const std::string& msg){
+        zmq_send(req, msg.c_str(), msg.size(), 0);
+        zmq_recv(req, buf, sizeof(buf), 0);
+    };
+
     while (running) {
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_EVENT_QUIT) running = false;
         }
         Input::poll();
 
-        // Scaling toggle (client-local)
         bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
         if (tNow && !prevT) {
             auto current = Scaling::mode();
@@ -91,43 +84,28 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        // Pause / speed commands (send to server)
+        // Unified pause/speed (player + ghost)
         if (Input::isKeyPressed(SDL_SCANCODE_P)) {
             paused = !paused;
-            std::string msg = std::string("PAUSE ") + (paused ? "ON" : "OFF");
-            zmq_send(req, msg.c_str(), msg.size(), 0);
-            zmq_recv(req, buf, sizeof(buf), 0);
+            send_cmd(std::string("PAUSE ") + (paused ? "ON" : "OFF"));
+            std::cout << "[Client " << myId << "] Pause=" << paused << " (player+ghost)\n";
         }
-        if (Input::isKeyPressed(SDL_SCANCODE_1)) {
-            std::string msg = "SPEED 0.5";
-            zmq_send(req, msg.c_str(), msg.size(), 0);
-            zmq_recv(req, buf, sizeof(buf), 0);
-        }
-        if (Input::isKeyPressed(SDL_SCANCODE_2)) {
-            std::string msg = "SPEED 1.0";
-            zmq_send(req, msg.c_str(), msg.size(), 0);
-            zmq_recv(req, buf, sizeof(buf), 0);
-        }
-        if (Input::isKeyPressed(SDL_SCANCODE_3)) {
-            std::string msg = "SPEED 2.0";
-            zmq_send(req, msg.c_str(), msg.size(), 0);
-            zmq_recv(req, buf, sizeof(buf), 0);
-        }
+        if (Input::isKeyPressed(SDL_SCANCODE_1)) { send_cmd("SPEED 0.5"); }
+        if (Input::isKeyPressed(SDL_SCANCODE_2)) { send_cmd("SPEED 1.0"); }
+        if (Input::isKeyPressed(SDL_SCANCODE_3)) { send_cmd("SPEED 2.0"); }
 
-        // Movement / jump input
+        // Movement input
         float vx = 0; 
         if (Input::isKeyPressed(SDL_SCANCODE_A)) vx = -400.f;
         else if (Input::isKeyPressed(SDL_SCANCODE_D)) vx = 400.f;
         bool jump = Input::isKeyPressed(SDL_SCANCODE_SPACE);
 
-        // Send INPUT to server
         std::ostringstream oss;
         oss << "INPUT " << myId << " " << vx << " " << (jump ? 1 : 0);
         std::string msg = oss.str();
         zmq_send(req, msg.c_str(), msg.size(), 0);
         zmq_recv(req, buf, sizeof(buf), 0);
 
-        // Receive state
         int n = zmq_recv(sub, buf, sizeof(buf)-1, ZMQ_DONTWAIT);
         if (n > 0) {
             buf[n] = 0;
@@ -146,7 +124,6 @@ int main(int, char**) {
             }
         }
 
-        // Render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         if (bgSky) SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
