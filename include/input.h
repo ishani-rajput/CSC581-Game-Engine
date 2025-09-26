@@ -3,10 +3,10 @@
 
 class Input {
 public:
-    static void poll(); // call once per frame (after SDL_PollEvent loop)
+    static void poll(); 
     static bool isKeyPressed(SDL_Scancode sc);
 
 private:
-    static const bool* s_state; // SDL3: bools, not Uint8s
+    static const bool* s_state; 
     static int s_len;
 };

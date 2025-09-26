@@ -11,6 +11,7 @@
 #include "scaling.h"
 #include "physics.h"
 #include "collision.h"
+#include "timeline.h" 
 
 const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1080;
@@ -60,8 +61,10 @@ int main(int, char**) {
     SDL_Event ev;
     bool running = true;
     bool prevT = false;
-    Uint32 lastTick = SDL_GetTicks();
     bool graveTouched = false;
+
+    Timeline gameTime;
+    gameTime.anchorToRealTime();
 
     while (running) {
         while (SDL_PollEvent(&ev)) {
@@ -71,7 +74,7 @@ int main(int, char**) {
 
         Input::poll();
 
-        // Toggle Scaling
+        // Toggle scaling mode
         bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
         if (tNow && !prevT) {
             ScaleMode current = Scaling::mode();
@@ -81,11 +84,28 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        Uint32 now = SDL_GetTicks();
-        float delta = (now - lastTick) / 1000.0f;
-        lastTick = now;
+        // ===  Time Control ===
+        if (Input::isKeyPressed(SDL_SCANCODE_P)) {
+            gameTime.togglePause();
+            SDL_Log("Game %s", gameTime.isPaused() ? "paused" : "resumed");
+        }
+        if (Input::isKeyPressed(SDL_SCANCODE_1)) {
+            gameTime.setScale(0.5);
+            SDL_Log("Game speed set to 0.5x");
+        }
+        if (Input::isKeyPressed(SDL_SCANCODE_2)) {
+            gameTime.setScale(1.0);
+            SDL_Log("Game speed set to 1.0x");
+        }
+        if (Input::isKeyPressed(SDL_SCANCODE_3)) {
+            gameTime.setScale(2.0);
+            SDL_Log("Game speed set to 2.0x");
+        }
 
-        // === Player Controls ===
+        // Tick time
+        float delta = static_cast<float>(gameTime.tick());
+
+        // === Controls ===
         float speed = 400.f;
         if (Input::isKeyPressed(SDL_SCANCODE_A)) {
             playerBody.vx = -speed;
@@ -178,7 +198,6 @@ int main(int, char**) {
         SDL_RenderPresent(renderer);
     }
 
-    // Cleanup
     SDL_DestroyTexture(bgSky);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

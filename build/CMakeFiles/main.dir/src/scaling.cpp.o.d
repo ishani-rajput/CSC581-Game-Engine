@@ -1,6 +1,6 @@
 CMakeFiles/main.dir/src/scaling.cpp.o: \
-  /Users/ishanirajput/CSC581-Game-Engine/src/scaling.cpp \
-  /Users/ishanirajput/CSC581-Game-Engine/include/scaling.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/scaling.cpp \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/scaling.h \
   /opt/homebrew/include/SDL3/SDL.h \
   /opt/homebrew/include/SDL3/SDL_stdinc.h \
   /opt/homebrew/include/SDL3/SDL_platform_defines.h \

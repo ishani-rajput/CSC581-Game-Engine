@@ -9,6 +9,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/main.dir/src/physics.cpp.o.d"
   "CMakeFiles/main.dir/src/scaling.cpp.o"
   "CMakeFiles/main.dir/src/scaling.cpp.o.d"
+  "CMakeFiles/main.dir/src/timeline.cpp.o"
+  "CMakeFiles/main.dir/src/timeline.cpp.o.d"
   "main"
   "main.pdb"
 )

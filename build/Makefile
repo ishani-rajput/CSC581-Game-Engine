@@ -57,10 +57,10 @@ RM = /opt/homebrew/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/ishanirajput/CSC581-Game-Engine
+CMAKE_SOURCE_DIR = "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine"
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/ishanirajput/CSC581-Game-Engine/build
+CMAKE_BINARY_DIR = "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build"
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -87,9 +87,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/ishanirajput/CSC581-Game-Engine/build/CMakeFiles /Users/ishanirajput/CSC581-Game-Engine/build//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build//CMakeFiles/progress.marks"
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/ishanirajput/CSC581-Game-Engine/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" 0
 .PHONY : all
 
 # The main clean target
@@ -249,6 +249,30 @@ src/scaling.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/scaling.cpp.s
 .PHONY : src/scaling.cpp.s
 
+src/timeline.o: src/timeline.cpp.o
+.PHONY : src/timeline.o
+
+# target to build an object file
+src/timeline.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.o
+.PHONY : src/timeline.cpp.o
+
+src/timeline.i: src/timeline.cpp.i
+.PHONY : src/timeline.i
+
+# target to preprocess a source file
+src/timeline.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.i
+.PHONY : src/timeline.cpp.i
+
+src/timeline.s: src/timeline.cpp.s
+.PHONY : src/timeline.s
+
+# target to generate assembly for a file
+src/timeline.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.s
+.PHONY : src/timeline.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -273,6 +297,9 @@ help:
 	@echo "... src/scaling.o"
 	@echo "... src/scaling.i"
 	@echo "... src/scaling.s"
+	@echo "... src/timeline.o"
+	@echo "... src/timeline.i"
+	@echo "... src/timeline.s"
 .PHONY : help
 
 

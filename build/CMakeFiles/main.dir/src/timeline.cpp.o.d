@@ -1,6 +1,6 @@
-CMakeFiles/main.dir/src/input.cpp.o: \
-  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/input.cpp \
-  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/input.h \
+CMakeFiles/main.dir/src/timeline.cpp.o: \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/timeline.cpp \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/timeline.h \
   /opt/homebrew/include/SDL3/SDL.h \
   /opt/homebrew/include/SDL3/SDL_stdinc.h \
   /opt/homebrew/include/SDL3/SDL_platform_defines.h \
@@ -160,4 +160,5 @@ CMakeFiles/main.dir/src/input.cpp.o: \
   /opt/homebrew/include/SDL3/SDL_timer.h \
   /opt/homebrew/include/SDL3/SDL_tray.h \
   /opt/homebrew/include/SDL3/SDL_version.h \
-  /opt/homebrew/include/SDL3/SDL_oldnames.h
+  /opt/homebrew/include/SDL3/SDL_oldnames.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstdint

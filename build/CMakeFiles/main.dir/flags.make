@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/Users/ishanirajput/CSC581-Game-Engine/include -isystem /opt/homebrew/include
+CXX_INCLUDES = -I"/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include" -isystem /opt/homebrew/include
 
 CXX_FLAGSarm64 = -std=gnu++17 -arch arm64
 

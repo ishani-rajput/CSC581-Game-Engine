@@ -13,6 +13,7 @@ add_executable(main
     ./src/input.cpp
     ./src/physics.cpp
     ./src/scaling.cpp
+    ./src/timeline.cpp
 )
 
 target_link_libraries(main

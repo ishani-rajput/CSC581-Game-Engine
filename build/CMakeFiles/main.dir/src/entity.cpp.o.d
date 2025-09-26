@@ -1,6 +1,6 @@
 CMakeFiles/main.dir/src/entity.cpp.o: \
-  /Users/ishanirajput/CSC581-Game-Engine/src/entity.cpp \
-  /Users/ishanirajput/CSC581-Game-Engine/include/entity.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/entity.cpp \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/entity.h \
   /opt/homebrew/include/SDL3/SDL.h \
   /opt/homebrew/include/SDL3/SDL_stdinc.h \
   /opt/homebrew/include/SDL3/SDL_platform_defines.h \
@@ -161,7 +161,7 @@ CMakeFiles/main.dir/src/entity.cpp.o: \
   /opt/homebrew/include/SDL3/SDL_tray.h \
   /opt/homebrew/include/SDL3/SDL_version.h \
   /opt/homebrew/include/SDL3/SDL_oldnames.h \
-  /Users/ishanirajput/CSC581-Game-Engine/include/scaling.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/scaling.h \
   /opt/homebrew/include/SDL3_image/SDL_image.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/iostream \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/version \
