@@ -216,14 +216,15 @@ int main(int, char**) {
         // Moving platform
         SDL_FRect mpRect { movingPlat.x, movingPlat.y, movingPlat.w, movingPlat.h };
         if (checkCollision(playerRect, mpRect)) {
-            if (pbody.vy >= 0 && prevPY + playerH <= movingPlat.y + 20) {
-                py = movingPlat.y - playerH;
-                pbody.vy = 0;
-                float platDX = movingPlat.x - prevPlatX;
-                px += platDX;
-                grounded = true;
-            }
-        }
+    if (pbody.vy >= 0 && prevPY + playerH <= movingPlat.y + 20) {
+        py = movingPlat.y - playerH;
+        pbody.vy = 0;
+        // Use server deltaTime for platform movement, not client timeline
+        float platDX = movingPlat.x - prevPlatX;
+        px += platDX; // This is correct - you already have this
+        grounded = true;
+    }
+}
 
         // Spikes
         float spikeW = 300.f, spikeH = 389.f, spikeY = DESIGN_HEIGHT - spikeH;
