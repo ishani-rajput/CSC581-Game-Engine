@@ -16,7 +16,7 @@
 #include "timeline.h"
 
 const int DESIGN_WIDTH  = 1720;
-const int DESIGN_HEIGHT = 900;
+const int DESIGN_HEIGHT = 1080;
 
 const float PLAYER_SPEED   = 300.f;
 const float JUMP_VELOCITY  = -1000.f;
@@ -54,9 +54,11 @@ int main(int, char**) {
 
     Physics::setGravity(2000.f);
 
-    Timeline gameTimeline; gameTimeline.anchorToRealTime();
+    // ---- Timeline for local player ----
+    Timeline gameTimeline; 
+    gameTimeline.anchorToRealTime();
 
-    // ---- Networking (Section 2: REQ/REP) ----
+    // ---- Networking (REQ/REP) ----
     void* ctx  = zmq_ctx_new();
     void* sock = zmq_socket(ctx, ZMQ_REQ);
     if (zmq_connect(sock, "tcp://localhost:5555") != 0) {
@@ -81,12 +83,12 @@ int main(int, char**) {
 
     std::unordered_map<std::string, RemotePlayer> remotes;
 
-    // Static platforms (match server layout)
+    // Static platforms
     const float leftX = 0.f, leftY = DESIGN_HEIGHT - STATIC_PLATFORM_H;
     const float rightX = DESIGN_WIDTH - STATIC_PLATFORM_W, rightY = DESIGN_HEIGHT - STATIC_PLATFORM_H;
 
-    // Server-controlled moving platform (initialize; will be overwritten by server)
-    SDL_FRect movingPlat { (STATIC_PLATFORM_W + (DESIGN_WIDTH - STATIC_PLATFORM_W - 384.f))*0.5f,   // middle-ish
+    // Server-controlled moving platform
+    SDL_FRect movingPlat { (STATIC_PLATFORM_W + (DESIGN_WIDTH - STATIC_PLATFORM_W - 384.f))*0.5f,   
                            DESIGN_HEIGHT - STATIC_PLATFORM_H - 200.f,
                            384.f, 128.f };
     int   platDir = 1;
@@ -108,9 +110,31 @@ int main(int, char**) {
             if (e.type == SDL_EVENT_WINDOW_RESIZED) {
                 clampPlayerPosition(px, py, playerW, playerH);
             }
+
+            // ---- Timeline Controls ----
+            if (e.type == SDL_EVENT_KEY_DOWN) {
+                switch (e.key.scancode) {
+                    case SDL_SCANCODE_P:
+                        gameTimeline.togglePause();
+                        SDL_Log(gameTimeline.isPaused() ? "Paused" : "Resumed");
+                        break;
+                    case SDL_SCANCODE_1:
+                        gameTimeline.setScale(0.5);
+                        SDL_Log("Speed: 0.5x");
+                        break;
+                    case SDL_SCANCODE_2:
+                        gameTimeline.setScale(1.0);
+                        SDL_Log("Speed: 1.0x");
+                        break;
+                    case SDL_SCANCODE_3:
+                        gameTimeline.setScale(2.0);
+                        SDL_Log("Speed: 2.0x");
+                        break;
+                }
+            }
         }
 
-        // -------- Networking FIRST (use latest platform for collisions) --------
+        // -------- Networking FIRST --------
         {
             char msg[256];
             snprintf(msg, sizeof(msg), "ID %s X %.3f Y %.3f", clientId.c_str(), px, py);
@@ -121,10 +145,8 @@ int main(int, char**) {
             if (rb > 0) {
                 rx[rb] = '\0';
 
-                // Mark all remotes inactive; we'll re-activate the ones we see.
                 for (auto& kv : remotes) kv.second.active = false;
 
-                // Parse lines
                 const char* line = std::strtok(rx, "\n");
                 while (line) {
                     if (line[0] == 'P') {
@@ -151,7 +173,6 @@ int main(int, char**) {
                     line = std::strtok(nullptr, "\n");
                 }
 
-                // remove inactive
                 for (auto it = remotes.begin(); it != remotes.end();) {
                     if (!it->second.active) {
                         if (it->second.entity) delete it->second.entity;
@@ -182,38 +203,30 @@ int main(int, char**) {
         SDL_FRect playerRect { px, py, playerW, playerH };
         grounded = false;
 
-        // ---- Static platform collisions (top land only) ----
+        // Static platforms
         SDL_FRect leftRect  { leftX, leftY, STATIC_PLATFORM_W, STATIC_PLATFORM_H };
         SDL_FRect rightRect { rightX, rightY, STATIC_PLATFORM_W, STATIC_PLATFORM_H };
-
-        if (checkCollision(playerRect, leftRect)) {
-            if (pbody.vy >= 0 && prevPY + playerH <= leftY + 20) {
-                py = leftY - playerH; pbody.vy = 0; grounded = true;
-            }
+        if (checkCollision(playerRect, leftRect) && pbody.vy >= 0 && prevPY + playerH <= leftY + 20) {
+            py = leftY - playerH; pbody.vy = 0; grounded = true;
         }
-        if (checkCollision(playerRect, rightRect)) {
-            if (pbody.vy >= 0 && prevPY + playerH <= rightY + 20) {
-                py = rightY - playerH; pbody.vy = 0; grounded = true;
-            }
+        if (checkCollision(playerRect, rightRect) && pbody.vy >= 0 && prevPY + playerH <= rightY + 20) {
+            py = rightY - playerH; pbody.vy = 0; grounded = true;
         }
 
-        // ---- Moving platform collision (server authoritative) ----
+        // Moving platform
         SDL_FRect mpRect { movingPlat.x, movingPlat.y, movingPlat.w, movingPlat.h };
         if (checkCollision(playerRect, mpRect)) {
-            // Top contact only
             if (pbody.vy >= 0 && prevPY + playerH <= movingPlat.y + 20) {
                 py = movingPlat.y - playerH;
                 pbody.vy = 0;
-                // ride using authoritative platform delta
                 float platDX = movingPlat.x - prevPlatX;
                 px += platDX;
                 grounded = true;
             }
         }
 
-        // Spikes strip across the middle corridor
-        float spikeW = 300.f, spikeH = 389.f;
-        float spikeY = DESIGN_HEIGHT - spikeH;
+        // Spikes
+        float spikeW = 300.f, spikeH = 389.f, spikeY = DESIGN_HEIGHT - spikeH;
         for (float x = STATIC_PLATFORM_W; x < DESIGN_WIDTH - STATIC_PLATFORM_W; x += spikeW) {
             SDL_FRect spikeRect{ x, spikeY, spikeW, spikeH };
             if (checkCollision(playerRect, spikeRect)) {
@@ -222,7 +235,6 @@ int main(int, char**) {
             }
         }
 
-        // Fell off
         if (py > DESIGN_HEIGHT + 100) {
             px = leftX + 100.f; py = leftY - playerH;
             pbody.vx = pbody.vy = 0;
@@ -235,14 +247,14 @@ int main(int, char**) {
         SDL_SetRenderDrawColor(renderer, 135, 206, 235, 255);
         SDL_RenderClear(renderer);
 
-        // spikes
+        // Spikes
         for (float x = STATIC_PLATFORM_W; x < DESIGN_WIDTH - STATIC_PLATFORM_W; x += spikeW) {
             spikeTex.setPosition(x, spikeY);
             spikeTex.setSize(spikeW, spikeH);
             spikeTex.render(renderer, window);
         }
 
-        // left/right static columns
+        // Static platforms
         groundBottom.setPosition(leftX, leftY);
         groundBottom.setSize(STATIC_PLATFORM_W, STATIC_PLATFORM_H);
         groundBottom.render(renderer, window);
@@ -257,17 +269,17 @@ int main(int, char**) {
         groundTop.setSize(STATIC_PLATFORM_W, 64);
         groundTop.render(renderer, window);
 
-        // moving platform (authoritative)
+        // Moving platform
         platformTex.setPosition(movingPlat.x, movingPlat.y);
         platformTex.setSize(movingPlat.w, movingPlat.h);
         platformTex.render(renderer, window);
 
-        // local player
+        // Local player
         localPlayer.setPosition(px, py);
         localPlayer.setSize(playerW, playerH);
         localPlayer.render(renderer, window);
 
-        // remotes
+        // Remote players
         for (auto& kv : remotes) {
             if (kv.second.entity) {
                 kv.second.entity->setPosition(kv.second.x, kv.second.y);
