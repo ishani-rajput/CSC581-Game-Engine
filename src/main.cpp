@@ -19,7 +19,6 @@
 const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1080;
 
-// Assets
 const char* PLAYER_ASSET   = "../assets/player.png";
 const char* GHOST_ASSET    = "../assets/ghost.png";
 const char* PLATFORM_ASSET = "../assets/platform.png";
@@ -36,12 +35,11 @@ struct Snapshot {
 class GameState {
 public:
     GameState() {
-        // Init positions
         player_ = {100.f, WINDOW_HEIGHT - 322.f, 256.f, 256.f};
         playerBody_ = {0.f, 0.f, true};
 
         ghost_ = {1500.f, 600.f, 256.f, 256.f};
-        ghostBody_ = {-200.f, 0.f, false};
+        ghostBody_ = {-400.f, 0.f, false}; // faster ghost!
 
         platform_ = {0.f, 950.f, 1920.f, 130.f};
         grave_    = {700.f, 700.f, 256.f, 256.f};
@@ -64,13 +62,11 @@ public:
 
     void stepPlayer(float dt) {
         std::lock_guard<std::mutex> lk(m_);
-
         playerBody_.vx = desiredVx_;
-        if (wantJump_ && onGround_) {
-            playerBody_.vy = -900.f;
-            onGround_ = false;
+        if (wantJump_) {
+            playerBody_.vy = -1000.f; // flappy jump
+            wantJump_ = false;
         }
-        wantJump_ = false;
 
         float px = player_.x, py = player_.y;
         Physics::step(dt * 1000, px, py, playerBody_);
@@ -88,19 +84,14 @@ public:
             onGround_ = true;
         } else onGround_ = false;
 
-        if (aabbIntersect(toRect(player_), toRect(grave_))) {
-            graveTouched_ = true;
-            resetPlayer_nolock();
-        } else graveTouched_ = false;
-
-        if (aabbIntersect(toRect(player_), toRect(ghost_))) {
+        if (aabbIntersect(toRect(player_), toRect(grave_)) ||
+            aabbIntersect(toRect(player_), toRect(ghost_))) {
             resetPlayer_nolock();
         }
     }
 
     void stepGhost(float dt) {
         std::lock_guard<std::mutex> lk(m_);
-
         float gx = ghost_.x, gy = ghost_.y;
         Physics::step(dt * 1000, gx, gy, ghostBody_);
         ghost_.x = gx; ghost_.y = gy;
@@ -115,7 +106,7 @@ public:
         ghostTimer_ += dt;
         if (ghostTimer_ >= ghostInterval_) {
             ghostTimer_ = 0;
-            ghostBody_.vy = (float)((rand() % 301) - 150);
+            ghostBody_.vy = (float)((rand() % 301) - 150); // [-150,150]
         }
     }
 
@@ -132,69 +123,55 @@ private:
 
     mutable std::mutex m_;
     Object2D player_, ghost_, platform_, grave_;
-    Body playerBody_, ghostBody_;   // ✅ use Body from physics.h
+    Body playerBody_, ghostBody_;
     bool onGround_{false}, graveTouched_{false};
     float ghostTimer_{0}, ghostInterval_{2};
     float desiredVx_{0}; bool wantJump_{false};
 };
 
-// Worker threads
-static void playerPhysicsLoop(std::atomic<bool>& running, GameState& gs) {
-    using clk = std::chrono::steady_clock;
-    auto prev = clk::now();
+static void playerPhysicsLoop(std::atomic<bool>& running, GameState& gs, Timeline& time) {
     while (running) {
-        auto now = clk::now();
-        float dt = std::chrono::duration<float>(now - prev).count();
-        prev = now;
+        float dt = (float)time.tick();
         gs.stepPlayer(dt);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
-static void ghostAILoop(std::atomic<bool>& running, GameState& gs) {
-    using clk = std::chrono::steady_clock;
-    auto prev = clk::now();
+static void ghostAILoop(std::atomic<bool>& running, GameState& gs, Timeline& time) {
     while (running) {
-        auto now = clk::now();
-        float dt = std::chrono::duration<float>(now - prev).count();
-        prev = now;
+        float dt = (float)time.tick();
         gs.stepGhost(dt);
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
 
-// Main
 int main(int, char**) {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("SDL init failed: %s", SDL_GetError());
-        return 1;
-    }
+    if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
-    if (!SDL_CreateWindowAndRenderer("Witch Runner (Multithreaded)", WINDOW_WIDTH, WINDOW_HEIGHT,
-                                     SDL_WINDOW_RESIZABLE, &window, &renderer)) {
-        SDL_Log("Window creation failed: %s", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
+    if (!SDL_CreateWindowAndRenderer("Witch Runner", WINDOW_WIDTH, WINDOW_HEIGHT,
+                                     SDL_WINDOW_RESIZABLE, &window, &renderer)) return 1;
 
     Scaling::setMode(ScaleMode::Pixel);
     Physics::setGravity(2000.f);
     srand((unsigned)time(nullptr));
 
     SDL_Texture* bgSky = IMG_LoadTexture(renderer, BG_SKY_ASSET);
-
     Entity platformE(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
     Entity graveE(renderer, GRAVE_ASSET, 700, 700, 256, 256, 1, 0);
     Entity ghostE(renderer, GHOST_ASSET, 1500, 600, 256, 256, 1, 0);
-    Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT-322.f, 256, 256, 1, 0);
+    Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT - 322.f, 256, 256, 1, 0);
 
     GameState gs;
     std::atomic<bool> running(true);
 
-    std::thread tPlayer(playerPhysicsLoop, std::ref(running), std::ref(gs));
-    std::thread tGhost(ghostAILoop,      std::ref(running), std::ref(gs));
+    Timeline gameTime, ghostTime;
+    gameTime.anchorToRealTime();
+    ghostTime.anchorToRealTime();
+
+    std::thread tPlayer(playerPhysicsLoop, std::ref(running), std::ref(gs), std::ref(gameTime));
+    std::thread tGhost(ghostAILoop, std::ref(running), std::ref(gs), std::ref(ghostTime));
 
     Timeline renderTime; renderTime.anchorToRealTime();
     bool prevT = false;
@@ -202,59 +179,46 @@ int main(int, char**) {
     SDL_Event ev;
     while (running) {
         while (SDL_PollEvent(&ev)) {
-            if (ev.type == SDL_EVENT_QUIT) {
-                running = false;
-            }
+            if (ev.type == SDL_EVENT_QUIT) running = false;
         }
 
         Input::poll();
 
-        // Scaling toggle
         bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
         if (tNow && !prevT) {
-            ScaleMode current = Scaling::mode();
+            auto current = Scaling::mode();
             Scaling::setMode(current == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel);
-            SDL_Log("Scaling mode changed to: %s",
-                    (Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional"));
         }
         prevT = tNow;
 
-        // Pause / speed scaling (local render only)
         if (Input::isKeyPressed(SDL_SCANCODE_P)) {
-            renderTime.togglePause();
-            SDL_Log("Render %s", renderTime.isPaused() ? "paused" : "resumed");
+            gameTime.togglePause();
+            ghostTime.togglePause();
         }
-        if (Input::isKeyPressed(SDL_SCANCODE_1)) { renderTime.setScale(0.5); SDL_Log("Render speed 0.5x"); }
-        if (Input::isKeyPressed(SDL_SCANCODE_2)) { renderTime.setScale(1.0); SDL_Log("Render speed 1.0x"); }
-        if (Input::isKeyPressed(SDL_SCANCODE_3)) { renderTime.setScale(2.0); SDL_Log("Render speed 2.0x"); }
+        if (Input::isKeyPressed(SDL_SCANCODE_1)) { gameTime.setScale(0.5); ghostTime.setScale(0.5); }
+        if (Input::isKeyPressed(SDL_SCANCODE_2)) { gameTime.setScale(1.0); ghostTime.setScale(1.0); }
+        if (Input::isKeyPressed(SDL_SCANCODE_3)) { gameTime.setScale(2.0); ghostTime.setScale(2.0); }
 
         renderTime.tick();
 
-        // Input -> GameState
-        float vx = 0; float moveSpeed = 400.f;
-        if (Input::isKeyPressed(SDL_SCANCODE_A)) vx = -moveSpeed;
-        else if (Input::isKeyPressed(SDL_SCANCODE_D)) vx = moveSpeed;
+        float vx = 0;
+        if (Input::isKeyPressed(SDL_SCANCODE_A)) vx = -400.f;
+        else if (Input::isKeyPressed(SDL_SCANCODE_D)) vx = 400.f;
         bool jump = Input::isKeyPressed(SDL_SCANCODE_SPACE);
         gs.setInput(vx, jump);
 
-        // Snapshot for rendering
         Snapshot snap;
         gs.getSnapshot(snap);
 
-        // Render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
         if (bgSky) SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
-
         platformE.render(renderer, window);
         graveE.render(renderer, window);
 
-        playerE.setPosition(snap.player.x, snap.player.y);
-        ghostE.setPosition(snap.ghost.x, snap.ghost.y);
-
-        playerE.update(); playerE.render(renderer, window);
-        ghostE.update();  ghostE.render(renderer, window);
+        ghostE.setPosition(snap.ghost.x, snap.ghost.y); ghostE.update(); ghostE.render(renderer, window);
+        playerE.setPosition(snap.player.x, snap.player.y); playerE.update(); playerE.render(renderer, window);
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
