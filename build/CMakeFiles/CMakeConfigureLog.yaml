@@ -2186,3 +2186,380 @@ events:
         - "/Network/Library/Frameworks"
         - "/System/Library/Frameworks"
 ...
+
+---
+events:
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:10 (find_package)"
+    name: "ZeroMQ"
+    configs:
+      -
+        filename: "ZeroMQConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "zeromq-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "optional"
+      quiet: true
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "ZeroMQ"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/pkgRedirects/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/pkgRedirects/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.nvm/versions/node/v23.1.0/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.nvm/versions/node/v23.1.0/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.pyenv/shims/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.pyenv/shims/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.pyenv/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.pyenv/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.rbenv/shims/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.rbenv/shims/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.rbenv/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/.rbenv/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/homebrew/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/Python.framework/Versions/3.12/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/Python.framework/Versions/3.12/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Cryptexes/App/usr/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Cryptexes/App/usr/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/Library/Frameworks/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Developer/CommandLineTools/Library/Frameworks/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Library/Frameworks/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Library/Frameworks/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/System/Library/Frameworks/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/Applications/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Users/ishanirajput/Applications/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/ZeroMQConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/Applications/zeromq-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found: null
+    search_context:
+      ENV{PATH}:
+        - "/Users/ishanirajput/.nvm/versions/node/v23.1.0/bin"
+        - "/Users/ishanirajput/.pyenv/shims"
+        - "/Users/ishanirajput/.pyenv/bin"
+        - "/Users/ishanirajput/.rbenv/shims"
+        - "/Users/ishanirajput/.rbenv/bin"
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Library/Frameworks/Python.framework/Versions/3.12/bin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/Users/ishanirajput/.nvm/versions/node/v23.1.0/bin"
+        - "/Users/ishanirajput/.pyenv/bin"
+        - "/Users/ishanirajput/.rbenv/shims"
+        - "/Users/ishanirajput/.rbenv/bin"
+        - "/Users/ishanirajput/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "~/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+        - "/Library/Frameworks"
+        - "/Network/Library/Frameworks"
+        - "/System/Library/Frameworks"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "CMakeLists.txt:12 (find_library)"
+    mode: "library"
+    variable: "ZMQ_LIB"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "zmq"
+    candidate_directories:
+      - "/Users/ishanirajput/.nvm/versions/node/v23.1.0/bin/"
+      - "/Users/ishanirajput/.pyenv/shims/"
+      - "/Users/ishanirajput/.rbenv/shims/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Library/Frameworks/Python.framework/Versions/3.12/bin/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/Users/ishanirajput/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+      - "/opt/homebrew/lib/"
+      - "/opt/homebrew/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/opt/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/"
+      - "/Library/Developer/CommandLineTools/Library/Frameworks/"
+      - "/Library/Frameworks/"
+      - "/System/Library/Frameworks/"
+    searched_directories:
+      - "/Users/ishanirajput/.nvm/versions/node/v23.1.0/bin/"
+      - "/Users/ishanirajput/.pyenv/shims/"
+      - "/Users/ishanirajput/.rbenv/shims/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/Library/Frameworks/Python.framework/Versions/3.12/bin/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/Users/ishanirajput/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+    found: "/opt/homebrew/lib/libzmq.dylib"
+    search_context:
+      ENV{PATH}:
+        - "/Users/ishanirajput/.nvm/versions/node/v23.1.0/bin"
+        - "/Users/ishanirajput/.pyenv/shims"
+        - "/Users/ishanirajput/.pyenv/bin"
+        - "/Users/ishanirajput/.rbenv/shims"
+        - "/Users/ishanirajput/.rbenv/bin"
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/Library/Frameworks/Python.framework/Versions/3.12/bin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/Users/ishanirajput/.nvm/versions/node/v23.1.0/bin"
+        - "/Users/ishanirajput/.pyenv/bin"
+        - "/Users/ishanirajput/.rbenv/shims"
+        - "/Users/ishanirajput/.rbenv/bin"
+        - "/Users/ishanirajput/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "~/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+        - "/Library/Frameworks"
+        - "/Network/Library/Frameworks"
+        - "/System/Library/Frameworks"
+...

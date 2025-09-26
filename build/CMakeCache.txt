@@ -246,6 +246,12 @@ SDL3_DIR:PATH=/opt/homebrew/lib/cmake/SDL3
 //The directory containing a CMake configuration file for SDL3_image.
 SDL3_image_DIR:PATH=/opt/homebrew/lib/cmake/SDL3_image
 
+//Path to a library.
+ZMQ_LIB:FILEPATH=/opt/homebrew/lib/libzmq.dylib
+
+//The directory containing a CMake configuration file for ZeroMQ.
+ZeroMQ_DIR:PATH=ZeroMQ_DIR-NOTFOUND
+
 
 ########################
 # INTERNAL cache entries

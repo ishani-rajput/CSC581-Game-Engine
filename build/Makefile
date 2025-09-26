@@ -129,12 +129,63 @@ main/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/build
 .PHONY : main/fast
 
+#=============================================================================
+# Target rules for targets named client
+
+# Build rule for target.
+client: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 client
+.PHONY : client
+
+# fast build rule for target.
+client/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
+.PHONY : client/fast
+
+#=============================================================================
+# Target rules for targets named server
+
+# Build rule for target.
+server: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 server
+.PHONY : server
+
+# fast build rule for target.
+server/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
+.PHONY : server/fast
+
+src/client.o: src/client.cpp.o
+.PHONY : src/client.o
+
+# target to build an object file
+src/client.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/client.cpp.o
+.PHONY : src/client.cpp.o
+
+src/client.i: src/client.cpp.i
+.PHONY : src/client.i
+
+# target to preprocess a source file
+src/client.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/client.cpp.i
+.PHONY : src/client.cpp.i
+
+src/client.s: src/client.cpp.s
+.PHONY : src/client.s
+
+# target to generate assembly for a file
+src/client.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/client.cpp.s
+.PHONY : src/client.cpp.s
+
 src/entity.o: src/entity.cpp.o
 .PHONY : src/entity.o
 
 # target to build an object file
 src/entity.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/entity.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/entity.cpp.o
 .PHONY : src/entity.cpp.o
 
 src/entity.i: src/entity.cpp.i
@@ -143,6 +194,7 @@ src/entity.i: src/entity.cpp.i
 # target to preprocess a source file
 src/entity.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/entity.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/entity.cpp.i
 .PHONY : src/entity.cpp.i
 
 src/entity.s: src/entity.cpp.s
@@ -151,6 +203,7 @@ src/entity.s: src/entity.cpp.s
 # target to generate assembly for a file
 src/entity.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/entity.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/entity.cpp.s
 .PHONY : src/entity.cpp.s
 
 src/input.o: src/input.cpp.o
@@ -159,6 +212,7 @@ src/input.o: src/input.cpp.o
 # target to build an object file
 src/input.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/input.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/input.cpp.o
 .PHONY : src/input.cpp.o
 
 src/input.i: src/input.cpp.i
@@ -167,6 +221,7 @@ src/input.i: src/input.cpp.i
 # target to preprocess a source file
 src/input.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/input.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/input.cpp.i
 .PHONY : src/input.cpp.i
 
 src/input.s: src/input.cpp.s
@@ -175,6 +230,7 @@ src/input.s: src/input.cpp.s
 # target to generate assembly for a file
 src/input.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/input.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/input.cpp.s
 .PHONY : src/input.cpp.s
 
 src/main.o: src/main.cpp.o
@@ -207,6 +263,8 @@ src/physics.o: src/physics.cpp.o
 # target to build an object file
 src/physics.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/physics.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/physics.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/physics.cpp.o
 .PHONY : src/physics.cpp.o
 
 src/physics.i: src/physics.cpp.i
@@ -215,6 +273,8 @@ src/physics.i: src/physics.cpp.i
 # target to preprocess a source file
 src/physics.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/physics.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/physics.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/physics.cpp.i
 .PHONY : src/physics.cpp.i
 
 src/physics.s: src/physics.cpp.s
@@ -223,6 +283,8 @@ src/physics.s: src/physics.cpp.s
 # target to generate assembly for a file
 src/physics.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/physics.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/physics.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/physics.cpp.s
 .PHONY : src/physics.cpp.s
 
 src/scaling.o: src/scaling.cpp.o
@@ -231,6 +293,7 @@ src/scaling.o: src/scaling.cpp.o
 # target to build an object file
 src/scaling.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/scaling.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/scaling.cpp.o
 .PHONY : src/scaling.cpp.o
 
 src/scaling.i: src/scaling.cpp.i
@@ -239,6 +302,7 @@ src/scaling.i: src/scaling.cpp.i
 # target to preprocess a source file
 src/scaling.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/scaling.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/scaling.cpp.i
 .PHONY : src/scaling.cpp.i
 
 src/scaling.s: src/scaling.cpp.s
@@ -247,7 +311,32 @@ src/scaling.s: src/scaling.cpp.s
 # target to generate assembly for a file
 src/scaling.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/scaling.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/scaling.cpp.s
 .PHONY : src/scaling.cpp.s
+
+src/server.o: src/server.cpp.o
+.PHONY : src/server.o
+
+# target to build an object file
+src/server.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server.cpp.o
+.PHONY : src/server.cpp.o
+
+src/server.i: src/server.cpp.i
+.PHONY : src/server.i
+
+# target to preprocess a source file
+src/server.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server.cpp.i
+.PHONY : src/server.cpp.i
+
+src/server.s: src/server.cpp.s
+.PHONY : src/server.s
+
+# target to generate assembly for a file
+src/server.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server.cpp.s
+.PHONY : src/server.cpp.s
 
 src/timeline.o: src/timeline.cpp.o
 .PHONY : src/timeline.o
@@ -255,6 +344,8 @@ src/timeline.o: src/timeline.cpp.o
 # target to build an object file
 src/timeline.cpp.o:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/timeline.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/timeline.cpp.o
 .PHONY : src/timeline.cpp.o
 
 src/timeline.i: src/timeline.cpp.i
@@ -263,6 +354,8 @@ src/timeline.i: src/timeline.cpp.i
 # target to preprocess a source file
 src/timeline.cpp.i:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/timeline.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/timeline.cpp.i
 .PHONY : src/timeline.cpp.i
 
 src/timeline.s: src/timeline.cpp.s
@@ -271,6 +364,8 @@ src/timeline.s: src/timeline.cpp.s
 # target to generate assembly for a file
 src/timeline.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/timeline.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/timeline.cpp.s
 .PHONY : src/timeline.cpp.s
 
 # Help Target
@@ -281,7 +376,12 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... client"
 	@echo "... main"
+	@echo "... server"
+	@echo "... src/client.o"
+	@echo "... src/client.i"
+	@echo "... src/client.s"
 	@echo "... src/entity.o"
 	@echo "... src/entity.i"
 	@echo "... src/entity.s"
@@ -297,6 +397,9 @@ help:
 	@echo "... src/scaling.o"
 	@echo "... src/scaling.i"
 	@echo "... src/scaling.s"
+	@echo "... src/server.o"
+	@echo "... src/server.i"
+	@echo "... src/server.s"
 	@echo "... src/timeline.o"
 	@echo "... src/timeline.i"
 	@echo "... src/timeline.s"
