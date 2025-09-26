@@ -4,7 +4,7 @@ const bool* Input::s_state = nullptr;
 int Input::s_len = 0;
 
 void Input::poll() {
-    s_state = SDL_GetKeyboardState(&s_len); // SDL3 returns const bool*
+    s_state = SDL_GetKeyboardState(&s_len);
 }
 
 bool Input::isKeyPressed(SDL_Scancode sc) {

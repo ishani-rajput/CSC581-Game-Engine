@@ -9,7 +9,6 @@ public:
            int frameCount, int frameDelayMs);
     ~Entity();
 
-    // no copying (texture ownership)
     Entity(const Entity&) = delete;
     Entity& operator=(const Entity&) = delete;
     Entity(Entity&&) noexcept = default;
@@ -24,8 +23,8 @@ public:
 
     void getPosition(float& outX, float& outY) const;
 
-    SDL_FRect getRect() const;               // returns raw dstRect (pixel mode)
-    SDL_FRect getRect(SDL_Window* win) const; // returns scaled rect (proportional mode)
+    SDL_FRect getRect() const;
+    SDL_FRect getRect(SDL_Window* win) const;
 
 private:
     float x, y;
