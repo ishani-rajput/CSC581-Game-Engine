@@ -1,23 +1,17 @@
-// Server with per-client asynchronous handling
-// Players are per-client timelines (pause/speed)
-// Ghost is global, server-controlled at 1.0x speed
-
-#include <SDL3/SDL.h>
-#include <unordered_map>
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <cstdlib>
-#include <ctime>
-#include <thread>
-#include <mutex>
-#include <map>
-#include <atomic>
-#include <zmq.h>
-
+#include "network_server.h"
 #include "physics.h"
 #include "collision.h"
 #include "timeline.h"
+
+#include <SDL3/SDL.h>
+#include <iostream>
+#include <sstream>
+#include <unordered_map>
+#include <mutex>
+#include <cstdlib>
+#include <ctime>
+
+using namespace Engine;
 
 const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1080;
@@ -39,194 +33,123 @@ struct Ghost {
     float interval = 2.f;
 } ghost;
 
-std::mutex mtx;
-std::unordered_map<int, Player> players;
-std::atomic<bool> serverRunning(true);
-
-static inline std::vector<std::string> split_ws(const std::string& s) {
-    std::istringstream iss(s);
-    std::vector<std::string> out;
-    std::string tok;
-    while (iss >> tok) out.push_back(tok);
-    return out;
+static inline bool AABB(float ax,float ay,float aw,float ah,
+                        float bx,float by,float bw,float bh) {
+    return (ax < bx + bw) && (ax + aw > bx) &&
+           (ay < by + bh) && (ay + ah > by);
 }
 
-inline bool AABB(float ax,float ay,float aw,float ah,float bx,float by,float bw,float bh){
-    return (ax < bx + bw) && (ax + aw > bx) && (ay < by + bh) && (ay + ah > by);
-}
-
-void client_thread(void* ctx, int id) {
-    void* rep = zmq_socket(ctx, ZMQ_REP);
-    std::string bindAddr = "tcp://*:" + std::to_string(6000 + id);
-    zmq_bind(rep, bindAddr.c_str());
-
-    Timeline timeline;
-    timeline.anchorToRealTime();
-    timeline.setScale(1.0);
-
-    char buf[256];
-    while (serverRunning) {
-        int n = zmq_recv(rep, buf, sizeof(buf)-1, ZMQ_DONTWAIT);
-        if (n > 0) {
-            buf[n] = 0;
-            auto toks = split_ws(buf);
-            std::string reply = "ERR";
-            if (!toks.empty()) {
-                if (toks[0] == "INPUT" && toks.size() == 4) {
-                    float vx = std::stof(toks[2]);
-                    int jump = std::stoi(toks[3]);
-                    std::lock_guard<std::mutex> lk(mtx);
-                    Player& p = players[id];
-                    p.vx = vx;
-                    if (jump) {   // Flappy Bird style
-                        p.vy = -900.f;
-                        p.onGround = false;
-                    }
-                    reply = "OK";
-                } else if (toks[0] == "SPEED" && toks.size() == 2) {
-                    double s = std::stod(toks[1]);
-                    timeline.setScale(s); // only player timeline
-                    reply = "OK";
-                } else if (toks[0] == "PAUSE" && toks.size() == 2) {
-                    bool on = (toks[1] == "ON");
-                    timeline.pause(on); // only player timeline
-                    reply = "OK";
-                }
-            }
-            zmq_send(rep, reply.c_str(), (int)reply.size(), 0);
-        }
-
-        if (timeline.isPaused()) {
-            SDL_Delay(1);
-            continue;
-        }
-
-        float dt = static_cast<float>(timeline.tick());
-        {
-            std::lock_guard<std::mutex> lk(mtx);
-            Player& p = players[id];
-
-            p.vy += Physics::gravity() * dt;
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            p.onGround = false;
-
-            if (p.y < 0) { p.y = 0; p.vy = 0; }
-            if (p.x < 0) { p.x = 0; p.vx = 0; }
-            if (p.x > WINDOW_WIDTH - 256) { p.x = WINDOW_WIDTH - 256; p.vx = 0; }
-
-            if (AABB(p.x,p.y,256,256, 0,950,1920,130)) {
-                p.vy = 0;
-                p.y = 950 - 256;
-                p.onGround = true;
-            }
-
-            if (AABB(p.x,p.y,256,256, 700,700,256,256) ||
-                AABB(p.x,p.y,256,256, ghost.x,ghost.y,256,256)) {
-                p = Player{};
-            }
-        }
-
-        SDL_Delay(1);
+class GameServer : public NetworkServer {
+public:
+    GameServer() {
+        Physics::setGravity(2000.f);
+        srand((unsigned)time(nullptr));
+        ghostTime.anchorToRealTime();
+        ghostTime.setScale(1.0);
+        setWorldUpdateRate(30);   // broadcast ~30 Hz
     }
 
-    zmq_close(rep);
-}
+protected:
+    void handleClientMessage(const std::string& /*clientId*/,
+                             const std::string& message) override {
+        std::istringstream iss(message);
+        std::string cmd; iss >> cmd;
 
-int main() {
-    Physics::setGravity(2000.f);
-    srand((unsigned)time(nullptr));
+        std::lock_guard<std::mutex> lk(mtx);
 
-    // Ghost timeline is global, fixed 1.0x
-    Timeline ghostTime;
-    ghostTime.anchorToRealTime();
-    ghostTime.setScale(1.0);
+        if (cmd == "INPUT") {
+            std::string id; float vx; int jump;
+            iss >> id >> vx >> jump;
+            auto& p = players[id];
 
-    void* ctx = zmq_ctx_new();
-
-    void* pub = zmq_socket(ctx, ZMQ_PUB);
-    zmq_bind(pub, "tcp://*:5556");
-
-    void* joinSock = zmq_socket(ctx, ZMQ_REP);
-    zmq_bind(joinSock, "tcp://*:5555");
-
-    int nextId = 1;
-    std::map<int, std::thread> clientThreads;
-
-    double accum = 0.0;
-    Uint64 prev = SDL_GetTicks();
-
-    std::cout << "Server started. JOIN on 5555, STATE PUB on 5556, REQ on 6000+id\n";
-
-    while (serverRunning) {
-        Uint64 now = SDL_GetTicks();
-        double dt = (now - prev) / 1000.0;
-        prev = now;
-        ghost.timer += (float)dt;
-
-        // JOIN requests
-        char buf[128];
-        int n = zmq_recv(joinSock, buf, sizeof(buf)-1, ZMQ_DONTWAIT);
-        if (n > 0) {
-            buf[n] = 0;
-            auto toks = split_ws(buf);
-            if (!toks.empty() && toks[0] == "JOIN") {
-                int id = nextId++;
-                {
-                    std::lock_guard<std::mutex> lk(mtx);
-                    players[id] = Player{};
-                }
-                clientThreads[id] = std::thread(client_thread, ctx, id);
-                std::string reply = "ASSIGN " + std::to_string(id);
-                zmq_send(joinSock, reply.c_str(), (int)reply.size(), 0);
-                std::cout << "Client joined id=" << id << "\n";
+            p.vx = vx;
+            if (jump) {         
+                p.vy = -900.f;
             }
+            stepPlayer(p, playerTimes[id]);    
         }
+        else if (cmd == "SPEED") {
+            std::string id; double s; iss >> id >> s;
+            playerTimes[id].setScale(s);
+        }
+        else if (cmd == "PAUSE") {
+            std::string id, on; iss >> id >> on;
+            playerTimes[id].pause(on == "ON");
+        }
+    }
 
-        // Ghost update (always 1x, not paused)
+    std::string generateWorldState() override {
+        // Ghost AI (global, unaffected by client speeds)
         float gdt = (float)ghostTime.tick();
         ghost.x += ghost.vx * gdt;
         ghost.y += ghost.vy * gdt;
-
         if (ghost.x < -150) {
             ghost.x = WINDOW_WIDTH;
             ghost.y = (float)(rand() % (WINDOW_HEIGHT - 256));
         }
         if (ghost.y < 0) ghost.y = 0;
         if (ghost.y > WINDOW_HEIGHT - 256) ghost.y = WINDOW_HEIGHT - 256;
-
+        ghost.timer += gdt;
         if (ghost.timer >= ghost.interval) {
             ghost.timer = 0;
             ghost.vy = (float)((rand() % 301) - 150);
         }
 
-        // Broadcast state @ ~30Hz
-        accum += dt;
-        if (accum >= 1.0/30.0) {
-            accum = 0.0;
-            std::ostringstream oss;
-            {
-                std::lock_guard<std::mutex> lk(mtx);
-                oss << "STATE " << ghost.x << " " << ghost.y << " " << players.size();
-                for (auto& kv : players) {
-                    oss << " " << kv.first << " " << kv.second.x << " " << kv.second.y;
-                }
-            }
-            std::string msg = oss.str();
-            zmq_send(pub, msg.c_str(), (int)msg.size(), 0);
+        // Serialize state
+        std::ostringstream oss;
+        std::lock_guard<std::mutex> lk(mtx);
+        oss << "STATE " << ghost.x << " " << ghost.y << " " << players.size();
+        for (auto& kv : players) {
+            oss << " " << kv.first << " " << kv.second.x << " " << kv.second.y;
         }
-
-        SDL_Delay(1);
+        return oss.str();
     }
 
-    serverRunning = false;
-    for (auto& kv : clientThreads) {
-        if (kv.second.joinable()) kv.second.join();
+    void onClientConnected(const std::string& clientId) override {
+        std::lock_guard<std::mutex> lk(mtx);
+        players[clientId] = Player{};
+        Timeline t; t.anchorToRealTime(); t.setScale(1.0);
+        playerTimes[clientId] = t;
+        std::cout << "Client " << clientId << " initialized\n";
     }
 
-    zmq_close(pub);
-    zmq_close(joinSock);
-    zmq_ctx_term(ctx);
-    SDL_Quit();
+    void onClientDisconnected(const std::string& clientId) override {
+        std::lock_guard<std::mutex> lk(mtx);
+        players.erase(clientId);
+        playerTimes.erase(clientId);
+        std::cout << "Client " << clientId << " removed\n";
+    }
+
+private:
+    std::unordered_map<std::string, Player> players;
+    std::unordered_map<std::string, Timeline> playerTimes;
+    Timeline ghostTime;
+    std::mutex mtx;
+
+    void stepPlayer(Player& p, Timeline& t) {
+        float dt = (float)t.tick();   // ✅ per-client time
+        p.vy += Physics::gravity() * dt;
+        p.x  += p.vx * dt;
+        p.y  += p.vy * dt;
+        p.onGround = false;
+
+        if (p.y < 0) { p.y = 0; p.vy = 0; }
+        if (p.x < 0) { p.x = 0; p.vx = 0; }
+        if (p.x > WINDOW_WIDTH - 256) { p.x = WINDOW_WIDTH - 256; p.vx = 0; }
+
+        if (AABB(p.x,p.y,256,256, 0,950,1920,130)) {
+            p.vy = 0; p.y = 950 - 256; p.onGround = true;
+        }
+        if (AABB(p.x,p.y,256,256, 700,700,256,256) ||
+            AABB(p.x,p.y,256,256, ghost.x,ghost.y,256,256)) {
+            p = Player{}; // reset on collision
+        }
+    }
+};
+
+int main() {
+    GameServer server;
+    server.startServer(5555);
+    while (server.isRunning()) SDL_Delay(100);
     return 0;
 }

@@ -51,6 +51,7 @@ add_executable(server
     ./src/server.cpp
     ./src/physics.cpp
     ./src/timeline.cpp
+    ./src/network_server.cpp 
 )
 
 if (ZeroMQ_FOUND)

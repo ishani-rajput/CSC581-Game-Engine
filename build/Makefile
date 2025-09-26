@@ -257,6 +257,30 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
+src/network_server.o: src/network_server.cpp.o
+.PHONY : src/network_server.o
+
+# target to build an object file
+src/network_server.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/network_server.cpp.o
+.PHONY : src/network_server.cpp.o
+
+src/network_server.i: src/network_server.cpp.i
+.PHONY : src/network_server.i
+
+# target to preprocess a source file
+src/network_server.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/network_server.cpp.i
+.PHONY : src/network_server.cpp.i
+
+src/network_server.s: src/network_server.cpp.s
+.PHONY : src/network_server.s
+
+# target to generate assembly for a file
+src/network_server.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/network_server.cpp.s
+.PHONY : src/network_server.cpp.s
+
 src/physics.o: src/physics.cpp.o
 .PHONY : src/physics.o
 
@@ -391,6 +415,9 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/network_server.o"
+	@echo "... src/network_server.i"
+	@echo "... src/network_server.s"
 	@echo "... src/physics.o"
 	@echo "... src/physics.i"
 	@echo "... src/physics.s"
