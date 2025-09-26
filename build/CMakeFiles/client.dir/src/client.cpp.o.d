@@ -862,6 +862,4 @@ CMakeFiles/client.dir/src/client.cpp.o: \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/entity.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/input.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/scaling.h \
-  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/physics.h \
-  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/collision.h \
-  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/timeline.h
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/physics.h

@@ -10,8 +10,6 @@
 #include "input.h"
 #include "scaling.h"
 #include "physics.h"
-#include "collision.h"
-#include "timeline.h"
 
 const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1080;
@@ -77,6 +75,7 @@ int main(int, char**) {
         }
         Input::poll();
 
+        // Toggle scaling
         bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
         if (tNow && !prevT) {
             auto current = Scaling::mode();
@@ -84,18 +83,17 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        // Unified pause/speed (player + ghost)
+        // Pause/speed affect only player
         if (Input::isKeyPressed(SDL_SCANCODE_P)) {
             paused = !paused;
             send_cmd(std::string("PAUSE ") + (paused ? "ON" : "OFF"));
-            std::cout << "[Client " << myId << "] Pause=" << paused << " (player+ghost)\n";
         }
         if (Input::isKeyPressed(SDL_SCANCODE_1)) { send_cmd("SPEED 0.5"); }
         if (Input::isKeyPressed(SDL_SCANCODE_2)) { send_cmd("SPEED 1.0"); }
         if (Input::isKeyPressed(SDL_SCANCODE_3)) { send_cmd("SPEED 2.0"); }
 
-        // Movement input
-        float vx = 0; 
+        // Movement
+        float vx = 0;
         if (Input::isKeyPressed(SDL_SCANCODE_A)) vx = -400.f;
         else if (Input::isKeyPressed(SDL_SCANCODE_D)) vx = 400.f;
         bool jump = Input::isKeyPressed(SDL_SCANCODE_SPACE);

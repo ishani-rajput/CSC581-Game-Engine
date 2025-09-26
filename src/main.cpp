@@ -39,7 +39,7 @@ public:
         playerBody_ = {0.f, 0.f, true};
 
         ghost_ = {1500.f, 600.f, 256.f, 256.f};
-        ghostBody_ = {-400.f, 0.f, false}; // faster ghost!
+        ghostBody_ = {-400.f, 0.f, false};
 
         platform_ = {0.f, 950.f, 1920.f, 130.f};
         grave_    = {700.f, 700.f, 256.f, 256.f};
@@ -106,7 +106,7 @@ public:
         ghostTimer_ += dt;
         if (ghostTimer_ >= ghostInterval_) {
             ghostTimer_ = 0;
-            ghostBody_.vy = (float)((rand() % 301) - 150); // [-150,150]
+            ghostBody_.vy = (float)((rand() % 301) - 150);
         }
     }
 
@@ -168,7 +168,7 @@ int main(int, char**) {
 
     Timeline gameTime, ghostTime;
     gameTime.anchorToRealTime();
-    ghostTime.anchorToRealTime();
+    ghostTime.anchorToRealTime();   // 👈 ghost always runs at 1.0x, not paused
 
     std::thread tPlayer(playerPhysicsLoop, std::ref(running), std::ref(gs), std::ref(gameTime));
     std::thread tGhost(ghostAILoop, std::ref(running), std::ref(gs), std::ref(ghostTime));
@@ -191,13 +191,13 @@ int main(int, char**) {
         }
         prevT = tNow;
 
+        // Controls only affect player timeline
         if (Input::isKeyPressed(SDL_SCANCODE_P)) {
             gameTime.togglePause();
-            ghostTime.togglePause();
         }
-        if (Input::isKeyPressed(SDL_SCANCODE_1)) { gameTime.setScale(0.5); ghostTime.setScale(0.5); }
-        if (Input::isKeyPressed(SDL_SCANCODE_2)) { gameTime.setScale(1.0); ghostTime.setScale(1.0); }
-        if (Input::isKeyPressed(SDL_SCANCODE_3)) { gameTime.setScale(2.0); ghostTime.setScale(2.0); }
+        if (Input::isKeyPressed(SDL_SCANCODE_1)) { gameTime.setScale(0.5); }
+        if (Input::isKeyPressed(SDL_SCANCODE_2)) { gameTime.setScale(1.0); }
+        if (Input::isKeyPressed(SDL_SCANCODE_3)) { gameTime.setScale(2.0); }
 
         renderTime.tick();
 

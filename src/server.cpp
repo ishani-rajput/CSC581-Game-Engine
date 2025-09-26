@@ -1,4 +1,6 @@
-// Server with per-client asynchronous handling + unified ghost timeline controls
+// Server with per-client asynchronous handling
+// Players are per-client timelines (pause/speed)
+// Ghost is global, server-controlled at 1.0x speed
 
 #include <SDL3/SDL.h>
 #include <unordered_map>
@@ -11,7 +13,6 @@
 #include <mutex>
 #include <map>
 #include <atomic>
-#include <vector>
 #include <zmq.h>
 
 #include "physics.h"
@@ -27,7 +28,6 @@ struct Player {
     float vx = 0.f;
     float vy = 0.f;
     bool onGround = false;
-    bool graveTouched = false;
 };
 
 struct Ghost {
@@ -38,6 +38,10 @@ struct Ghost {
     float timer = 0.f;
     float interval = 2.f;
 } ghost;
+
+std::mutex mtx;
+std::unordered_map<int, Player> players;
+std::atomic<bool> serverRunning(true);
 
 static inline std::vector<std::string> split_ws(const std::string& s) {
     std::istringstream iss(s);
@@ -51,20 +55,10 @@ inline bool AABB(float ax,float ay,float aw,float ah,float bx,float by,float bw,
     return (ax < bx + bw) && (ax + aw > bx) && (ay < by + bh) && (ay + ah > by);
 }
 
-std::mutex mtx; 
-std::unordered_map<int, Player> players;
-std::atomic<bool> serverRunning(true);
-
-// Global ghost timeline (shared by all clients)
-Timeline gGhostTime;
-
 void client_thread(void* ctx, int id) {
     void* rep = zmq_socket(ctx, ZMQ_REP);
     std::string bindAddr = "tcp://*:" + std::to_string(6000 + id);
     zmq_bind(rep, bindAddr.c_str());
-
-    int linger0 = 0;
-    zmq_setsockopt(rep, ZMQ_LINGER, &linger0, sizeof(linger0));
 
     Timeline timeline;
     timeline.anchorToRealTime();
@@ -91,19 +85,11 @@ void client_thread(void* ctx, int id) {
                     reply = "OK";
                 } else if (toks[0] == "SPEED" && toks.size() == 2) {
                     double s = std::stod(toks[1]);
-                    timeline.setScale(s);        // player timeline
-                    {
-                        std::lock_guard<std::mutex> lk(mtx);
-                        gGhostTime.setScale(s);  // ghost timeline
-                    }
+                    timeline.setScale(s); // only player timeline
                     reply = "OK";
                 } else if (toks[0] == "PAUSE" && toks.size() == 2) {
                     bool on = (toks[1] == "ON");
-                    timeline.pause(on);
-                    {
-                        std::lock_guard<std::mutex> lk(mtx);
-                        gGhostTime.pause(on);
-                    }
+                    timeline.pause(on); // only player timeline
                     reply = "OK";
                 }
             }
@@ -149,26 +135,23 @@ void client_thread(void* ctx, int id) {
 
 int main() {
     Physics::setGravity(2000.f);
-    srand(static_cast<unsigned>(time(nullptr)));
+    srand((unsigned)time(nullptr));
 
-    gGhostTime.anchorToRealTime();
-    gGhostTime.setScale(1.0);
+    // Ghost timeline is global, fixed 1.0x
+    Timeline ghostTime;
+    ghostTime.anchorToRealTime();
+    ghostTime.setScale(1.0);
 
     void* ctx = zmq_ctx_new();
 
     void* pub = zmq_socket(ctx, ZMQ_PUB);
     zmq_bind(pub, "tcp://*:5556");
-    int hwm = 1;
-    zmq_setsockopt(pub, ZMQ_SNDHWM, &hwm, sizeof(hwm));
-    int linger0 = 0;
-    zmq_setsockopt(pub, ZMQ_LINGER, &linger0, sizeof(linger0));
-
-    int nextId = 1;
-    std::map<int, std::thread> clientThreads;
 
     void* joinSock = zmq_socket(ctx, ZMQ_REP);
     zmq_bind(joinSock, "tcp://*:5555");
-    zmq_setsockopt(joinSock, ZMQ_LINGER, &linger0, sizeof(linger0));
+
+    int nextId = 1;
+    std::map<int, std::thread> clientThreads;
 
     double accum = 0.0;
     Uint64 prev = SDL_GetTicks();
@@ -179,7 +162,7 @@ int main() {
         Uint64 now = SDL_GetTicks();
         double dt = (now - prev) / 1000.0;
         prev = now;
-        ghost.timer += static_cast<float>(dt);
+        ghost.timer += (float)dt;
 
         // JOIN requests
         char buf[128];
@@ -200,30 +183,26 @@ int main() {
             }
         }
 
-        // Ghost AI step
-        float gdt;
-        {
-            std::lock_guard<std::mutex> lk(mtx);
-            gdt = static_cast<float>(gGhostTime.tick());
-        }
+        // Ghost update (always 1x, not paused)
+        float gdt = (float)ghostTime.tick();
         ghost.x += ghost.vx * gdt;
         ghost.y += ghost.vy * gdt;
 
         if (ghost.x < -150) {
             ghost.x = WINDOW_WIDTH;
-            ghost.y = static_cast<float>(rand() % (WINDOW_HEIGHT - 256));
+            ghost.y = (float)(rand() % (WINDOW_HEIGHT - 256));
         }
         if (ghost.y < 0) ghost.y = 0;
         if (ghost.y > WINDOW_HEIGHT - 256) ghost.y = WINDOW_HEIGHT - 256;
 
         if (ghost.timer >= ghost.interval) {
             ghost.timer = 0;
-            ghost.vy = static_cast<float>((rand() % 301) - 150);
+            ghost.vy = (float)((rand() % 301) - 150);
         }
 
-        // Broadcast state ~30Hz
+        // Broadcast state @ ~30Hz
         accum += dt;
-        if (accum >= 1.0 / 30.0) {
+        if (accum >= 1.0/30.0) {
             accum = 0.0;
             std::ostringstream oss;
             {
