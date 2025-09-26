@@ -350,6 +350,7 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__charconv/traits.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/convert_to_timespec.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/duration.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/file_clock.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/high_resolution_clock.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/steady_clock.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/system_clock.h \
@@ -582,6 +583,12 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__ranges/view_interface.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__split_buffer \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__std_mbstate_t.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/atomic_unique_lock.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/intrusive_list_view.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/intrusive_shared_ptr.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_source.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_state.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_token.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__string/char_traits.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__string/constexpr_c_functions.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__string/extern_template_lists.h \
@@ -590,10 +597,15 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/error_code.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/error_condition.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/system_error.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/formatter.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/id.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/jthread.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/poll_with_backoff.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/support.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/support/pthread.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/this_thread.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/thread.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__tree \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__tuple/find_index.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__tuple/ignore.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__tuple/make_tuple_types.h \
@@ -751,6 +763,7 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/bitset \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cctype \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cerrno \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/chrono \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/climits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/clocale \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cmath \
@@ -770,6 +783,7 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/errno.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/exception \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/format \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/forward_list \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/functional \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/initializer_list \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/ios \
@@ -780,6 +794,7 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/limits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/locale \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/locale.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/map \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/math.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/memory \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/mutex \
@@ -801,6 +816,7 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/string.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/string_view \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/system_error \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/thread \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/tuple \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/type_traits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/typeinfo \
@@ -964,6 +980,7 @@ CMakeFiles/server.dir/src/server.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/collision.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/physics.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/timeline.h \
   /opt/homebrew/include/SDL3/SDL.h \
   /opt/homebrew/include/SDL3/SDL_assert.h \
   /opt/homebrew/include/SDL3/SDL_asyncio.h \
@@ -1278,21 +1295,23 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_pthread/_pthread_cond_t.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/is_heap_until.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_pthread/_pthread_attr_t.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_endian.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/__endian.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdlib.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/signal.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread/sched.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread/qos.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/math.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/malloc/_ptrcheck.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/malloc/_malloc_type.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libkern/arm/_OSByteOrder.h:
 
@@ -1326,6 +1345,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/tuple:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/thread:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/stdlib.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/stdexcept:
@@ -1347,6 +1368,10 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/unwrap_range.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/functional:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/arm/signal.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/forward_list:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/format:
 
@@ -1570,6 +1595,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__math/min_max.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/this_thread.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/disjunction.h:
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg_header_macro.h:
@@ -1589,8 +1616,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/conditional.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/common_reference.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/alignment_of.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__atomic/atomic_flag.h:
 
@@ -1636,6 +1661,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__tuple/find_index.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__tree:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/variant:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_void.h:
@@ -1650,10 +1677,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/id.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_empty.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/error_condition.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/error_category.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/string.h:
@@ -1661,6 +1684,26 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstring:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/errc.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdlib.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_state.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_source.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/intrusive_shared_ptr.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/alignment_of.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_standard_layout.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/intrusive_list_view.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_empty.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/error_condition.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/atomic_unique_lock.h:
 
 /opt/homebrew/include/SDL3/SDL_render.h:
 
@@ -1675,12 +1718,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/has_virtual_destructor.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__ranges/enable_view.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__utility/rel_ops.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/merge.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/malloc/_malloc.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_constant_evaluated.h:
 
@@ -1790,6 +1827,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/search_n.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/formatter.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/reverse_access.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/ranges_iterator_traits.h:
@@ -1811,8 +1850,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/iter_swap.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/istream_iterator.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread/sched.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__fwd/functional.h:
 
@@ -1873,6 +1910,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__fwd/streambuf.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__fwd/sstream.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/map:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/data.h:
 
@@ -2170,6 +2209,10 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__bit/popcount.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__stop_token/stop_token.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/three_way_comp_ref_type.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/min.h:
@@ -2217,6 +2260,12 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/utility:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/replace_copy.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__functional/binary_function.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/count_if.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/file_clock.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/queue:
 
@@ -2392,6 +2441,12 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_strings.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/malloc/_malloc.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__utility/rel_ops.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/merge.h:
+
 /opt/homebrew/include/SDL3/SDL_bits.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/copy_backward.h:
@@ -2421,8 +2476,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/promote.h:
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_size_t.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/arm/signal.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/readable_traits.h:
 
@@ -2481,6 +2534,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /opt/homebrew/include/SDL3/SDL_thread.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/equal.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/thread.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/move.h:
 
@@ -2548,8 +2603,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__functional/function.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__functional/binary_function.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_wchar_t.h:
 
 /opt/homebrew/include/SDL3/SDL_iostream.h:
@@ -2614,8 +2667,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/new:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/count_if.h:
-
 /opt/homebrew/include/SDL3/SDL_version.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__iterator/istreambuf_iterator.h:
@@ -2634,6 +2685,10 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__ranges/access.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_pthread/_pthread_attr_t.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/is_heap_until.h:
+
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/ptrcheck.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/binary_search.h:
@@ -2645,8 +2700,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/clocale:
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_wchar_t.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_standard_layout.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/compare:
 
@@ -2732,6 +2785,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_size_t.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/chrono:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__mutex/lock_guard.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_rune_t.h:
@@ -2762,11 +2817,7 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__concepts/semiregular.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_printf.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__compare/common_comparison_category.h:
 
@@ -2824,8 +2875,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/climits:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread/qos.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/wait.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__functional/default_searcher.h:
@@ -2841,6 +2890,8 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /opt/homebrew/include/SDL3/SDL_guid.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/machine/_types.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__thread/jthread.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/mismatch.h:
 
@@ -2893,8 +2944,6 @@ CMakeFiles/server.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Gam
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/dependent_type.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__atomic/fence.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/malloc/_malloc_type.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__utility/exchange.h:
 
