@@ -7,7 +7,7 @@
 #include "scaling.h"
 #include "physics.h"
 #include "collision.h"
-#include "timeline.h"
+#include "timeline.h"  // Added Timeline
 
 const int DESIGN_WIDTH = 1720;
 const int DESIGN_HEIGHT = 1080;
@@ -30,19 +30,20 @@ void clampPlayerPosition(float& playerX, float& playerY, float playerWidth, floa
 
 int main(int, char**) {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("Feeling Spikey - Single Player", 
+    SDL_Window* window = SDL_CreateWindow("Feeling Spikey", 
                                          DESIGN_WIDTH, DESIGN_HEIGHT, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     Scaling::setMode(ScaleMode::Proportional);
 
     Physics::setGravity(2000.f);
 
-    // Initialize Dual Timeline System
-    Timeline personalTimeline;  // For player movement - pause/speed controls
-    personalTimeline.anchorToRealTime();
+    // Initialize Timeline System
+    Timeline gameTimeline;
+    gameTimeline.anchorToRealTime();
     
-    Timeline worldTimeline;     // For world objects - always running
-    worldTimeline.anchorToRealTime();
+    // Optional: Create UI timeline that always runs at real time
+    Timeline uiTimeline;
+    uiTimeline.anchorToRealTime();
 
     Entity groundBottom(renderer, "../assets/ground_bottom.png", 0, 0, 64, 64, 1, 0);
     Entity groundTop(renderer, "../assets/ground.png", 0, 0, 64, 64, 1, 0);
@@ -53,8 +54,8 @@ int main(int, char**) {
     int frameWidth = 128;
     int frameHeight = 128;
     float playerScale = 2.0f;
-    float playerWidth = frameWidth * playerScale;
-    float playerHeight = frameHeight * playerScale;
+    float playerWidth = frameWidth * playerScale;   // 256 design pixels
+    float playerHeight = frameHeight * playerScale; // 256 design pixels
     
     Entity player(renderer, "../assets/player.png", 0, 0, frameWidth, frameHeight, frameCount, 150);
 
@@ -85,6 +86,9 @@ int main(int, char**) {
     bool wasGrounded = false;
     bool isGrounded = false;
 
+    // Timeline-related variables for display
+    bool showTimelineInfo = false;
+
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
@@ -106,24 +110,32 @@ int main(int, char**) {
                 }
             }
 
-            // Timeline Controls (only affect personal timeline)
+            // Timeline Controls - using key down events for single press
             if (e.type == SDL_EVENT_KEY_DOWN) {
                 switch (e.key.scancode) {
                     case SDL_SCANCODE_P:
-                        personalTimeline.togglePause();
-                        SDL_Log(personalTimeline.isPaused() ? "Personal timeline PAUSED" : "Personal timeline RESUMED");
+                        gameTimeline.togglePause();
+                        SDL_Log(gameTimeline.isPaused() ? "Game PAUSED" : "Game RESUMED");
                         break;
+                    
                     case SDL_SCANCODE_1:
-                        personalTimeline.setScale(0.5);
-                        SDL_Log("Personal speed: SLOW (0.5x)");
+                        gameTimeline.setScale(0.5);
+                        SDL_Log("Game speed: SLOW (0.5x)");
                         break;
+                    
                     case SDL_SCANCODE_2:
-                        personalTimeline.setScale(1.0);
-                        SDL_Log("Personal speed: NORMAL (1.0x)");
+                        gameTimeline.setScale(1.0);
+                        SDL_Log("Game speed: NORMAL (1.0x)");
                         break;
+                    
                     case SDL_SCANCODE_3:
-                        personalTimeline.setScale(2.0);
-                        SDL_Log("Personal speed: FAST (2.0x)");
+                        gameTimeline.setScale(2.0);
+                        SDL_Log("Game speed: FAST (2.0x)");
+                        break;
+                    
+                    case SDL_SCANCODE_T:
+                        showTimelineInfo = !showTimelineInfo;
+                        SDL_Log(showTimelineInfo ? "Timeline info: ON" : "Timeline info: OFF");
                         break;
                 }
             }
@@ -131,24 +143,21 @@ int main(int, char**) {
 
         Input::poll();
 
-        // Get time deltas from both timelines
-        double personalDeltaTime = personalTimeline.tick();
-        double worldDeltaTime = worldTimeline.tick();
+        // Get time-based delta from timeline
+        double gameDeltatime = gameTimeline.tick();
+        float dt = static_cast<float>(gameDeltatime);
         
-        float personalDT = static_cast<float>(personalDeltaTime);
-        float worldDT = static_cast<float>(worldDeltaTime);
-        
-        if (personalDT > 0.05f) personalDT = 0.05f;
-        if (worldDT > 0.05f) worldDT = 0.05f;
+        // Cap extreme delta times to prevent instability
+        if (dt > 0.05f) dt = 0.05f;
 
-        // Update personal game logic (affected by pause/speed controls)
-        if (!personalTimeline.isPaused()) {
+        // Only update game logic when not paused
+        if (!gameTimeline.isPaused()) {
             prevPlayerX = playerX;
             prevPlayerY = playerY;
 
             playerBody.vx = 0.f;
             
-            // Input handling
+            // Input handling (still works when paused for timeline controls)
             if (Input::isKeyPressed(SDL_SCANCODE_A)) {
                 playerBody.vx = -PLAYER_SPEED;
             }
@@ -159,8 +168,8 @@ int main(int, char**) {
                 playerBody.vy = JUMP_VELOCITY;
             }
 
-            // Physics update with personal timeline
-            Physics::step(personalDT * 1000, playerX, playerY, playerBody);
+            // Physics update with timeline delta
+            Physics::step(dt * 1000, playerX, playerY, playerBody);
 
             clampPlayerPosition(playerX, playerY, playerWidth, playerHeight);
 
@@ -204,7 +213,7 @@ int main(int, char**) {
                 if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= movingPlatform.y + 20) {
                     playerY = movingPlatform.y - playerHeight;
                     playerBody.vy = 0;
-                    playerX += platformSpeed * platformDir * worldDT; // Platform movement uses world timeline
+                    playerX += platformSpeed * platformDir * dt; // ride along with timeline delta
                     isGrounded = true;
                 }
             }
@@ -235,19 +244,18 @@ int main(int, char**) {
 
             wasGrounded = isGrounded;
 
+            // Moving platform update with timeline delta
+            movingPlatform.x += platformSpeed * platformDir * dt;
+            if (movingPlatform.x < platformWidth) {
+                movingPlatform.x = platformWidth;
+                platformDir = 1;
+            } else if (movingPlatform.x + movingPlatform.w > DESIGN_WIDTH - platformWidth) {
+                movingPlatform.x = DESIGN_WIDTH - platformWidth - movingPlatform.w;
+                platformDir = -1;
+            }
+
             // Update player animation (only when not paused)
             player.update();
-        }
-        
-        // World objects update regardless of personal pause state
-        // Moving platform with world timeline (always running)
-        movingPlatform.x += platformSpeed * platformDir * worldDT;
-        if (movingPlatform.x < platformWidth) {
-            movingPlatform.x = platformWidth;
-            platformDir = 1;
-        } else if (movingPlatform.x + movingPlatform.w > DESIGN_WIDTH - platformWidth) {
-            movingPlatform.x = DESIGN_WIDTH - platformWidth - movingPlatform.w;
-            platformDir = -1;
         }
 
         // Always render, even when paused
@@ -291,8 +299,25 @@ int main(int, char**) {
         player.setSize(playerWidth, playerHeight);
         player.render(renderer, window);
 
+        // Optional: Render timeline info (simple text substitute)
+        if (showTimelineInfo) {
+            // You could add text rendering here to show current timeline state
+            // For now, just log every few seconds
+            static int logCounter = 0;
+            if (++logCounter > 60) { // Every ~1 second at 60fps
+                SDL_Log("Timeline - Scale: %.1fx, Paused: %s, Time: %.2fs", 
+                       gameTimeline.scale(), 
+                       gameTimeline.isPaused() ? "Yes" : "No",
+                       gameTimeline.time());
+                logCounter = 0;
+            }
+        }
+
         SDL_RenderPresent(renderer);
-        SDL_Delay(16);
+        
+        // Use UI timeline for consistent frame timing (unaffected by game pause)
+        double uiDelta = uiTimeline.tick();
+        SDL_Delay(16); // Could use uiDelta for more precise timing
     }
 
     SDL_DestroyRenderer(renderer);
