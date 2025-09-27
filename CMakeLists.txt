@@ -13,6 +13,8 @@ if (NOT ZeroMQ_FOUND)
 endif()
 
 include_directories(include)
+
+# Single-player main (no networking)
 add_executable(main
     ./src/main.cpp
     ./src/entity.cpp
@@ -28,7 +30,7 @@ target_link_libraries(main
         SDL3_image::SDL3_image
 )
 
-# Client executable
+# Multiplayer client (uses direct ZMQ)
 add_executable(client
     ./src/client.cpp
     ./src/entity.cpp
@@ -44,9 +46,10 @@ else()
     target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
 endif()
 
-# Headless server executable
+# Headless server (uses NetworkServer framework)
 add_executable(server
     ./src/server.cpp
+    ./src/network_server.cpp
 )
 
 if (ZeroMQ_FOUND)

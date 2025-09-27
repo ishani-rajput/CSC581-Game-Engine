@@ -1,97 +1,112 @@
-#include <zmq.h>
+#include "network_server.h"
 #include <unordered_map>
-#include <string>
 #include <iostream>
 #include <cstdio>
-#include <cstring>
 #include <chrono>
 
-static constexpr int DESIGN_WIDTH  = 1720;
-static constexpr int DESIGN_HEIGHT = 1080;
-
-// Level layout from your single-player
-static constexpr float STATIC_PLATFORM_W = 400.f;   // left/right ground column width
-static constexpr float STATIC_PLATFORM_H = 500.f;   // left/right ground column height
-
-// Moving platform shape (matches your asset and main.cpp)
-static constexpr float MP_W = 384.f;
-static constexpr float MP_H = 128.f;
-
-// Same vertical placement as your single-player: 1080 - 500 - 200 = 380
-static constexpr float MP_Y = DESIGN_HEIGHT - STATIC_PLATFORM_H - 200.f; // 380
-
-// Horizontal bounds so it moves in the middle corridor
-static constexpr float MP_MIN_X = STATIC_PLATFORM_W;                            // 400
-static constexpr float MP_MAX_X = DESIGN_WIDTH - STATIC_PLATFORM_W - MP_W;      // 1720 - 400 - 384 = 936
-
-struct Vec2 { float x=0, y=0; };
-
+struct Vec2 { float x = 0, y = 0; };
 struct Platform {
     float x, y, w, h;
     float speed;
-    int dir; // +1 right, -1 left
+    int dir;
+};
+
+class SpikeyServer : public Engine::NetworkServer {
+private:
+    std::unordered_map<std::string, Vec2> players;
+    Platform movingPlatform;
+    std::chrono::steady_clock::time_point startTime;
+    std::chrono::steady_clock::time_point lastUpdate;
+    
+    // Level constants
+    static constexpr int DESIGN_WIDTH = 1720;
+    static constexpr int DESIGN_HEIGHT = 1080;
+    static constexpr float STATIC_PLATFORM_W = 400.f;
+    static constexpr float STATIC_PLATFORM_H = 500.f;
+    static constexpr float MP_W = 384.f;
+    static constexpr float MP_H = 128.f;
+    static constexpr float MP_Y = DESIGN_HEIGHT - STATIC_PLATFORM_H - 200.f;
+    static constexpr float MP_MIN_X = STATIC_PLATFORM_W;
+    static constexpr float MP_MAX_X = DESIGN_WIDTH - STATIC_PLATFORM_W - MP_W;
+
+public:
+    SpikeyServer() {
+        movingPlatform = {
+            (MP_MIN_X + MP_MAX_X) * 0.5f,
+            MP_Y,
+            MP_W, MP_H,
+            200.f,  // speed
+            1       // direction
+        };
+        
+        startTime = std::chrono::steady_clock::now();
+        lastUpdate = startTime;
+        setWorldUpdateRate(60);
+    }
+
+protected:
+    void handleClientMessage(const std::string& clientId, const std::string& message) override {
+        char id[256];
+        float x = 0, y = 0;
+        
+        if (sscanf(message.c_str(), "ID %255s X %f Y %f", id, &x, &y) == 3) {
+            players[std::string(id)] = Vec2{x, y};
+        }
+    }
+    
+    std::string generateWorldState() override {
+        auto now = std::chrono::steady_clock::now();
+        float currentTime = std::chrono::duration<float>(now - startTime).count();
+        float deltaTime = std::chrono::duration<float>(now - lastUpdate).count();
+        lastUpdate = now;
+        
+        // Update moving platform (server timeline)
+        movingPlatform.x += movingPlatform.speed * movingPlatform.dir * deltaTime;
+        if (movingPlatform.x < MP_MIN_X) {
+            movingPlatform.x = MP_MIN_X;
+            movingPlatform.dir = 1;
+        } else if (movingPlatform.x + movingPlatform.w > MP_MAX_X + movingPlatform.w) {
+            movingPlatform.x = MP_MAX_X;
+            movingPlatform.dir = -1;
+        }
+        
+        // Build response
+        char buffer[8192];
+        int offset = snprintf(buffer, sizeof(buffer), "T %.3f\nN %zu\n", 
+                             currentTime, players.size());
+        
+        for (const auto& [playerId, pos] : players) {
+            offset += snprintf(buffer + offset, sizeof(buffer) - offset,
+                              "%s %.3f %.3f\n", playerId.c_str(), pos.x, pos.y);
+        }
+        
+        offset += snprintf(buffer + offset, sizeof(buffer) - offset,
+                          "P %.3f %.3f %.3f %.3f %d\n",
+                          movingPlatform.x, movingPlatform.y, 
+                          movingPlatform.w, movingPlatform.h, 
+                          movingPlatform.dir);
+        
+        return std::string(buffer, offset);
+    }
+    
+    void onClientConnected(const std::string& clientId) override {
+        std::cout << "Spikey player joined: " << clientId << std::endl;
+        players[clientId] = Vec2{100.f, MP_Y - 256.f};
+    }
+    
+    void onClientDisconnected(const std::string& clientId) override {
+        std::cout << "Spikey player left: " << clientId << std::endl;
+        players.erase(clientId);
+    }
 };
 
 int main() {
-    void* ctx = zmq_ctx_new();
-    void* rep = zmq_socket(ctx, ZMQ_REP);
-    if (zmq_bind(rep, "tcp://*:5555") != 0) {
-        std::cerr << "Bind failed: " << zmq_strerror(errno) << "\n";
-        return 1;
-    }
-
-    std::unordered_map<std::string, Vec2> players;
-
-    Platform moving{ (MP_MIN_X + MP_MAX_X) * 0.5f, MP_Y, MP_W, MP_H, 200.f, 1 };
-
-    auto start    = std::chrono::steady_clock::now();
-    auto lastTick = start;
-
-    char inbuf[512];
-    char outbuf[8192];
-
-    std::cout << "Server listening on 5555...\n";
-    while (true) {
-        int rb = zmq_recv(rep, inbuf, sizeof(inbuf)-1, 0);
-        if (rb <= 0) {
-            if (errno == ETERM) break;
-            continue;
-        }
-        inbuf[rb] = '\0';
-
-        // Expect: "ID <id> X <x> Y <y>"
-        char id[256]; float x=0, y=0;
-        if (sscanf(inbuf, "ID %255s X %f Y %f", id, &x, &y) == 3) {
-            players[id] = Vec2{ x, y };
-        }
-
-        // Advance world time & simulate platform
-        auto now       = std::chrono::steady_clock::now();
-        float serverT  = std::chrono::duration<float>(now - start).count();
-        float dt       = std::chrono::duration<float>(now - lastTick).count();
-        lastTick       = now;
-
-        moving.x += moving.speed * moving.dir * dt;
-        if (moving.x < MP_MIN_X) {
-            moving.x = MP_MIN_X; moving.dir = +1;
-        } else if (moving.x + moving.w > MP_MAX_X + moving.w) {
-            moving.x = MP_MAX_X; moving.dir = -1;
-        }
-
-        // Build response: time, players, platform (send w/h too!)
-        int offset = snprintf(outbuf, sizeof(outbuf), "T %.3f\nN %zu\n", serverT, players.size());
-        for (auto& kv : players) {
-            offset += snprintf(outbuf + offset, sizeof(outbuf) - offset,
-                               "%s %.3f %.3f\n", kv.first.c_str(), kv.second.x, kv.second.y);
-        }
-        offset += snprintf(outbuf + offset, sizeof(outbuf) - offset,
-                           "P %.3f %.3f %.3f %.3f %d\n",
-                           moving.x, moving.y, moving.w, moving.h, moving.dir);
-
-        zmq_send(rep, outbuf, offset, 0);
-    }
-
-    zmq_close(rep);
-    zmq_ctx_destroy(ctx);
+    SpikeyServer server;
+    server.startServer(5555);
+    
+    std::cout << "Spikey server running on port 5555. Press Enter to stop..." << std::endl;
+    std::cin.get();
+    
+    server.stopServer();
     return 0;
 }

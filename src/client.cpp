@@ -47,14 +47,14 @@ static std::string generateClientId() {
 
 int main(int, char**) {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("Feeling Spikey - Multiplayer Client",
+    SDL_Window* window = SDL_CreateWindow("Feeling Spikey - Multiplayer Client (Section 4)",
                                           DESIGN_WIDTH, DESIGN_HEIGHT, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     Scaling::setMode(ScaleMode::Proportional);
 
     Physics::setGravity(2000.f);
 
-    // ---- Timeline for local player ----
+    // ---- Timeline for local player (Section 4: Personal timeline) ----
     Timeline gameTimeline; 
     gameTimeline.anchorToRealTime();
 
@@ -102,6 +102,9 @@ int main(int, char**) {
 
     bool running=true, wasGrounded=false, grounded=false;
 
+    // Section 4: Timeline-controlled networking
+    static float networkTimer = 0.0f;
+
     while (running) {
         // -------- Events --------
         SDL_Event e;
@@ -111,31 +114,36 @@ int main(int, char**) {
                 clampPlayerPosition(px, py, playerW, playerH);
             }
 
-            // ---- Timeline Controls ----
+            // ---- Timeline Controls (Section 4: Personal timeline only) ----
             if (e.type == SDL_EVENT_KEY_DOWN) {
                 switch (e.key.scancode) {
                     case SDL_SCANCODE_P:
                         gameTimeline.togglePause();
-                        SDL_Log(gameTimeline.isPaused() ? "Paused" : "Resumed");
+                        SDL_Log(gameTimeline.isPaused() ? "Personal timeline PAUSED" : "Personal timeline RESUMED");
                         break;
                     case SDL_SCANCODE_1:
                         gameTimeline.setScale(0.5);
-                        SDL_Log("Speed: 0.5x");
+                        SDL_Log("Personal timeline: SLOW (0.5x) - Fewer network messages");
                         break;
                     case SDL_SCANCODE_2:
                         gameTimeline.setScale(1.0);
-                        SDL_Log("Speed: 1.0x");
+                        SDL_Log("Personal timeline: NORMAL (1.0x) - Normal network rate");
                         break;
                     case SDL_SCANCODE_3:
                         gameTimeline.setScale(2.0);
-                        SDL_Log("Speed: 2.0x");
+                        SDL_Log("Personal timeline: FAST (2.0x) - More network messages");
                         break;
                 }
             }
         }
 
-        // -------- Networking FIRST --------
-        {
+        // -------- Timeline-Controlled Networking (Section 4) --------
+        double dt = gameTimeline.tick();  // Personal timeline affects everything
+        if (dt > 0.05) dt = 0.05;
+        networkTimer += dt;
+
+        // Send at rate affected by personal timeline speed
+        if (networkTimer >= (1.0f / 60.0f)) {  // Target ~60 FPS max
             char msg[256];
             snprintf(msg, sizeof(msg), "ID %s X %.3f Y %.3f", clientId.c_str(), px, py);
             zmq_send(sock, msg, strlen(msg), 0);
@@ -180,13 +188,12 @@ int main(int, char**) {
                     } else ++it;
                 }
             }
+            
+            networkTimer = 0.0f;  // Reset network timer
         }
 
-        // -------- Input + Physics --------
+        // -------- Input + Physics (using personal timeline) --------
         Input::poll();
-
-        double dt = gameTimeline.tick();
-        if (dt > 0.05) dt = 0.05;
 
         prevPX = px; prevPY = py;
         pbody.vx = 0.f;
@@ -197,6 +204,7 @@ int main(int, char**) {
             pbody.vy = JUMP_VELOCITY;
         }
 
+        // Physics affected by personal timeline
         Physics::step(dt * 1000, px, py, pbody);
         clampPlayerPosition(px, py, playerW, playerH);
 
@@ -213,18 +221,18 @@ int main(int, char**) {
             py = rightY - playerH; pbody.vy = 0; grounded = true;
         }
 
-        // Moving platform
+        // Moving platform (server-controlled, not affected by personal timeline)
         SDL_FRect mpRect { movingPlat.x, movingPlat.y, movingPlat.w, movingPlat.h };
         if (checkCollision(playerRect, mpRect)) {
-    if (pbody.vy >= 0 && prevPY + playerH <= movingPlat.y + 20) {
-        py = movingPlat.y - playerH;
-        pbody.vy = 0;
-        // Use server deltaTime for platform movement, not client timeline
-        float platDX = movingPlat.x - prevPlatX;
-        px += platDX; // This is correct - you already have this
-        grounded = true;
-    }
-}
+            if (pbody.vy >= 0 && prevPY + playerH <= movingPlat.y + 20) {
+                py = movingPlat.y - playerH;
+                pbody.vy = 0;
+                // Platform movement is server-controlled (Section 4 requirement)
+                float platDX = movingPlat.x - prevPlatX;
+                px += platDX; // Ride along with server-controlled platform
+                grounded = true;
+            }
+        }
 
         // Spikes
         float spikeW = 300.f, spikeH = 389.f, spikeY = DESIGN_HEIGHT - spikeH;
@@ -233,12 +241,14 @@ int main(int, char**) {
             if (checkCollision(playerRect, spikeRect)) {
                 px = leftX + 100.f; py = leftY - playerH;
                 pbody.vx = pbody.vy = 0;
+                SDL_Log("You died! Resetting...");
             }
         }
 
         if (py > DESIGN_HEIGHT + 100) {
             px = leftX + 100.f; py = leftY - playerH;
             pbody.vx = pbody.vy = 0;
+            SDL_Log("You fell! Resetting...");
         }
 
         wasGrounded = grounded;
@@ -270,7 +280,7 @@ int main(int, char**) {
         groundTop.setSize(STATIC_PLATFORM_W, 64);
         groundTop.render(renderer, window);
 
-        // Moving platform
+        // Moving platform (server-controlled position)
         platformTex.setPosition(movingPlat.x, movingPlat.y);
         platformTex.setSize(movingPlat.w, movingPlat.h);
         platformTex.render(renderer, window);
@@ -290,9 +300,10 @@ int main(int, char**) {
         }
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(16);
+        SDL_Delay(16);  // Render thread stays at constant ~60 FPS
     }
 
+    // Cleanup
     for (auto& kv : remotes) if (kv.second.entity) delete kv.second.entity;
     zmq_close(sock); zmq_ctx_destroy(ctx);
     SDL_DestroyRenderer(renderer);

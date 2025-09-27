@@ -187,6 +187,13 @@ build CMakeFiles/server.dir/src/server.cpp.obj: CXX_COMPILER__server_unscanned_ 
   OBJECT_DIR = CMakeFiles\server.dir
   OBJECT_FILE_DIR = CMakeFiles\server.dir\src
 
+build CMakeFiles/server.dir/src/network_server.cpp.obj: CXX_COMPILER__server_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/network_server.cpp || cmake_object_order_depends_target_server
+  DEP_FILE = CMakeFiles\server.dir\src\network_server.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\server.dir
+  OBJECT_FILE_DIR = CMakeFiles\server.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target server
@@ -195,7 +202,7 @@ build CMakeFiles/server.dir/src/server.cpp.obj: CXX_COMPILER__server_unscanned_ 
 #############################################
 # Link the executable server.exe
 
-build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj | C$:/msys2/mingw64/lib/libzmq.dll.a
+build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj CMakeFiles/server.dir/src/network_server.cpp.obj | C$:/msys2/mingw64/lib/libzmq.dll.a
   LINK_LIBRARIES = C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\server.dir
   POST_BUILD = cd .
