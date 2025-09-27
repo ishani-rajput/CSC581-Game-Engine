@@ -257,6 +257,12 @@ SDL3_DIR:PATH=C:/msys64/mingw64/lib/cmake/SDL3
 //The directory containing a CMake configuration file for SDL3_image.
 SDL3_image_DIR:PATH=C:/msys64/mingw64/lib/cmake/SDL3_image
 
+//Path to a library.
+ZMQ_LIB:FILEPATH=C:/msys64/mingw64/lib/libzmq.dll.a
+
+//The directory containing a CMake configuration file for ZeroMQ.
+ZeroMQ_DIR:PATH=ZeroMQ_DIR-NOTFOUND
+
 
 ########################
 # INTERNAL cache entries
