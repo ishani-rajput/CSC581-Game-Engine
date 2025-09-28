@@ -202,8 +202,8 @@ build CMakeFiles/server.dir/src/network_server.cpp.obj: CXX_COMPILER__server_uns
 #############################################
 # Link the executable server.exe
 
-build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj CMakeFiles/server.dir/src/network_server.cpp.obj | C$:/msys64/mingw64/lib/libzmq.dll.a
-  LINK_LIBRARIES = C:/msys64/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj CMakeFiles/server.dir/src/network_server.cpp.obj | C$:/msys64/mingw64/lib/libSDL3.dll.a C$:/msys64/mingw64/lib/libzmq.dll.a
+  LINK_LIBRARIES = C:/msys64/mingw64/lib/libSDL3.dll.a  C:/msys64/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\server.dir
   POST_BUILD = cd .
   PRE_LINK = cd .

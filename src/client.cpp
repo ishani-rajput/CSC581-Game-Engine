@@ -86,6 +86,7 @@ int main(int argc, char** argv){
 
     // Pipes (received from server)
     std::vector<PipePair> pipes;
+    std::vector<PipePair> pausedPipes; // Store pipes when paused
 
     // Timeline & scaling (Section 1: Time representation)
     Scaling::setMode(ScaleMode::Pixel);
@@ -169,7 +170,11 @@ int main(int argc, char** argv){
                 // Store existing animation states before clearing
                 std::unordered_map<std::string, RemotePlayer> oldOthers = others;
                 others.clear();
-                pipes.clear();
+                
+                // Only update pipes if not paused
+                if (!gameTime.isPaused()) {
+                    pipes.clear();
+                }
                 
                 // Parse players
                 for(size_t i=0; i<numPlayers && lines; i++){
@@ -197,14 +202,16 @@ int main(int argc, char** argv){
                     lines=strchr(lines,'\n');
                 }
                 
-                // Parse pipes
-                for(size_t i=0; i<numPipes && lines; i++){
-                    lines++;
-                    float tx,ty,tw,th,bx,by,bw,bh;
-                    if(sscanf(lines,"%f %f %f %f %f %f %f %f",&tx,&ty,&tw,&th,&bx,&by,&bw,&bh)==8){
-                        pipes.emplace_back(tx,ty,tw,th,bx,by,bw,bh);
+                // Parse pipes (only if not paused)
+                if (!gameTime.isPaused()) {
+                    for(size_t i=0; i<numPipes && lines; i++){
+                        lines++;
+                        float tx,ty,tw,th,bx,by,bw,bh;
+                        if(sscanf(lines,"%f %f %f %f %f %f %f %f",&tx,&ty,&tw,&th,&bx,&by,&bw,&bh)==8){
+                            pipes.emplace_back(tx,ty,tw,th,bx,by,bw,bh);
+                        }
+                        lines=strchr(lines,'\n');
                     }
-                    lines=strchr(lines,'\n');
                 }
             }
         }

@@ -51,7 +51,7 @@ add_executable(server
 )
 
 if (ZeroMQ_FOUND)
-    target_link_libraries(server PRIVATE libzmq)
+    target_link_libraries(server PRIVATE SDL3::SDL3 libzmq)
 else()
-    target_link_libraries(server PRIVATE ${ZMQ_LIB})
+    target_link_libraries(server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 endif()
