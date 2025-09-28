@@ -281,6 +281,33 @@ src/network_server.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/network_server.cpp.s
 .PHONY : src/network_server.cpp.s
 
+src/peer_manager.o: src/peer_manager.cpp.o
+.PHONY : src/peer_manager.o
+
+# target to build an object file
+src/peer_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/peer_manager.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/peer_manager.cpp.o
+.PHONY : src/peer_manager.cpp.o
+
+src/peer_manager.i: src/peer_manager.cpp.i
+.PHONY : src/peer_manager.i
+
+# target to preprocess a source file
+src/peer_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/peer_manager.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/peer_manager.cpp.i
+.PHONY : src/peer_manager.cpp.i
+
+src/peer_manager.s: src/peer_manager.cpp.s
+.PHONY : src/peer_manager.s
+
+# target to generate assembly for a file
+src/peer_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/peer_manager.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/peer_manager.cpp.s
+.PHONY : src/peer_manager.cpp.s
+
 src/physics.o: src/physics.cpp.o
 .PHONY : src/physics.o
 
@@ -418,6 +445,9 @@ help:
 	@echo "... src/network_server.o"
 	@echo "... src/network_server.i"
 	@echo "... src/network_server.s"
+	@echo "... src/peer_manager.o"
+	@echo "... src/peer_manager.i"
+	@echo "... src/peer_manager.s"
 	@echo "... src/physics.o"
 	@echo "... src/physics.i"
 	@echo "... src/physics.s"

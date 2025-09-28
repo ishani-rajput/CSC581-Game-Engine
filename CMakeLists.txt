@@ -38,6 +38,7 @@ add_executable(client
     ./src/physics.cpp
     ./src/scaling.cpp
     ./src/timeline.cpp
+     ./src/peer_manager.cpp 
 )
 
 if (ZeroMQ_FOUND)
@@ -52,6 +53,7 @@ add_executable(server
     ./src/physics.cpp
     ./src/timeline.cpp
     ./src/network_server.cpp 
+     ./src/peer_manager.cpp 
 )
 
 if (ZeroMQ_FOUND)

@@ -11,6 +11,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/client.cpp" "CMakeFiles/client.dir/src/client.cpp.o" "gcc" "CMakeFiles/client.dir/src/client.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/entity.cpp" "CMakeFiles/client.dir/src/entity.cpp.o" "gcc" "CMakeFiles/client.dir/src/entity.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/input.cpp" "CMakeFiles/client.dir/src/input.cpp.o" "gcc" "CMakeFiles/client.dir/src/input.cpp.o.d"
+  "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/peer_manager.cpp" "CMakeFiles/client.dir/src/peer_manager.cpp.o" "gcc" "CMakeFiles/client.dir/src/peer_manager.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/physics.cpp" "CMakeFiles/client.dir/src/physics.cpp.o" "gcc" "CMakeFiles/client.dir/src/physics.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/scaling.cpp" "CMakeFiles/client.dir/src/scaling.cpp.o" "gcc" "CMakeFiles/client.dir/src/scaling.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/timeline.cpp" "CMakeFiles/client.dir/src/timeline.cpp.o" "gcc" "CMakeFiles/client.dir/src/timeline.cpp.o.d"
