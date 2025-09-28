@@ -24,6 +24,10 @@ struct PipePair {
         : top{tx, ty, tw, th}, bottom{bx, by, bw, bh} {}
 };
 
+static float floatRand(float a, float b){
+    return a + (b-a) * (float)rand()/(float)RAND_MAX;
+}
+
 struct RemotePlayer { 
     SDL_FRect rect; 
     int currentFrame = 0;
@@ -87,6 +91,15 @@ int main(int argc, char** argv){
     // Pipes (received from server)
     std::vector<PipePair> pipes;
     std::vector<PipePair> pausedPipes; // Store pipes when paused
+    double lastPipeUpdateTime = 0.0; // Track time for local pipe movement
+    
+    // Local pipe spawning for scaled speeds
+    double localSpawnTimer = 0.0;
+    const double PIPE_SPAWN_EVERY = 1.4;
+    const float PIPE_W = 140.f;
+    const float PIPE_GAP = 280.f;
+    const float SCREEN_WIDTH = 1920.f;
+    const float SCREEN_HEIGHT = 1080.f;
 
     // Timeline & scaling (Section 1: Time representation)
     Scaling::setMode(ScaleMode::Pixel);
@@ -100,6 +113,7 @@ int main(int argc, char** argv){
     bool running=true; SDL_Event ev;
     bool prevSpace=false, prevToggle=false;
     bool prevP=false, prev1=false, prev2=false, prev3=false; // pause + speed hotkeys
+    double lastScale = 1.0; // Track scale changes
 
     while(running){
         while(SDL_PollEvent(&ev)){ if(ev.type==SDL_EVENT_QUIT) running=false; }
@@ -132,6 +146,15 @@ int main(int argc, char** argv){
 
         // --- Advance timeline ---
         double dtSec=gameTime.tick();
+        
+        // Check if scale changed
+        if (gameTime.scale() != lastScale) {
+            lastScale = gameTime.scale();
+            // If returning to normal speed, clear pipes to get fresh server data
+            if (gameTime.scale() == 1.0) {
+                pipes.clear();
+            }
+        }
 
         // jump (always available)
         bool spaceNow=Input::isKeyPressed(SDL_SCANCODE_SPACE);
@@ -144,7 +167,22 @@ int main(int argc, char** argv){
             if(skully.y+skully.h>=ground.y){ skully.y=ground.y-skully.h; skBody.vy=0.f; }
             if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
 
-            // collision handled by server
+            // Client-side collision detection for scaled speeds
+            if (gameTime.scale() != 1.0) {
+                bool hit = false;
+                for(auto& p : pipes) {
+                    if(aabbIntersect(skully, p.top) || aabbIntersect(skully, p.bottom)) {
+                        hit = true;
+                        break;
+                    }
+                }
+                if (hit) {
+                    // Reset pipes and spawn timer on collision
+                    pipes.clear();
+                    localSpawnTimer = 0.0;
+                }
+            }
+            // Server handles collision for normal speed
         }
 
         // animation (like main.cpp - always updates)
@@ -152,6 +190,36 @@ int main(int argc, char** argv){
         while(animAccum >= ANIM_FRAME_SEC) {
             animAccum -= ANIM_FRAME_SEC;
             currentFrame = (currentFrame + 1) % FRAME_COUNT;
+        }
+
+        // Local pipe movement and spawning (respects speed scaling)
+        if (!gameTime.isPaused()) {
+            const float PIPE_SPEED = -450.f; // Match server speed
+            
+            // Move existing pipes
+            for(auto& p : pipes) {
+                p.top.x += PIPE_SPEED * dtSec;
+                p.bottom.x += PIPE_SPEED * dtSec;
+            }
+            
+            // Spawn new pipes locally when at scaled speeds
+            if (gameTime.scale() != 1.0) {
+                localSpawnTimer += dtSec;
+                while(localSpawnTimer >= PIPE_SPAWN_EVERY) {
+                    localSpawnTimer -= PIPE_SPAWN_EVERY;
+                    float center = floatRand(SCREEN_HEIGHT * 0.30f, SCREEN_HEIGHT * 0.70f);
+                    float topH = center - PIPE_GAP * 0.5f;
+                    float bottomY = center + PIPE_GAP * 0.5f;
+                    pipes.emplace_back(
+                        SCREEN_WIDTH + PIPE_W, 0.f, PIPE_W, topH,
+                        SCREEN_WIDTH + PIPE_W, bottomY, PIPE_W, SCREEN_HEIGHT - bottomY - 120.f
+                    );
+                }
+            }
+            
+            // Remove pipes that are off-screen
+            pipes.erase(std::remove_if(pipes.begin(), pipes.end(),
+                [](const PipePair& p){ return (p.top.x + p.top.w) < -50.f; }), pipes.end());
         }
 
         // ---- Networking (Section 2: Client-Server) ----
@@ -171,8 +239,8 @@ int main(int argc, char** argv){
                 std::unordered_map<std::string, RemotePlayer> oldOthers = others;
                 others.clear();
                 
-                // Only update pipes if not paused
-                if (!gameTime.isPaused()) {
+                // Only update pipes if not paused AND at normal speed
+                if (!gameTime.isPaused() && gameTime.scale() == 1.0) {
                     pipes.clear();
                 }
                 
@@ -202,8 +270,8 @@ int main(int argc, char** argv){
                     lines=strchr(lines,'\n');
                 }
                 
-                // Parse pipes (only if not paused)
-                if (!gameTime.isPaused()) {
+                // Parse pipes (only if not paused AND at normal speed)
+                if (!gameTime.isPaused() && gameTime.scale() == 1.0) {
                     for(size_t i=0; i<numPipes && lines; i++){
                         lines++;
                         float tx,ty,tw,th,bx,by,bw,bh;
