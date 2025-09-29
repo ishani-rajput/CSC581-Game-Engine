@@ -57,3 +57,21 @@ if (ZeroMQ_FOUND)
 else()
     target_link_libraries(server PRIVATE ${ZMQ_LIB})
 endif()
+
+# Section 5 server
+add_executable(hybrid_server
+    ./src/hybrid_server.cpp
+)
+target_link_libraries(hybrid_server PRIVATE ${ZMQ_LIB})
+
+# Section 5 client
+add_executable(hybrid_client
+    ./src/hybrid_client.cpp
+    ./src/peer_manager.cpp
+    ./src/entity.cpp
+    ./src/input.cpp
+    ./src/physics.cpp
+    ./src/scaling.cpp
+    ./src/timeline.cpp
+)
+target_link_libraries(hybrid_client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})

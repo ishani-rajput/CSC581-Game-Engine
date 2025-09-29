@@ -211,6 +211,114 @@ build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/serve
   TARGET_IMPLIB = libserver.dll.a
   TARGET_PDB = server.exe.dbg
 
+# =============================================================================
+# Object build statements for EXECUTABLE target hybrid_server
+
+
+#############################################
+# Order-only phony target for hybrid_server
+
+build cmake_object_order_depends_target_hybrid_server: phony || .
+
+build CMakeFiles/hybrid_server.dir/src/hybrid_server.cpp.obj: CXX_COMPILER__hybrid_server_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/hybrid_server.cpp || cmake_object_order_depends_target_hybrid_server
+  DEP_FILE = CMakeFiles\hybrid_server.dir\src\hybrid_server.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_server.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_server.dir\src
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target hybrid_server
+
+
+#############################################
+# Link the executable hybrid_server.exe
+
+build hybrid_server.exe: CXX_EXECUTABLE_LINKER__hybrid_server_ CMakeFiles/hybrid_server.dir/src/hybrid_server.cpp.obj | C$:/msys2/mingw64/lib/libzmq.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\hybrid_server.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = hybrid_server.exe
+  TARGET_IMPLIB = libhybrid_server.dll.a
+  TARGET_PDB = hybrid_server.exe.dbg
+
+# =============================================================================
+# Object build statements for EXECUTABLE target hybrid_client
+
+
+#############################################
+# Order-only phony target for hybrid_client
+
+build cmake_object_order_depends_target_hybrid_client: phony || .
+
+build CMakeFiles/hybrid_client.dir/src/hybrid_client.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/hybrid_client.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\hybrid_client.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
+build CMakeFiles/hybrid_client.dir/src/peer_manager.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/peer_manager.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\peer_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
+build CMakeFiles/hybrid_client.dir/src/entity.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/entity.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\entity.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
+build CMakeFiles/hybrid_client.dir/src/input.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/input.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\input.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
+build CMakeFiles/hybrid_client.dir/src/physics.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/physics.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\physics.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
+build CMakeFiles/hybrid_client.dir/src/scaling.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/scaling.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\scaling.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
+build CMakeFiles/hybrid_client.dir/src/timeline.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/timeline.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\timeline.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target hybrid_client
+
+
+#############################################
+# Link the executable hybrid_client.exe
+
+build hybrid_client.exe: CXX_EXECUTABLE_LINKER__hybrid_client_ CMakeFiles/hybrid_client.dir/src/hybrid_client.cpp.obj CMakeFiles/hybrid_client.dir/src/peer_manager.cpp.obj CMakeFiles/hybrid_client.dir/src/entity.cpp.obj CMakeFiles/hybrid_client.dir/src/input.cpp.obj CMakeFiles/hybrid_client.dir/src/physics.cpp.obj CMakeFiles/hybrid_client.dir/src/scaling.cpp.obj CMakeFiles/hybrid_client.dir/src/timeline.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3_image.dll.a  C:/msys2/mingw64/lib/libzmq.dll.a  C:/msys2/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = hybrid_client.exe
+  TARGET_IMPLIB = libhybrid_client.dll.a
+  TARGET_PDB = hybrid_client.exe.dbg
+
 
 #############################################
 # Utility command for edit_cache
@@ -239,6 +347,10 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 
 build client: phony client.exe
 
+build hybrid_client: phony hybrid_client.exe
+
+build hybrid_server: phony hybrid_server.exe
+
 build main: phony main.exe
 
 build server: phony server.exe
@@ -251,7 +363,7 @@ build server: phony server.exe
 #############################################
 # Folder: C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build
 
-build all: phony main.exe client.exe server.exe
+build all: phony main.exe client.exe server.exe hybrid_server.exe hybrid_client.exe
 
 # =============================================================================
 # Built-in targets
