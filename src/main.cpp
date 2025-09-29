@@ -64,7 +64,7 @@ public:
         std::lock_guard<std::mutex> lk(m_);
         playerBody_.vx = desiredVx_;
         if (wantJump_) {
-            playerBody_.vy = -1000.f; // flappy jump
+            playerBody_.vy = -1000.f; 
             wantJump_ = false;
         }
 
@@ -168,7 +168,7 @@ int main(int, char**) {
 
     Timeline gameTime, ghostTime;
     gameTime.anchorToRealTime();
-    ghostTime.anchorToRealTime();   // 👈 ghost always runs at 1.0x, not paused
+    ghostTime.anchorToRealTime();   
 
     std::thread tPlayer(playerPhysicsLoop, std::ref(running), std::ref(gs), std::ref(gameTime));
     std::thread tGhost(ghostAILoop, std::ref(running), std::ref(gs), std::ref(ghostTime));
@@ -191,7 +191,6 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        // Controls only affect player timeline
         if (Input::isKeyPressed(SDL_SCANCODE_P)) {
             gameTime.togglePause();
         }

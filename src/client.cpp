@@ -1,9 +1,3 @@
-// Client with hybrid P2P player sync (PeerManager) and ghost SUB (unchanged)
-// - REQ to 5555 via PeerManager: CONNECT -> parse
-// - SUB to 5556 (raw ZMQ): ghost updates, exactly like your original
-// - PUB/SUB peers via PeerManager (one client per port 7000+i)
-// - Local entity never overwritten; remote players from PeerManager peer data
-
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
@@ -26,7 +20,6 @@
 #include <chrono>
 #include <zmq.h>
 
-// ---------- Constants ----------
 const int WINDOW_WIDTH = 1920;
 const int WINDOW_HEIGHT = 1080;
 
@@ -59,7 +52,6 @@ struct PlayerState {
     bool onGround = false;
 };
 
-// ---------- Main ----------
 int main(int, char**) {
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
 
@@ -87,7 +79,7 @@ int main(int, char**) {
     }
     std::cout << "Connected as " << myId << "\n";
 
-    // Ghost SUB (raw ZMQ – preserved exactly like your original)
+    // Ghost SUB 
     void* ctx = zmq_ctx_new();
     void* ghostSub = zmq_socket(ctx, ZMQ_SUB);
     zmq_connect(ghostSub, "tcp://127.0.0.1:5556");
@@ -115,7 +107,7 @@ int main(int, char**) {
     Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT - 322.f, 256, 256, 1, 0);
 
     std::unordered_map<std::string, Entity*> players;
-    players[myId] = &playerE; // ✅ never overwrite my own entity
+    players[myId] = &playerE; 
 
     PlayerState me;
     Timeline myTime; myTime.anchorToRealTime(); myTime.setScale(1.0);
@@ -126,7 +118,6 @@ int main(int, char**) {
     SDL_Event ev;
 
     auto sendPose = [&](float px, float py) {
-        // Publish my pose via PeerManager (wrapped inside)
         peerManager.updateMyPlayerData(px, py, paused, (float)myTime.scale());
     };
 
@@ -144,7 +135,7 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        // Pause/speed (local only)
+        // Pause/speed 
         if (Input::isKeyPressed(SDL_SCANCODE_P)) { paused = !paused; myTime.pause(paused); }
         if (Input::isKeyPressed(SDL_SCANCODE_1)) myTime.setScale(0.5);
         if (Input::isKeyPressed(SDL_SCANCODE_2)) myTime.setScale(1.0);
@@ -180,7 +171,7 @@ int main(int, char**) {
         playerE.setPosition(me.x, me.y);
         sendPose(me.x, me.y);
 
-        // Ghost update from PUB (unchanged)
+        // Ghost update from PUB 
         {
             char gbuf[128];
             int n = zmq_recv(ghostSub, gbuf, sizeof(gbuf)-1, ZMQ_DONTWAIT);
@@ -196,14 +187,13 @@ int main(int, char**) {
         {
             auto peerData = peerManager.getPeerPlayerData();
             for (const auto& [pid, pd] : peerData) {
-                if (pid == myId) continue; // never overwrite self
+                if (pid == myId) continue; 
                 if (players.find(pid) == players.end())
                     players[pid] = new Entity(renderer, PLAYER_ASSET, pd.x, pd.y, 256, 256, 1, 0);
                 players[pid]->setPosition(pd.x, pd.y);
             }
         }
 
-        // Optional: ping server for a ghost snapshot (kept for parity with your original fallback)
         {
             peerManager.sendToServer("PING");
             std::string s = peerManager.receiveFromServer();
@@ -214,7 +204,6 @@ int main(int, char**) {
             }
         }
 
-        // Render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         if (bgSky) SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
