@@ -154,6 +154,13 @@ build CMakeFiles/client.dir/src/timeline.cpp.obj: CXX_COMPILER__client_unscanned
   OBJECT_DIR = CMakeFiles\client.dir
   OBJECT_FILE_DIR = CMakeFiles\client.dir\src
 
+build CMakeFiles/client.dir/src/peer_manager.cpp.obj: CXX_COMPILER__client_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/peer_manager.cpp || cmake_object_order_depends_target_client
+  DEP_FILE = CMakeFiles\client.dir\src\peer_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\client.dir
+  OBJECT_FILE_DIR = CMakeFiles\client.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target client
@@ -162,7 +169,7 @@ build CMakeFiles/client.dir/src/timeline.cpp.obj: CXX_COMPILER__client_unscanned
 #############################################
 # Link the executable client.exe
 
-build client.exe: CXX_EXECUTABLE_LINKER__client_ CMakeFiles/client.dir/src/client.cpp.obj CMakeFiles/client.dir/src/entity.cpp.obj CMakeFiles/client.dir/src/input.cpp.obj CMakeFiles/client.dir/src/physics.cpp.obj CMakeFiles/client.dir/src/scaling.cpp.obj CMakeFiles/client.dir/src/timeline.cpp.obj | C$:/msys64/mingw64/lib/libSDL3_image.dll.a C$:/msys64/mingw64/lib/libzmq.dll.a C$:/msys64/mingw64/lib/libSDL3.dll.a
+build client.exe: CXX_EXECUTABLE_LINKER__client_ CMakeFiles/client.dir/src/client.cpp.obj CMakeFiles/client.dir/src/entity.cpp.obj CMakeFiles/client.dir/src/input.cpp.obj CMakeFiles/client.dir/src/physics.cpp.obj CMakeFiles/client.dir/src/scaling.cpp.obj CMakeFiles/client.dir/src/timeline.cpp.obj CMakeFiles/client.dir/src/peer_manager.cpp.obj | C$:/msys64/mingw64/lib/libSDL3_image.dll.a C$:/msys64/mingw64/lib/libzmq.dll.a C$:/msys64/mingw64/lib/libSDL3.dll.a
   LINK_LIBRARIES = C:/msys64/mingw64/lib/libSDL3_image.dll.a  C:/msys64/mingw64/lib/libzmq.dll.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\client.dir
   POST_BUILD = cd .

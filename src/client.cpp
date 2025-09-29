@@ -6,11 +6,12 @@
 #include "collision.h"
 #include "scaling.h"
 #include "timeline.h"
+#include "peer_manager.h"
 
-#include <zmq.h>
 #include <string>
 #include <unordered_map>
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -21,8 +22,16 @@
 struct PipePair { 
     SDL_FRect top, bottom; 
     PipePair(float tx, float ty, float tw, float th, float bx, float by, float bw, float bh) 
-        : top{tx, ty, tw, th}, bottom{bx, by, bw, bh} {}
+        : top{tx, ty, tw, th}, bottom{bx, by, bw, bh} {} 
 };
+
+static inline int numericIdFrom(const std::string& s) {
+    int n = 0; bool any = false;
+    for(char c : s) if(isdigit((unsigned char)c)) { any = true; n = n * 10 + (c - '0'); }
+    if(!any) n = 1 + rand() % 20;
+    if(n < 1) n = 1; if(n > 20) n = 1 + (n % 20);
+    return n;
+}
 
 static float floatRand(float a, float b){
     return a + (b-a) * (float)rand()/(float)RAND_MAX;
@@ -52,12 +61,34 @@ int main(int argc, char** argv){
     // --- RNG seed (same on all clients, though server is authoritative) ---
     srand(12345);
 
-    // ---- ZMQ setup ----
-    void* ctx = zmq_ctx_new();
-    void* req = zmq_socket(ctx, ZMQ_REQ);
-    if (zmq_connect(req, "tcp://127.0.0.1:5555") != 0) {
-        std::cerr << "Connect failed: " << zmq_strerror(errno) << "\n";
+    // ---- PeerManager setup ----
+    PeerManager peerManager(CLIENT_ID);
+    
+    // Connect to server for world state (pipes)
+    peerManager.connectToServer("tcp://127.0.0.1:5555");
+    
+    // Initial handshake with server
+    peerManager.sendToServer("CONNECT");
+    std::string handshakeResponse = peerManager.receiveFromServer();
+    if (handshakeResponse.find("CONNECTED") == std::string::npos) {
+        std::cerr << "Failed to connect to server" << std::endl;
         return 1;
+    }
+    
+    // Set up peer networking
+    const int myNum = numericIdFrom(CLIENT_ID);
+    const int myPubPort = 7000 + myNum;
+    
+    // Start listening for peer connections
+    std::ostringstream oss; 
+    oss << "tcp://*:" << myPubPort; 
+    peerManager.startPeerListener(oss.str());
+    
+    // Connect to other peers
+    for(int i = 1; i <= 20; i++) {
+        if(i == myNum) continue;
+        std::ostringstream ep; ep << "tcp://localhost:" << (7000 + i);
+        peerManager.connectToPeerNetwork(ep.str());
     }
 
     // ---- SDL setup ----
@@ -90,8 +121,6 @@ int main(int argc, char** argv){
 
     // Pipes (received from server)
     std::vector<PipePair> pipes;
-    std::vector<PipePair> pausedPipes; // Store pipes when paused
-    double lastPipeUpdateTime = 0.0; // Track time for local pipe movement
     
     // Local pipe spawning for scaled speeds
     double localSpawnTimer = 0.0;
@@ -112,8 +141,8 @@ int main(int argc, char** argv){
 
     bool running=true; SDL_Event ev;
     bool prevSpace=false, prevToggle=false;
-    bool prevP=false, prev1=false, prev2=false, prev3=false; // pause + speed hotkeys
-    double lastScale = 1.0; // Track scale changes
+    bool prevP=false, prev1=false, prev2=false, prev3=false;
+    double lastScale = 1.0;
 
     while(running){
         while(SDL_PollEvent(&ev)){ if(ev.type==SDL_EVENT_QUIT) running=false; }
@@ -222,57 +251,66 @@ int main(int argc, char** argv){
                 [](const PipePair& p){ return (p.top.x + p.top.w) < -50.f; }), pipes.end());
         }
 
-        // ---- Networking (Section 2: Client-Server) ----
+        // ---- Hybrid P2P Networking ----
+        // 1. Update my player data (broadcasts to peers)
+        peerManager.updateMyPlayerData(skully.x, skully.y, gameTime.isPaused(), gameTime.scale());
+        
+        // 2. Cleanup stale peers periodically
+        static auto lastCleanup = std::chrono::high_resolution_clock::now();
+        auto now = std::chrono::high_resolution_clock::now();
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - lastCleanup).count() >= 1) {
+            peerManager.cleanupStalePeers();
+            lastCleanup = now;
+        }
+        
+        // 3. Get peer player data
+        auto peerData = peerManager.getPeerPlayerData();
+        
+        // Store existing animation states before clearing
+        std::unordered_map<std::string, RemotePlayer> oldOthers = others;
+        others.clear();
+        
+        // Convert peer data to RemotePlayer format
+        for (const auto& [peerId, playerData] : peerData) {
+            RemotePlayer rp;
+            rp.rect = {playerData.x, playerData.y, characterSize, characterSize};
+            rp.paused = playerData.paused;
+            rp.scale = playerData.scale;
+            
+            // Preserve animation state if player existed before
+            if (oldOthers.find(peerId) != oldOthers.end()) {
+                rp.currentFrame = oldOthers[peerId].currentFrame;
+                rp.animAccum = oldOthers[peerId].animAccum;
+                rp.lastAnimTime = oldOthers[peerId].lastAnimTime;
+            }
+            others[peerId] = rp;
+        }
+        
+        // 4. Communicate with server for world state (pipes)
         char msg[256];
-        snprintf(msg,sizeof(msg),"ID %s X %.3f Y %.3f PAUSED %d SCALE %.3f\n",
-                CLIENT_ID.c_str(),skully.x,skully.y,gameTime.isPaused()?1:0,gameTime.scale());
-        zmq_send(req,msg,strlen(msg),0);
-
-        char rx[8192];
-        int rb=zmq_recv(req,rx,sizeof(rx)-1,0);
-        if(rb>0){
-            rx[rb]='\0';
-            size_t numPlayers=0, numPipes=0;
-            if(sscanf(rx,"N %zu P %zu",&numPlayers,&numPipes)==2){
-                const char* lines=strchr(rx,'\n');
-                // Store existing animation states before clearing
-                std::unordered_map<std::string, RemotePlayer> oldOthers = others;
-                others.clear();
+        snprintf(msg, sizeof(msg), "ID %s X %.3f Y %.3f PAUSED %d SCALE %.3f",
+                CLIENT_ID.c_str(), skully.x, skully.y, gameTime.isPaused() ? 1 : 0, gameTime.scale());
+        peerManager.sendToServer(msg);
+        
+        std::string serverResponse = peerManager.receiveFromServer();
+        if (!serverResponse.empty()) {
+            size_t numPlayers = 0, numPipes = 0;
+            
+            if (sscanf(serverResponse.c_str(), "N %zu P %zu", &numPlayers, &numPipes) == 2) {
+                const char* lines = strchr(serverResponse.c_str(), '\n');
+                
+                // Skip player data lines (we get this from peers now)
+                for (size_t i = 0; i < numPlayers && lines; i++) {
+                    lines++;
+                    lines = strchr(lines, '\n');
+                }
                 
                 // Only update pipes if not paused AND at normal speed
                 if (!gameTime.isPaused() && gameTime.scale() == 1.0) {
                     pipes.clear();
-                }
-                
-                // Parse players
-                for(size_t i=0; i<numPlayers && lines; i++){
-                    lines++;
-                    char id[256]; float x=0,y=0; int paused=0; float scale=1.0f;
-                    if(sscanf(lines,"%255s %f %f %d %f",id,&x,&y,&paused,&scale)==5 && CLIENT_ID!=id){
-                        RemotePlayer rp;
-                        rp.rect=SDL_FRect{ x,y,characterSize,characterSize };
-                        rp.paused = (paused==1);
-                        rp.scale = scale;
-                        
-                        // Preserve animation state if player already exists
-                        if(oldOthers.find(id) != oldOthers.end()) {
-                            rp.currentFrame = oldOthers[id].currentFrame;
-                            rp.animAccum = oldOthers[id].animAccum;
-                            rp.lastAnimTime = oldOthers[id].lastAnimTime;
-                        } else {
-                            rp.currentFrame = 0;
-                            rp.animAccum = 0.0;
-                            rp.lastAnimTime = std::chrono::high_resolution_clock::now();
-                        }
-                        
-                        others[id]=rp;
-                    }
-                    lines=strchr(lines,'\n');
-                }
-                
-                // Parse pipes (only if not paused AND at normal speed)
-                if (!gameTime.isPaused() && gameTime.scale() == 1.0) {
-                    for(size_t i=0; i<numPipes && lines; i++){
+                    
+                    // Parse pipes
+                    for(size_t i = 0; i < numPipes && lines; i++){
                         lines++;
                         float tx,ty,tw,th,bx,by,bw,bh;
                         if(sscanf(lines,"%f %f %f %f %f %f %f %f",&tx,&ty,&tw,&th,&bx,&by,&bw,&bh)==8){
@@ -341,7 +379,7 @@ int main(int argc, char** argv){
     if(brickTex) SDL_DestroyTexture(brickTex);
     SDL_DestroyTexture(skullTex);
     SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window);
-    zmq_close(req); zmq_ctx_destroy(ctx);
+    // PeerManager destructor handles ZMQ cleanup automatically
     SDL_Quit();
     return 0;
 }

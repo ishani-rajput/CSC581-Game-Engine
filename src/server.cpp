@@ -48,6 +48,10 @@ private:
     std::unordered_map<std::string, PlayerData> players;
     std::vector<PipePair> pipes;
     mutable std::mutex gameStateMutex;
+    
+    // Track connection requests
+    std::string lastMessage;
+    mutable std::mutex messageMutex;
 
     // Pipe management (independent of client pause states)
     double  spawnTimer      = 0.0;
@@ -61,6 +65,18 @@ public:
 
 protected:
     void handleClientMessage(const std::string& clientId, const std::string& message) override {
+        // Track last message for response generation
+        {
+            std::lock_guard<std::mutex> lock(messageMutex);
+            lastMessage = message;
+        }
+        
+        // Handle CONNECT handshake
+        if (message == "CONNECT") {
+            // Just acknowledge connection - no need to store anything
+            return;
+        }
+        
         char id[256]; float x=0,y=0; int paused=0; float scale=1.0f;
         if (sscanf(message.c_str(), "ID %255s X %f Y %f PAUSED %d SCALE %f", id, &x, &y, &paused, &scale) == 5) {
             std::lock_guard<std::mutex> lock(gameStateMutex);
@@ -80,6 +96,14 @@ protected:
     }
 
     std::string generateWorldState() override {
+        // Check if this is a response to CONNECT
+        {
+            std::lock_guard<std::mutex> lock(messageMutex);
+            if (lastMessage == "CONNECT") {
+                return "CONNECTED " + std::to_string(rand() % 1000); // Add unique ID
+            }
+        }
+        
         // IMPORTANT: no updatePipes() here — keep world stable regardless of request rate
         std::lock_guard<std::mutex> lock(gameStateMutex);
 

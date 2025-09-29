@@ -36,6 +36,7 @@ add_executable(client
     ./src/physics.cpp
     ./src/scaling.cpp
     ./src/timeline.cpp
+    ./src/peer_manager.cpp
 )
 
 if (ZeroMQ_FOUND)
