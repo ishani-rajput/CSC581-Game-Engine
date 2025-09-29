@@ -5,11 +5,9 @@
 PeerManager::PeerManager(const std::string& myId) : id(myId) {
     ctx = zmq_ctx_new();
     
-    // Initialize peer communication sockets
     pub = zmq_socket(ctx, ZMQ_PUB);
     sub = zmq_socket(ctx, ZMQ_SUB);
     
-    // Subscribe to all peer messages
     zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0);
 }
 
@@ -40,7 +38,6 @@ void PeerManager::startPeerListener(const std::string& listenEndpoint) {
 }
 
 void PeerManager::updateMyPlayerData(float x, float y, bool paused, float scale) {
-    // Broadcast to peers (not server)
     std::ostringstream oss;
     oss << "PLAYER " << id << " " << x << " " << y << " " << (paused ? 1 : 0) << " " << scale;
     std::string msg = oss.str();
@@ -48,7 +45,6 @@ void PeerManager::updateMyPlayerData(float x, float y, bool paused, float scale)
         std::cerr << "Failed to send peer message: " << zmq_strerror(errno) << std::endl;
     }
 
-    // Process all available peer messages
     processPeerMessages();
 }
 
@@ -56,7 +52,7 @@ void PeerManager::processPeerMessages() {
     char buf[512];
     while (true) {
         int n = zmq_recv(sub, buf, sizeof(buf)-1, ZMQ_DONTWAIT);
-        if (n <= 0) break; // No more messages
+        if (n <= 0) break; 
         
         buf[n] = 0;
         std::istringstream iss(buf);

@@ -28,3 +28,5 @@
 68	5855	7808652728729847	CMakeFiles/hybrid_client.dir/src/hybrid_client.cpp.obj	394a162499e24730
 4962	6097	7808652777701091	hybrid_server.exe	c6ae33850e646cc6
 5860	6349	7808652786694906	hybrid_client.exe	7b7800c2137e5d8f
+10	1703	7808735559291622	CMakeFiles/client.dir/src/client.cpp.obj	3a4a67d5f1c6c2bc
+1708	2414	7808735576260943	client.exe	fc59bfd9c97bbf52
