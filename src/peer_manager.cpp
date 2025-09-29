@@ -1,78 +1,113 @@
 #include "peer_manager.h"
 #include <sstream>
 #include <iostream>
-#include <thread>
 
 PeerManager::PeerManager(const std::string& myId) : id(myId) {
     ctx = zmq_ctx_new();
+    
+    // Initialize peer communication sockets
     pub = zmq_socket(ctx, ZMQ_PUB);
     sub = zmq_socket(ctx, ZMQ_SUB);
-
-    // Subscribe to all messages
+    
+    // Subscribe to all peer messages
     zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0);
 }
 
 PeerManager::~PeerManager() {
-    zmq_close(pub);
-    zmq_close(sub);
-    zmq_ctx_term(ctx);
+    if (pub) zmq_close(pub);
+    if (sub) zmq_close(sub);
+    if (serverSocket) zmq_close(serverSocket);
+    if (ctx) zmq_ctx_term(ctx);
 }
 
-void PeerManager::listen(const std::string& endpoint) {
-    if (zmq_bind(pub, endpoint.c_str()) != 0) {
-        std::cerr << "PeerManager listen failed: " << zmq_strerror(errno) << "\n";
+void PeerManager::connectToServer(const std::string& serverEndpoint) {
+    serverSocket = zmq_socket(ctx, ZMQ_REQ);
+    if (zmq_connect(serverSocket, serverEndpoint.c_str()) != 0) {
+        std::cerr << "Failed to connect to server: " << zmq_strerror(errno) << "\n";
     }
 }
 
-void PeerManager::connect(const std::string& endpoint) {
-    if (zmq_connect(sub, endpoint.c_str()) != 0) {
-        std::cerr << "PeerManager connect failed: " << zmq_strerror(errno) << "\n";
+void PeerManager::connectToPeerNetwork(const std::string& peerEndpoint) {
+    if (zmq_connect(sub, peerEndpoint.c_str()) != 0) {
+        std::cerr << "Failed to connect to peer network: " << zmq_strerror(errno) << "\n";
     }
 }
 
-void PeerManager::updateMyPose(float x, float y) {
+void PeerManager::startPeerListener(const std::string& listenEndpoint) {
+    if (zmq_bind(pub, listenEndpoint.c_str()) != 0) {
+        std::cerr << "Failed to start peer listener: " << zmq_strerror(errno) << "\n";
+    }
+}
+
+void PeerManager::updateMyPlayerData(float x, float y, bool paused, float scale) {
+    // Broadcast to peers (not server)
     std::ostringstream oss;
-    oss << "POSE " << id << " " << x << " " << y;
+    oss << "PLAYER " << id << " " << x << " " << y << " " << (paused ? 1 : 0) << " " << scale;
     std::string msg = oss.str();
-    zmq_send(pub, msg.c_str(), (int)msg.size(), 0);
+    if (zmq_send(pub, msg.c_str(), (int)msg.size(), 0) == -1) {
+        std::cerr << "Failed to send peer message: " << zmq_strerror(errno) << std::endl;
+    }
 
-    // Receive non-blocking updates
-    char buf[256];
-    int n = zmq_recv(sub, buf, sizeof(buf)-1, ZMQ_DONTWAIT);
-    if (n > 0) {
+    // Process all available peer messages
+    processPeerMessages();
+}
+
+void PeerManager::processPeerMessages() {
+    char buf[512];
+    while (true) {
+        int n = zmq_recv(sub, buf, sizeof(buf)-1, ZMQ_DONTWAIT);
+        if (n <= 0) break; // No more messages
+        
         buf[n] = 0;
         std::istringstream iss(buf);
         std::string type; iss >> type;
-        if (type == "POSE") {
-            std::string pid; float px, py;
-            iss >> pid >> px >> py;
-            if (pid != id) {
+        
+        if (type == "PLAYER") {
+            std::string pid; float px, py; int ppaused; float pscale;
+            if (iss >> pid >> px >> py >> ppaused >> pscale && pid != id) {
                 std::lock_guard<std::mutex> lk(peerMutex);
-                peers[pid] = {px, py};
+                peers[pid] = {px, py, ppaused == 1, pscale, std::chrono::high_resolution_clock::now()};
             }
-        } else if (type == "GHOST") {
-            float gx, gy; iss >> gx >> gy;
-            ghostX.store(gx);
-            ghostY.store(gy);
         }
     }
 }
 
-std::unordered_map<std::string, PeerManager::Pose> PeerManager::getPeerPoses() {
+std::unordered_map<std::string, PeerManager::PlayerData> PeerManager::getPeerPlayerData() {
     std::lock_guard<std::mutex> lk(peerMutex);
     return peers;
 }
 
-void PeerManager::updateGhost(float gx, float gy) {
-    std::ostringstream oss;
-    oss << "GHOST " << gx << " " << gy;
-    std::string msg = oss.str();
-    zmq_send(pub, msg.c_str(), (int)msg.size(), 0);
-    ghostX.store(gx);
-    ghostY.store(gy);
+void PeerManager::sendToServer(const std::string& message) {
+    if (serverSocket) {
+        zmq_send(serverSocket, message.c_str(), (int)message.size(), 0);
+    }
 }
 
-void PeerManager::getGhost(float& gx, float& gy) {
-    gx = ghostX.load();
-    gy = ghostY.load();
+std::string PeerManager::receiveFromServer() {
+    if (!serverSocket) return "";
+    
+    char buf[8192];
+    int n = zmq_recv(serverSocket, buf, sizeof(buf)-1, 0);
+    if (n > 0) {
+        buf[n] = 0;
+        return std::string(buf);
+    }
+    return "";
+}
+
+
+void PeerManager::cleanupStalePeers() {
+    auto now = std::chrono::high_resolution_clock::now();
+    std::lock_guard<std::mutex> lk(peerMutex);
+    
+    auto it = peers.begin();
+    while (it != peers.end()) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.lastUpdate);
+        if (elapsed > PEER_TIMEOUT) {
+            std::cout << "Removing stale peer: " << it->first << std::endl;
+            it = peers.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }

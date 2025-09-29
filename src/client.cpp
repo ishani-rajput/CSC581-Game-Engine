@@ -127,7 +127,7 @@ int main(int, char**) {
     Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT - 322.f, 256, 256, 1, 0);
 
     std::unordered_map<std::string, Entity*> players;
-    players[myId] = &playerE; // ✅ my entity is fixed
+    players[myId] = &playerE; // ✅ my entity is fixed and never overwritten
 
     PlayerState me;
     Timeline myTime; myTime.anchorToRealTime(); myTime.setScale(1.0);
