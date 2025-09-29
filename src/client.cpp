@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <cctype>
 #include <cstdlib>
 #include <ctime>
@@ -66,29 +67,23 @@ int main(int, char**) {
     Physics::setGravity(2000.f);
     srand((unsigned)time(nullptr));
 
-    // --- PeerManager networking ---
     const std::string myId = "client_" + std::to_string(1000 + (rand()%9000));
     PeerManager peerManager(myId);
 
-    // REQ: CONNECT via PeerManager
     peerManager.connectToServer("tcp://127.0.0.1:5555");
     peerManager.sendToServer("CONNECT");
     std::string resp = peerManager.receiveFromServer();
-    if (resp.find("CONNECTED") == std::string::npos && resp.find("GHOST") == std::string::npos) {
-        std::cerr << "CONNECT failed\n"; return 1;
-    }
+    if (resp.find("CONNECTED") == std::string::npos && resp.find("GHOST") == std::string::npos) return 1;
     std::cout << "Connected as " << myId << "\n";
 
-    // Ghost SUB 
     void* ctx = zmq_ctx_new();
+
     void* ghostSub = zmq_socket(ctx, ZMQ_SUB);
     zmq_connect(ghostSub, "tcp://127.0.0.1:5556");
     zmq_setsockopt(ghostSub, ZMQ_SUBSCRIBE, "", 0);
 
-    // P2P via PeerManager
     const int myNum = numericIdFrom(myId);
     const int myPubPort = 7000 + myNum;
-
     {
         std::ostringstream oss; oss << "tcp://*:" << myPubPort;
         peerManager.startPeerListener(oss.str());
@@ -99,7 +94,6 @@ int main(int, char**) {
         peerManager.connectToPeerNetwork(ep.str());
     }
 
-    // --- Assets ---
     SDL_Texture* bgSky = IMG_LoadTexture(renderer, BG_SKY_ASSET);
     Entity platformE(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
     Entity graveE(renderer, GRAVE_ASSET, 700, 700, 256, 256, 1, 0);
@@ -107,7 +101,9 @@ int main(int, char**) {
     Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT - 322.f, 256, 256, 1, 0);
 
     std::unordered_map<std::string, Entity*> players;
-    players[myId] = &playerE; 
+    players[myId] = &playerE;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastHeard;
+    lastHeard[myId] = std::chrono::steady_clock::now();
 
     PlayerState me;
     Timeline myTime; myTime.anchorToRealTime(); myTime.setScale(1.0);
@@ -121,13 +117,22 @@ int main(int, char**) {
         peerManager.updateMyPlayerData(px, py, paused, (float)myTime.scale());
     };
 
+    void* rawPeerSub = zmq_socket(ctx, ZMQ_SUB);
+    for (int i = 1; i <= 20; ++i) {
+        if (i == myNum) continue;
+        std::ostringstream ep; ep << "tcp://127.0.0.1:" << (7000 + i);
+        zmq_connect(rawPeerSub, ep.str().c_str());
+    }
+    zmq_setsockopt(rawPeerSub, ZMQ_SUBSCRIBE, "", 0);
+
+    auto lastCull = std::chrono::steady_clock::now();
+
     while (running) {
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_EVENT_QUIT) running = false;
         }
         Input::poll();
 
-        // Toggle scaling view
         bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
         if (tNow && !prevT) {
             auto current = Scaling::mode();
@@ -135,13 +140,11 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        // Pause/speed 
         if (Input::isKeyPressed(SDL_SCANCODE_P)) { paused = !paused; myTime.pause(paused); }
         if (Input::isKeyPressed(SDL_SCANCODE_1)) myTime.setScale(0.5);
         if (Input::isKeyPressed(SDL_SCANCODE_2)) myTime.setScale(1.0);
         if (Input::isKeyPressed(SDL_SCANCODE_3)) myTime.setScale(2.0);
 
-        // Input
         float desiredVx = 0.f;
         if (Input::isKeyPressed(SDL_SCANCODE_A)) desiredVx = -400.f;
         else if (Input::isKeyPressed(SDL_SCANCODE_D)) desiredVx = 400.f;
@@ -150,7 +153,6 @@ int main(int, char**) {
         bool wantJump = (jumpNow && !prevJump);
         prevJump = jumpNow;
 
-        // Step local player
         float dt = (float)myTime.tick();
         me.vx = desiredVx;
         if (wantJump) { me.vy = -900.f; me.onGround = false; }
@@ -171,7 +173,6 @@ int main(int, char**) {
         playerE.setPosition(me.x, me.y);
         sendPose(me.x, me.y);
 
-        // Ghost update from PUB 
         {
             char gbuf[128];
             int n = zmq_recv(ghostSub, gbuf, sizeof(gbuf)-1, ZMQ_DONTWAIT);
@@ -183,24 +184,48 @@ int main(int, char**) {
             }
         }
 
-        // Get peers from PeerManager and update remote entities
         {
-            auto peerData = peerManager.getPeerPlayerData();
-            for (const auto& [pid, pd] : peerData) {
-                if (pid == myId) continue; 
-                if (players.find(pid) == players.end())
-                    players[pid] = new Entity(renderer, PLAYER_ASSET, pd.x, pd.y, 256, 256, 1, 0);
-                players[pid]->setPosition(pd.x, pd.y);
+            for (int i = 0; i < 32; ++i) {
+                char mbuf[256];
+                int n = zmq_recv(rawPeerSub, mbuf, sizeof(mbuf)-1, ZMQ_DONTWAIT);
+                if (n <= 0) break;
+                mbuf[n] = 0;
+                std::istringstream iss{std::string(mbuf)};
+                std::string tag; iss >> tag;
+                if (tag == "POSE" || tag == "PLAYER") {
+                    std::string pid; float px=0, py=0;
+                    iss >> pid >> px >> py;
+                    if (!pid.empty() && pid != myId) {
+                        auto now = std::chrono::steady_clock::now();
+                        if (players.find(pid) == players.end()) {
+                            players[pid] = new Entity(renderer, PLAYER_ASSET, px, py, 256, 256, 1, 0);
+                        }
+                        players[pid]->setPosition(px, py);
+                        lastHeard[pid] = now;
+                    }
+                }
             }
         }
 
         {
-            peerManager.sendToServer("PING");
-            std::string s = peerManager.receiveFromServer();
-            if (!s.empty() && s.rfind("GHOST ", 0) == 0) {
-                std::istringstream iss{ s };
-                std::string tag; iss >> tag >> ghostX >> ghostY;
-                ghostE.setPosition(ghostX, ghostY);
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCull).count() > 500) {
+                std::vector<std::string> toErase;
+                for (auto& kv : players) {
+                    const std::string& pid = kv.first;
+                    if (pid == myId) continue;
+                    auto it = lastHeard.find(pid);
+                    if (it == lastHeard.end()) { toErase.push_back(pid); continue; }
+                    if (std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count() > 2) {
+                        toErase.push_back(pid);
+                    }
+                }
+                for (const auto& pid : toErase) {
+                    delete players[pid];
+                    players.erase(pid);
+                    lastHeard.erase(pid);
+                }
+                lastCull = now;
             }
         }
 
@@ -221,7 +246,9 @@ int main(int, char**) {
 
     for (auto& kv : players) if (kv.first != myId) delete kv.second;
     if (bgSky) SDL_DestroyTexture(bgSky);
-    zmq_close(ghostSub); zmq_ctx_term(ctx);
+    zmq_close(rawPeerSub);
+    zmq_close(ghostSub);
+    zmq_ctx_term(ctx);
     SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
