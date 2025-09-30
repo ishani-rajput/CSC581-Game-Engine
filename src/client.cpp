@@ -138,18 +138,18 @@ int main(int argc, char** argv){
         }
         prevToggle=toggleNow;
 
-        bool pNow = Input::isKeyPressed(SDL_SCANCODE_P);
-        if (pNow && !prevP) { gameTime.togglePause(); }
-        prevP = pNow;
+        bool pauseNow = Input::isKeyPressed(SDL_SCANCODE_P);
+        if (pauseNow && !prevP) { gameTime.togglePause(); }
+        prevP = pauseNow;
 
-        bool k1Now = Input::isKeyPressed(SDL_SCANCODE_1);
-        bool k2Now = Input::isKeyPressed(SDL_SCANCODE_2);
-        bool k3Now = Input::isKeyPressed(SDL_SCANCODE_3);
+        bool onePress = Input::isKeyPressed(SDL_SCANCODE_1);
+        bool twoPress = Input::isKeyPressed(SDL_SCANCODE_2);
+        bool threePress = Input::isKeyPressed(SDL_SCANCODE_3);
 
-        if (k1Now && !prev1) { gameTime.setScale(0.5); }
-        if (k2Now && !prev2) { gameTime.setScale(1.0); }
-        if (k3Now && !prev3) { gameTime.setScale(2.0); }
-        prev1=k1Now; prev2=k2Now; prev3=k3Now;
+        if (onePress && !prev1) { gameTime.setScale(0.5); }
+        if (twoPress && !prev2) { gameTime.setScale(1.0); }
+        if (threePress && !prev3) { gameTime.setScale(2.0); }
+        prev1=onePress; prev2=twoPress; prev3=threePress;
 
         double deltaSec=gameTime.tick();
         
