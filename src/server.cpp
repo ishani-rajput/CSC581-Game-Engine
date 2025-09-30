@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
-#include <thread>     // <-- added
-#include <mutex>      // <-- explicit
+#include <thread>
+#include <mutex>
 #include <SDL3/SDL.h>
 
 // Simple 2D vector
@@ -27,7 +27,7 @@ static const float PIPE_GAP = 280.f;
 static const double PIPE_SPAWN_EVERY = 1.4;
 static const float SCREEN_WIDTH = 1920.f;
 static const float SCREEN_HEIGHT = 1080.f;
-static const float CHARACTER_SIZE = 108.f;   // <-- match client
+static const float CHARACTER_SIZE = 108.f;
 
 // RNG helper
 static float floatRand(float a, float b) {
@@ -41,47 +41,37 @@ struct PlayerData {
     float scale  = 1.0f;
 };
 
-// Game server using engine framework (Section 4: Asynchronicity)
+// Game server using engine framework
 class GameServer : public Engine::NetworkServer {
 private:
-    // Game state (thread-safe)
     std::unordered_map<std::string, PlayerData> players;
     std::vector<PipePair> pipes;
     mutable std::mutex gameStateMutex;
-    
-    // Track connection requests
+
     std::string lastMessage;
     mutable std::mutex messageMutex;
 
-    // Pipe management (independent of client pause states)
     double  spawnTimer      = 0.0;
     clock_t lastPipeUpdate  = clock();
 
 public:
     GameServer() {
-        srand(12345);           // deterministic pipes
-        setWorldUpdateRate(60); // world thread cadence (doesn't move pipes anymore)
+        srand(12345);
+        setWorldUpdateRate(60);
     }
 
 protected:
     void handleClientMessage(const std::string& clientId, const std::string& message) override {
-        // Track last message for response generation
         {
             std::lock_guard<std::mutex> lock(messageMutex);
             lastMessage = message;
         }
-        
-        // Handle CONNECT handshake
-        if (message == "CONNECT") {
-            // Just acknowledge connection - no need to store anything
-            return;
-        }
-        
+        if (message == "CONNECT") return;
+
         char id[256]; float x=0,y=0; int paused=0; float scale=1.0f;
         if (sscanf(message.c_str(), "ID %255s X %f Y %f PAUSED %d SCALE %f", id, &x, &y, &paused, &scale) == 5) {
             std::lock_guard<std::mutex> lock(gameStateMutex);
 
-            // Server-side collision check (match client size)
             SDL_FRect playerRect{ x, y, CHARACTER_SIZE, CHARACTER_SIZE };
             bool hit = false;
             for (const auto& p : pipes) {
@@ -89,24 +79,21 @@ protected:
                 SDL_FRect bot{ p.bottomX, p.bottomY, p.bottomW, p.bottomH };
                 if (aabbIntersect(playerRect, top) || aabbIntersect(playerRect, bot)) { hit = true; break; }
             }
-            if (hit) { pipes.clear(); spawnTimer = 0.0; } // soft reset like your single-player
+            if (hit) { pipes.clear(); spawnTimer = 0.0; }
 
             players[clientId] = PlayerData{ Vec2{x,y}, paused==1, scale };
         }
     }
 
     std::string generateWorldState() override {
-        // Check if this is a response to CONNECT
         {
             std::lock_guard<std::mutex> lock(messageMutex);
             if (lastMessage == "CONNECT") {
-                return "CONNECTED " + std::to_string(rand() % 1000); // Add unique ID
+                return "CONNECTED " + std::to_string(rand() % 1000);
             }
         }
-        
-        // IMPORTANT: no updatePipes() here — keep world stable regardless of request rate
-        std::lock_guard<std::mutex> lock(gameStateMutex);
 
+        std::lock_guard<std::mutex> lock(gameStateMutex);
         std::string response = "N " + std::to_string(players.size()) + " P " + std::to_string(pipes.size()) + "\n";
 
         for (const auto& kv : players) {
@@ -126,8 +113,19 @@ protected:
         return response;
     }
 
+    // 🔴 NEW: remove disconnected players
+    void onClientDisconnected(const std::string& clientId) override {
+        std::lock_guard<std::mutex> lock(gameStateMutex);
+
+        if (players.erase(clientId) > 0) {
+            std::cout << "Player " << clientId << " disconnected and removed from state.\n";
+        }
+
+        std::string msg = "DISCONNECT " + clientId;
+        broadcastToAllClients(msg);
+    }
+
 public:
-    // Dedicated pipe loop (~60 Hz), keeps server environment authoritative & stable
     void runPipeLoop() {
         using namespace std::chrono;
         while (true) {
@@ -139,7 +137,6 @@ public:
                 lastPipeUpdate = now;
                 if (dtSec > 0.1) dtSec = 0.1;
 
-                // spawn
                 spawnTimer += dtSec;
                 while (spawnTimer >= PIPE_SPAWN_EVERY) {
                     spawnTimer -= PIPE_SPAWN_EVERY;
@@ -151,12 +148,10 @@ public:
                         SCREEN_WIDTH + PIPE_W, bottomY, PIPE_W, SCREEN_HEIGHT - bottomY - 120.f
                     });
                 }
-                // move
                 for (auto& p : pipes) {
                     p.topX    += PIPE_SPEED * (float)dtSec;
                     p.bottomX += PIPE_SPEED * (float)dtSec;
                 }
-                // cull
                 pipes.erase(std::remove_if(pipes.begin(), pipes.end(),
                                            [](const PipePair& p){ return (p.topX + p.topW) < -50.f; }),
                             pipes.end());
@@ -171,15 +166,12 @@ int main() {
     std::cout << "Starting game server on port 5555...\n";
     server.startServer(5555);
 
-    // Start dedicated pipe loop
     std::thread pipeThread(&GameServer::runPipeLoop, &server);
 
     std::cout << "Server running. Press Enter to stop.\n";
     std::cin.get();
 
-    // Stop and clean up
-    // (runPipeLoop is an infinite loop; let process exit or add a stop flag if you need graceful join)
     server.stopServer();
-    if (pipeThread.joinable()) pipeThread.detach(); // or implement a stop flag to join cleanly
+    if (pipeThread.joinable()) pipeThread.detach();
     return 0;
 }
