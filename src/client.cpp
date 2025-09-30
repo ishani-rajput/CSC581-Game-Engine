@@ -7,7 +7,6 @@
 #include "scaling.h"
 #include "timeline.h"
 #include "peer_manager.h"
-
 #include <string>
 #include <unordered_map>
 #include <iostream>
@@ -18,7 +17,6 @@
 #include <vector>
 #include <chrono>
 
-// ---- Helpers ----
 struct PipePair { 
     SDL_FRect top, bottom; 
     PipePair(float tx, float ty, float tw, float th, float bx, float by, float bw, float bh) 
@@ -40,7 +38,7 @@ static float floatRand(float a, float b){
 struct RemotePlayer { 
     SDL_FRect rect; 
     int currentFrame = 0;
-    double animAccum = 0.0;
+    double animationAccum = 0.0;
     std::chrono::high_resolution_clock::time_point lastAnimTime = std::chrono::high_resolution_clock::now();
     bool paused = false;
     float scale = 1.0f;
@@ -70,15 +68,15 @@ int main(int argc, char** argv){
         return 1;
     }
     
-    const int myNum = numericIdFrom(CLIENT_ID);
-    const int myPubPort = 7000 + myNum;
+    const int myClientNum = numericIdFrom(CLIENT_ID);
+    const int myPubPort = 7000 + myClientNum;
     
     std::ostringstream oss; 
     oss << "tcp://*:" << myPubPort; 
     peerManager.startPeerListener(oss.str());
     
     for(int i = 1; i <= 20; i++) {
-        if(i == myNum) continue;
+        if(i == myClientNum) continue;
         std::ostringstream ep; ep << "tcp://localhost:" << (7000 + i);
         peerManager.connectToPeerNetwork(ep.str());
     }
@@ -100,7 +98,7 @@ int main(int argc, char** argv){
 
     float texW=0, texH=0; SDL_GetTextureSize(skullTex,&texW,&texH);
     const int FRAME_COUNT=6; const float FRAME_W=texW/FRAME_COUNT, FRAME_H=texH;
-    int currentFrame=0; double animAccum=0.0; const double ANIM_FRAME_SEC=0.100;
+    int currentFrame=0; double animationAccum=0.0; const double ANIM_FRAME_SEC=0.100;
 
     float characterSize=108.f;
     SDL_FRect skully={480.f,540.f,characterSize,characterSize};
@@ -153,7 +151,7 @@ int main(int argc, char** argv){
         if (k3Now && !prev3) { gameTime.setScale(2.0); }
         prev1=k1Now; prev2=k2Now; prev3=k3Now;
 
-        double dtSec=gameTime.tick();
+        double deltaSec=gameTime.tick();
         
         if (gameTime.scale() != lastScale) {
             lastScale = gameTime.scale();
@@ -165,7 +163,7 @@ int main(int argc, char** argv){
         prevSpace=spaceNow;
 
         if (!gameTime.isPaused()) {
-            Physics::step(static_cast<float>(dtSec*1000.0), skully.x, skully.y, skBody);
+            Physics::step(static_cast<float>(deltaSec*1000.0), skully.x, skully.y, skBody);
             if(skully.y+skully.h>=ground.y){ skully.y=ground.y-skully.h; skBody.vy=0.f; }
             if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
 
@@ -180,21 +178,21 @@ int main(int argc, char** argv){
             }
         }
 
-        animAccum += dtSec;
-        while(animAccum >= ANIM_FRAME_SEC) {
-            animAccum -= ANIM_FRAME_SEC;
+        animationAccum += deltaSec;
+        while(animationAccum >= ANIM_FRAME_SEC) {
+            animationAccum -= ANIM_FRAME_SEC;
             currentFrame = (currentFrame + 1) % FRAME_COUNT;
         }
 
         if (!gameTime.isPaused()) {
             const float PIPE_SPEED = -450.f;
             for(auto& p : pipes) {
-                p.top.x += PIPE_SPEED * dtSec;
-                p.bottom.x += PIPE_SPEED * dtSec;
+                p.top.x += PIPE_SPEED * deltaSec;
+                p.bottom.x += PIPE_SPEED * deltaSec;
             }
             
             if (gameTime.scale() != 1.0) {
-                localSpawnTimer += dtSec;
+                localSpawnTimer += deltaSec;
                 while(localSpawnTimer >= PIPE_SPAWN_EVERY) {
                     localSpawnTimer -= PIPE_SPAWN_EVERY;
                     float center = floatRand(SCREEN_HEIGHT * 0.30f, SCREEN_HEIGHT * 0.70f);
@@ -235,7 +233,7 @@ int main(int argc, char** argv){
             
             if (oldOthers.find(peerId) != oldOthers.end()) {
                 rp.currentFrame = oldOthers[peerId].currentFrame;
-                rp.animAccum = oldOthers[peerId].animAccum;
+                rp.animationAccum = oldOthers[peerId].animationAccum;
                 rp.lastAnimTime = oldOthers[peerId].lastAnimTime;
             }
             others[peerId] = rp;
@@ -248,7 +246,6 @@ int main(int argc, char** argv){
         
         std::string serverResponse = peerManager.receiveFromServer();
         if (!serverResponse.empty()) {
-            // 🔴 Handle disconnect messages from server
             if (serverResponse.rfind("DISCONNECT", 0) == 0) {
                 char deadId[256];
                 if (sscanf(serverResponse.c_str(), "DISCONNECT %255s", deadId) == 1) {
@@ -306,11 +303,11 @@ int main(int argc, char** argv){
             SDL_FRect d=Scaling::compute(kv.second.rect,window);
             if (!kv.second.paused) {
                 auto now = std::chrono::high_resolution_clock::now();
-                double realDtSec = std::chrono::duration<double>(now - kv.second.lastAnimTime).count();
+                double realdeltaSec = std::chrono::duration<double>(now - kv.second.lastAnimTime).count();
                 kv.second.lastAnimTime = now;
-                kv.second.animAccum += realDtSec * kv.second.scale;
-                while(kv.second.animAccum >= ANIM_FRAME_SEC) {
-                    kv.second.animAccum -= ANIM_FRAME_SEC;
+                kv.second.animationAccum += realdeltaSec * kv.second.scale;
+                while(kv.second.animationAccum >= ANIM_FRAME_SEC) {
+                    kv.second.animationAccum -= ANIM_FRAME_SEC;
                     kv.second.currentFrame = (kv.second.currentFrame + 1) % FRAME_COUNT;
                 }
             }

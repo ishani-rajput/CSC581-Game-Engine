@@ -13,10 +13,10 @@
 #include <mutex>
 #include <condition_variable>
 
-// ---------------------------------------------------------
-// Shared game state
-// ---------------------------------------------------------
-struct PipePair { SDL_FRect top, bottom; bool scored=false; };
+struct PipePair { 
+    SDL_FRect top, bottom; 
+    bool scored=false; 
+};
 
 struct GameState {
     SDL_FRect skully;
@@ -32,15 +32,10 @@ std::mutex stateMutex;
 bool running = true;
 
 Timeline gameTime;
-
-// Jump synchronization
 std::mutex jumpMutex;
 std::condition_variable jumpCV;
 bool jumpRequested = false;
 
-// ---------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------
 static float floatRand(float a, float b){
     return a + (b-a) * (float)rand()/(float)RAND_MAX;
 }
@@ -50,9 +45,8 @@ static SDL_Texture* tryLoadTexture(SDL_Renderer* r, const char* const* paths, in
     SDL_Log("Failed to load texture: %s", SDL_GetError()); return nullptr;
 }
 
-// ---------------------------------------------------------
 // Logic Thread
-// ---------------------------------------------------------
+
 void logicLoop(){
     const float JUMP_VELOCITY = -900.f;
     const float PIPE_SPEED = -450.f, PIPE_W = 140.f, PIPE_GAP = 280.f;
@@ -63,27 +57,25 @@ void logicLoop(){
 
     GameState local = logicState;
     double spawnTimer = 0.0;
-    double animAccum = 0.0;
+    double animationAccum = 0.0;
 
     while(running){
         double dtSec = gameTime.tick();
         if(dtSec <= 0.0){ SDL_Delay(1); continue; }
-
-        // --- Apply jump input via condition variable ---
         {
             std::unique_lock<std::mutex> lock(jumpMutex);
             if(jumpRequested) {
                 local.skBody.vy = JUMP_VELOCITY;
-                jumpRequested = false; // consume
+                jumpRequested = false;
             }
         }
 
-        // --- Physics ---
+        // Physics
         Physics::step(static_cast<float>(dtSec*1000.0), local.skully.x, local.skully.y, local.skBody);
         if(local.skully.y+local.skully.h>=ground.y){ local.skully.y=ground.y-local.skully.h; local.skBody.vy=0.f; }
         if(local.skully.y<0.f){ local.skully.y=0.f; local.skBody.vy=0.f; }
 
-        // --- Pipes ---
+        // Pipes
         spawnTimer += dtSec;
         while(spawnTimer >= PIPE_SPAWN_EVERY){
             spawnTimer -= PIPE_SPAWN_EVERY;
@@ -102,21 +94,21 @@ void logicLoop(){
         local.pipes.erase(std::remove_if(local.pipes.begin(),local.pipes.end(),
             [&](PipePair& pp){ return (pp.top.x+pp.top.w)<-50.f; }), local.pipes.end());
 
-        // --- Collision ---
+        //Collision
         bool hit=false;
         for(auto& p:local.pipes){
             if(aabbIntersect(local.skully,p.top)||aabbIntersect(local.skully,p.bottom)){ hit=true; break; }
         }
         if(hit){ local.pipes.clear(); spawnTimer=0.0; }
 
-        // --- Animation ---
-        animAccum += dtSec;
-        while(animAccum >= ANIM_FRAME_SEC){
-            animAccum -= ANIM_FRAME_SEC;
+        //Animation
+        animationAccum += dtSec;
+        while(animationAccum >= ANIM_FRAME_SEC){
+            animationAccum -= ANIM_FRAME_SEC;
             local.currentFrame = (local.currentFrame+1)%6;
         }
 
-        // --- Publish new state ---
+        //Publish new state
         {
             std::lock_guard<std::mutex> lock(stateMutex);
             renderState = local;
@@ -126,9 +118,7 @@ void logicLoop(){
     }
 }
 
-// ---------------------------------------------------------
 // Main Thread
-// ---------------------------------------------------------
 int main(int, char**){
     if(!SDL_Init(SDL_INIT_VIDEO)){
         SDL_Log("SDL init failed: %s", SDL_GetError());
@@ -136,7 +126,7 @@ int main(int, char**){
     }
 
     SDL_Window* window=nullptr; SDL_Renderer* renderer=nullptr;
-    if(!SDL_CreateWindowAndRenderer("Skully Bird - Threaded",1500,900,SDL_WINDOW_RESIZABLE,&window,&renderer)){
+    if(!SDL_CreateWindowAndRenderer("Skully Bird - Threaded",1920,1080,SDL_WINDOW_RESIZABLE,&window,&renderer)){
         SDL_Log("CreateWindowAndRenderer failed: %s", SDL_GetError()); SDL_Quit(); return 1;
     }
     SDL_SetRenderVSync(renderer, 1);
@@ -155,7 +145,6 @@ int main(int, char**){
 
     SDL_FRect ground{0.f,1080.f-120.f,1920.f,120.f};
 
-    // init state
     logicState.skully = {480.f,540.f,108.f,108.f};
     logicState.skBody.affectedByGravity=true;
     Physics::setGravity(2400.f);
@@ -169,7 +158,6 @@ int main(int, char**){
     // start logic thread
     std::thread logicThread(logicLoop);
 
-    // input edge states
     bool prevSpace=false, prevToggle=false;
     bool prevP=false, prev1=false, prev2=false, prev3=false;
 
@@ -203,7 +191,7 @@ int main(int, char**){
         if(k3Now && !prev3){ gameTime.setScale(2.0); SDL_Log("Speed set: 2.0x"); }
         prev1=k1Now; prev2=k2Now; prev3=k3Now;
 
-        // jump (set flag + notify)
+        // jump
         bool spaceNow=Input::isKeyPressed(SDL_SCANCODE_SPACE);
         if(spaceNow && !prevSpace){
             {
@@ -225,16 +213,16 @@ int main(int, char**){
         }
 
         // ground
-        SDL_FRect gDst=Scaling::compute(ground,window);
+        SDL_FRect groundDest=Scaling::compute(ground,window);
         if(brickTex){
             float tw=0,th=0; SDL_GetTextureSize(brickTex,&tw,&th); if(tw<1) tw=64; if(th<1) th=64;
             float scaleY=ground.h/th, tileW=tw*scaleY, tileH=th*scaleY;
             for(float x=0;x<1920.0f+tileW;x+=tileW){
                 SDL_FRect tilePx{ x,ground.y,tileW,tileH };
-                SDL_FRect tileDst=Scaling::compute(tilePx,window);
-                SDL_RenderTexture(renderer,brickTex,nullptr,&tileDst);
+                SDL_FRect tiledest=Scaling::compute(tilePx,window);
+                SDL_RenderTexture(renderer,brickTex,nullptr,&tiledest);
             }
-        } else SDL_RenderFillRect(renderer,&gDst);
+        } else SDL_RenderFillRect(renderer,&groundDest);
 
         // pipes
         SDL_SetRenderDrawColor(renderer,20,120,50,255);
@@ -245,8 +233,8 @@ int main(int, char**){
 
         // skully animation frame
         SDL_FRect src{ FRAME_W*snapshot.currentFrame,0.f,FRAME_W,FRAME_H };
-        SDL_FRect dst=Scaling::compute(snapshot.skully,window);
-        SDL_RenderTexture(renderer,skullTex,&src,&dst);
+        SDL_FRect dest=Scaling::compute(snapshot.skully,window);
+        SDL_RenderTexture(renderer,skullTex,&src,&dest);
 
         SDL_RenderPresent(renderer);
     }

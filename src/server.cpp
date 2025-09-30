@@ -11,7 +11,6 @@
 #include <mutex>
 #include <SDL3/SDL.h>
 
-// Simple 2D vector
 struct Vec2 { float x=0, y=0; };
 
 // Pipe structures
@@ -29,19 +28,16 @@ static const float SCREEN_WIDTH = 1920.f;
 static const float SCREEN_HEIGHT = 1080.f;
 static const float CHARACTER_SIZE = 108.f;
 
-// RNG helper
 static float floatRand(float a, float b) {
     return a + (b-a) * (float)rand()/(float)RAND_MAX;
 }
 
-// Player data structure
 struct PlayerData {
     Vec2  pos;
     bool  paused = false;
     float scale  = 1.0f;
 };
 
-// Game server using engine framework
 class GameServer : public Engine::NetworkServer {
 private:
     std::unordered_map<std::string, PlayerData> players;
@@ -113,7 +109,6 @@ protected:
         return response;
     }
 
-    // 🔴 NEW: remove disconnected players
     void onClientDisconnected(const std::string& clientId) override {
         std::lock_guard<std::mutex> lock(gameStateMutex);
 
@@ -168,7 +163,7 @@ int main() {
 
     std::thread pipeThread(&GameServer::runPipeLoop, &server);
 
-    std::cout << "Server running. Press Enter to stop.\n";
+    std::cout << "Server running.\n";
     std::cin.get();
 
     server.stopServer();
