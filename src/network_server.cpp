@@ -1,4 +1,3 @@
-
 #include "network_server.h"
 #include <iostream>
 #include <cstring>
@@ -6,10 +5,6 @@
 #include <algorithm>
 
 namespace Engine {
-
-// ============================================================================
-// NetworkServer Implementation
-// ============================================================================
 
 NetworkServer::NetworkServer() {
     zmqContext = zmq_ctx_new();
@@ -30,10 +25,8 @@ void NetworkServer::startServer(int port) {
     
     running.store(true);
     
-    // Start the accept thread
     acceptThread = std::thread(&NetworkServer::acceptClients, this, port);
     
-    // Start the world update thread
     worldUpdateThread = std::thread(&NetworkServer::updateWorld, this);
     
     std::cout << "Server started on port " << port << std::endl;
@@ -44,7 +37,6 @@ void NetworkServer::stopServer() {
     
     running.store(false);
     
-    // Wait for threads to finish
     if (acceptThread.joinable()) {
         acceptThread.join();
     }
@@ -52,7 +44,6 @@ void NetworkServer::stopServer() {
         worldUpdateThread.join();
     }
     
-    // Clean up all clients
     std::lock_guard<std::mutex> lock(clientsMutex);
     clients.clear();
     
@@ -79,8 +70,7 @@ void NetworkServer::acceptClients(int port) {
     char buffer[1024];
     
     while (running.load()) {
-        // Set receive timeout to allow periodic checks of running flag
-        int timeout = 1000; // 1 second
+        int timeout = 1000; 
         zmq_setsockopt(acceptSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
         
         int bytesReceived = zmq_recv(acceptSocket, buffer, sizeof(buffer) - 1, 0);
@@ -89,13 +79,9 @@ void NetworkServer::acceptClients(int port) {
             buffer[bytesReceived] = '\0';
             std::string message(buffer);
             
-            // Check if this is a new client connection request
             if (message.find("CONNECT") == 0) {
-                // Create new client
                 std::string clientId = generateClientId();
                 
-                // Create a new socket for this client (DEALER/ROUTER pattern would be better, 
-                // but assignment restricts us to REQ/REP with threads)
                 void* clientSocket = zmq_socket(zmqContext, ZMQ_REP);
                 
                 {
@@ -104,17 +90,12 @@ void NetworkServer::acceptClients(int port) {
                     clients[clientId]->start();
                 }
                 
-                // Send connection confirmation
                 std::string response = "CONNECTED " + clientId;
                 zmq_send(acceptSocket, response.c_str(), response.length(), 0);
                 
                 onClientConnected(clientId);
                 std::cout << "Client connected: " << clientId << std::endl;
             } else {
-                // Handle regular message (fallback for REQ/REP limitation)
-                // In a real implementation, we'd use ROUTER/DEALER for better async handling
-                
-                // Try to extract client ID from message
                 std::string clientId = "unknown";
                 size_t idPos = message.find("ID ");
                 if (idPos != std::string::npos) {
@@ -125,21 +106,17 @@ void NetworkServer::acceptClients(int port) {
                     }
                 }
                 
-                // Handle the message
                 handleClientMessage(clientId, message);
                 
-                // Send response
                 std::string response = generateWorldState();
                 zmq_send(acceptSocket, response.c_str(), response.length(), 0);
             }
         } else if (errno != EAGAIN) {
-            // Real error occurred
             if (running.load()) {
                 std::cerr << "Error receiving message: " << zmq_strerror(errno) << std::endl;
             }
         }
         
-        // Periodically clean up disconnected clients
         cleanupDisconnectedClients();
     }
 }
@@ -148,16 +125,11 @@ void NetworkServer::updateWorld() {
     while (running.load()) {
         auto startTime = std::chrono::steady_clock::now();
         
-        // Generate world state and broadcast to all clients
         std::string worldState = generateWorldState();
-        
-        // In a full ROUTER/DEALER implementation, we'd send here
-        // For REQ/REP, the world state is sent as responses to client requests
         
         auto endTime = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         
-        // Sleep for remaining time to maintain target framerate
         int sleepTime = worldUpdateIntervalMs - static_cast<int>(elapsed.count());
         if (sleepTime > 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
@@ -222,10 +194,6 @@ void NetworkServer::broadcastToAllClients(const std::string& message) {
     }
 }
 
-// ============================================================================
-// ClientHandler Implementation
-// ============================================================================
-
 NetworkServer::ClientHandler::ClientHandler(const std::string& id, void* socket, NetworkServer* srv)
     : clientId(id), clientSocket(socket), server(srv) {
 }
@@ -267,8 +235,7 @@ void NetworkServer::ClientHandler::readerLoop() {
     char buffer[1024];
     
     while (running.load() && connected.load()) {
-        // Set a timeout for non-blocking behavior
-        int timeout = 100; // 100ms
+        int timeout = 100; 
         zmq_setsockopt(clientSocket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
         
         int bytesReceived = zmq_recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
@@ -277,11 +244,9 @@ void NetworkServer::ClientHandler::readerLoop() {
             buffer[bytesReceived] = '\0';
             std::string message(buffer);
             
-            // Forward to server for processing
             server->handleClientMessage(clientId, message);
             
         } else if (errno != EAGAIN) {
-            // Connection error
             connected.store(false);
             break;
         }
@@ -308,14 +273,13 @@ void NetworkServer::ClientHandler::writerLoop() {
             int bytesSent = zmq_send(clientSocket, messageToSend.c_str(), messageToSend.length(), ZMQ_DONTWAIT);
             
             if (bytesSent == -1 && errno != EAGAIN) {
-                // Connection error
                 connected.store(false);
                 break;
             }
         }
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); 
     }
 }
 
-} // namespace Engine
+} 
