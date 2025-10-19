@@ -212,6 +212,46 @@ build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/serve
   TARGET_PDB = server.exe.dbg
 
 # =============================================================================
+# Object build statements for EXECUTABLE target perf_main
+
+
+#############################################
+# Order-only phony target for perf_main
+
+build cmake_object_order_depends_target_perf_main: phony || .
+
+build CMakeFiles/perf_main.dir/src/perf_main.cpp.obj: CXX_COMPILER__perf_main_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/perf_main.cpp || cmake_object_order_depends_target_perf_main
+  DEP_FILE = CMakeFiles\perf_main.dir\src\perf_main.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\perf_main.dir
+  OBJECT_FILE_DIR = CMakeFiles\perf_main.dir\src
+
+build CMakeFiles/perf_main.dir/src/perf.cpp.obj: CXX_COMPILER__perf_main_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/perf.cpp || cmake_object_order_depends_target_perf_main
+  DEP_FILE = CMakeFiles\perf_main.dir\src\perf.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\perf_main.dir
+  OBJECT_FILE_DIR = CMakeFiles\perf_main.dir\src
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target perf_main
+
+
+#############################################
+# Link the executable perf_main.exe
+
+build perf_main.exe: CXX_EXECUTABLE_LINKER__perf_main_ CMakeFiles/perf_main.dir/src/perf_main.cpp.obj CMakeFiles/perf_main.dir/src/perf.cpp.obj | C$:/msys2/mingw64/lib/libzmq.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\perf_main.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = perf_main.exe
+  TARGET_IMPLIB = libperf_main.dll.a
+  TARGET_PDB = perf_main.exe.dbg
+
+# =============================================================================
 # Object build statements for EXECUTABLE target hybrid_server
 
 
@@ -353,6 +393,8 @@ build hybrid_server: phony hybrid_server.exe
 
 build main: phony main.exe
 
+build perf_main: phony perf_main.exe
+
 build server: phony server.exe
 
 # =============================================================================
@@ -363,7 +405,7 @@ build server: phony server.exe
 #############################################
 # Folder: C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build
 
-build all: phony main.exe client.exe server.exe hybrid_server.exe hybrid_client.exe
+build all: phony main.exe client.exe server.exe perf_main.exe hybrid_server.exe hybrid_client.exe
 
 # =============================================================================
 # Built-in targets

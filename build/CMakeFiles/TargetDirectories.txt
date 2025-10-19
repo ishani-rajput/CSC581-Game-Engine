@@ -1,6 +1,7 @@
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/main.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/client.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/server.dir
+C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/perf_main.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/hybrid_server.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/hybrid_client.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/edit_cache.dir

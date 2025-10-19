@@ -30,7 +30,7 @@ target_link_libraries(main
         SDL3_image::SDL3_image
 )
 
-# Multiplayer client (uses direct ZMQ)
+# Part 1 Compliant: Multiplayer client (uses Registry + GameObject)
 add_executable(client
     ./src/client.cpp
     ./src/entity.cpp
@@ -38,6 +38,7 @@ add_executable(client
     ./src/physics.cpp
     ./src/scaling.cpp
     ./src/timeline.cpp
+    # Part 1A: GameObject model is header-only (object_model.h, registry.h)
 )
 
 if (ZeroMQ_FOUND)
@@ -46,10 +47,11 @@ else()
     target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
 endif()
 
-# Headless server (uses NetworkServer framework)
+# Part 1 Compliant: Server (uses NetworkServer + Registry + GameObject)
 add_executable(server
     ./src/server.cpp
     ./src/network_server.cpp
+    # Part 1A: GameObject model is header-only (object_model.h, registry.h)
 )
 
 if (ZeroMQ_FOUND)
@@ -58,13 +60,30 @@ else()
     target_link_libraries(server PRIVATE ${ZMQ_LIB})
 endif()
 
-# Section 5 server
+# Part 1C: Performance testing executable
+add_executable(perf_main
+    ./src/perf_main.cpp
+    ./src/perf.cpp
+)
+
+if (ZeroMQ_FOUND)
+    target_link_libraries(perf_main PRIVATE libzmq)
+else()
+    target_link_libraries(perf_main PRIVATE ${ZMQ_LIB})
+endif()
+
+# Section 5 server (keep as-is)
 add_executable(hybrid_server
     ./src/hybrid_server.cpp
 )
-target_link_libraries(hybrid_server PRIVATE ${ZMQ_LIB})
 
-# Section 5 client
+if (ZeroMQ_FOUND)
+    target_link_libraries(hybrid_server PRIVATE libzmq)
+else()
+    target_link_libraries(hybrid_server PRIVATE ${ZMQ_LIB})
+endif()
+
+# Section 5 client (keep as-is)
 add_executable(hybrid_client
     ./src/hybrid_client.cpp
     ./src/peer_manager.cpp
@@ -74,4 +93,9 @@ add_executable(hybrid_client
     ./src/scaling.cpp
     ./src/timeline.cpp
 )
-target_link_libraries(hybrid_client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
+
+if (ZeroMQ_FOUND)
+    target_link_libraries(hybrid_client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image libzmq)
+else()
+    target_link_libraries(hybrid_client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
+endif()
