@@ -86,7 +86,7 @@ int main(int, char**) {
     int frameCount = 8;
     int frameWidth = 128;
     int frameHeight = 128;
-    float playerScale = 1.2f;  // Reduced from 2.0f
+    float playerScale = 1.1f;  // Reduced from 2.0f
     float playerWidth = frameWidth * playerScale;
     float playerHeight = frameHeight * playerScale;
     
@@ -95,18 +95,30 @@ int main(int, char**) {
     // SMALLER PLATFORM SIZES
     float platformWidth = 200.f;   // Reduced from 400
     float platformHeight = 350.f;  // Reduced from 500
+    float bridgeWidth = 135.f;     // 10% smaller (was 150)
+    float bridgeHeight = 54.f;     // 10% smaller (was 60)
     
     // Platform 1: Left starting platform
     float leftX = 0.f;
     float leftY = DESIGN_HEIGHT - platformHeight;
     
     // Platform 2: Middle platform
-    float middleX = DESIGN_WIDTH / 2.f - platformWidth / 2.f - 80.f;
+    float middleX = DESIGN_WIDTH / 2.f - platformWidth / 2.f - 200.f; // Moved left by 30
     float middleY = DESIGN_HEIGHT - platformHeight;
     
-    // Platform 3: Right elevated goal platform (HIGHER than middle)
-    float rightX = DESIGN_WIDTH - platformWidth - 300.f;
-    float rightY = DESIGN_HEIGHT - platformHeight - 200.f;  // 200px higher!
+    // Platform 3: Right elevated platform (HIGHER than middle)
+    float platform3X = DESIGN_WIDTH - platformWidth - 470.f; // Moved left by 30
+    float platform3TopY = DESIGN_HEIGHT - platformHeight - 200.f;  // Top remains 200px higher
+    float platform3Height = DESIGN_HEIGHT - platform3TopY; // Height extends to ground
+
+    
+    // Bridge 1: First step down from platform 3 (staircase)
+    float bridge1X = platform3X + platformWidth + 70.f; // Moved right by another 20
+    float bridge1Y = platform3TopY + 100.f;  // 100px lower than platform 3
+    
+    // Platform 4: Final goal platform (ground level)
+    float finalX = DESIGN_WIDTH - platformWidth;
+    float finalY = DESIGN_HEIGHT - platformHeight;  // Back to ground level
 
     // Shared data structures
     PlayerData playerData;
@@ -128,19 +140,19 @@ int main(int, char**) {
     MovingPlatforms movingPlats;
     // Horizontal platform (between left and middle)
     movingPlats.horizontal = {
-        leftX + platformWidth + 100.f,
+        leftX + platformWidth + 20.f,
         DESIGN_HEIGHT - platformHeight - 150.f,
-        180.f,
-        90.f
+        144.f, // 20% smaller (was 180)
+        72.f   // 20% smaller (was 90)
     };
     movingPlats.horizontalDir = 1;
     
     // Vertical platform (between middle and right elevated)
     movingPlats.vertical = {
-        middleX + platformWidth + 100.f,
+        middleX + platformWidth + 40.f, // Moved left by 30
         middleY - 180.f,
-        180.f,
-        85.f
+        144.f, // 20% smaller (was 180)
+        68.f   // 20% smaller (was 85)
     };
     movingPlats.verticalDir = 1;
 
@@ -148,8 +160,14 @@ int main(int, char**) {
     float platformSpeed = 200.f;
     float verticalSpeed = 150.f;
 
+    // Define vertical movement bounds
+    const float verticalMinY = platform3TopY - 100.f; // Top bound near platform 3
+    const float verticalMaxY = middleY - 120.f;    // Bottom bound near middle platform
+
+
     std::atomic<bool> running{true};
     std::atomic<bool> gameWon{false};
+    std::atomic<bool> bridge1Visible{true}; // State for the blinking bridge
     
     // UI state for on-screen messages
     std::string statusMessage = "";
@@ -191,10 +209,11 @@ int main(int, char**) {
 
                 SDL_FRect playerRect = { newX, newY, playerWidth, playerHeight };
 
-                // Static platform collisions - NOW WITH 3 PLATFORMS
+                // Static platform collisions - NOW WITH 6 PLATFORMS (3 main + 2 bridges + 1 final)
                 SDL_FRect leftPlatformRect = { leftX, leftY, platformWidth, platformHeight };
-                SDL_FRect middlePlatformRect = { middleX, middleY, platformWidth, platformHeight };
-                SDL_FRect rightPlatformRect = { rightX, rightY, platformWidth, platformHeight };
+                SDL_FRect middlePlatformRect = { middleX, middleY, platformWidth, platformHeight }; 
+                SDL_FRect platform3Rect = { platform3X, platform3TopY, platformWidth, platform3Height };
+                SDL_FRect bridge1Rect = { bridge1X, bridge1Y, bridgeWidth, bridgeHeight };                SDL_FRect finalPlatformRect = { finalX, finalY, platformWidth, platformHeight };
                 
                 // Left platform
                 if (checkCollision(playerRect, leftPlatformRect)) {
@@ -220,17 +239,43 @@ int main(int, char**) {
                     }
                 }
                 
-                // Right platform (GOAL - elevated)
-                if (checkCollision(playerRect, rightPlatformRect)) {
-                    if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= rightY + 20) {
+                // Platform 3 (elevated)
+                if (checkCollision(playerRect, platform3Rect)) {
+                    if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= platform3TopY + 20) {
                         float playerCenterX = newX + playerWidth / 2.f;
-                        if (playerCenterX > rightX && playerCenterX < rightX + platformWidth) {
-                            newY = rightY - playerHeight;
+                        if (playerCenterX > platform3X && playerCenterX < platform3X + platformWidth) {
+                            newY = platform3TopY - playerHeight;
+                            playerBody.vy = 0;
+                            isGrounded = true;
+                        }
+                    }
+                }
+                
+                // Bridge 1 (first step down)
+                if (bridge1Visible) { // Only check collision if the bridge is visible
+                    if (checkCollision(playerRect, bridge1Rect)) {
+                        if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= bridge1Y + 20) {
+                            float playerCenterX = newX + playerWidth / 2.f;
+                            if (playerCenterX > bridge1X && playerCenterX < bridge1X + bridgeWidth) {
+                                newY = bridge1Y - playerHeight;
+                                playerBody.vy = 0;
+                                isGrounded = true;
+                            }
+                        }
+                    }
+                }
+                
+                // Final platform (GOAL - back to ground level)
+                if (checkCollision(playerRect, finalPlatformRect)) {
+                    if (playerBody.vy >= 0 && prevPlayerY + playerHeight <= finalY + 20) {
+                        float playerCenterX = newX + playerWidth / 2.f;
+                        if (playerCenterX > finalX && playerCenterX < finalX + platformWidth) {
+                            newY = finalY - playerHeight;
                             playerBody.vy = 0;
                             isGrounded = true;
                             
-                            // WIN CONDITION - reached right elevated platform
-                            if (newX > rightX + 50.f) {
+                            // WIN CONDITION - reached final platform
+                            if (newX > finalX + 50.f) {
                                 gameWon = true;
                                 statusMessage = "YOU WIN!";
                                 statusMessageTimer = 300;
@@ -306,7 +351,7 @@ int main(int, char**) {
                 // Update player rect again for spike collision
                 playerRect = { newX, newY, playerWidth, playerHeight };
 
-                // Spike collision - TWO ZONES of spikes
+                // Spike collision - THREE ZONES of spikes
                 float spikeW = 220.f;
                 float spikeH = 280.f;
                 float spikeY = DESIGN_HEIGHT - spikeH;
@@ -326,8 +371,23 @@ int main(int, char**) {
                     }
                 }
                 
-                // Spikes between middle and right platforms
-                for (float x = middleX + platformWidth; x < rightX; x += spikeW) {
+                // Spikes between middle and platform 3
+                for (float x = middleX + platformWidth; x < platform3X; x += spikeW) {
+                    SDL_FRect spikeRect = { x, spikeY, spikeW, spikeH };
+                    if (checkCollision(playerRect, spikeRect)) {
+                        newX = leftX + 80.f;
+                        newY = leftY - playerHeight;
+                        playerBody.vx = 0.f;
+                        playerBody.vy = 0.f;
+                        statusMessage = "OUCH! Respawned";
+                        statusMessageTimer = 120;
+                        SDL_Log("Hit spike! Respawning...");
+                        break;
+                    }
+                }
+                
+                // Spikes below the staircase area
+                for (float x = platform3X + platformWidth; x < finalX; x += spikeW) {
                     SDL_FRect spikeRect = { x, spikeY, spikeW, spikeH };
                     if (checkCollision(playerRect, spikeRect)) {
                         newX = leftX + 80.f;
@@ -370,11 +430,25 @@ int main(int, char**) {
 
     // Thread 2: Environment Thread - updates BOTH moving platforms
     std::thread envThread([&]() {
+        float bridgeToggleTimer = 0.f;
+        const float bridgeVisibleDuration = 3.0f;
+        const float bridgeInvisibleDuration = 2.0f;
+
         while (running) {
             double dt = envTimeline.tick();
             if (dt > 0.05f) dt = 0.05f;
 
             if (!envTimeline.isPaused() && !gameWon) {
+                // Bridge visibility logic
+                bridgeToggleTimer += dt;
+                if (bridge1Visible && bridgeToggleTimer > bridgeVisibleDuration) {
+                    bridge1Visible = false;
+                    bridgeToggleTimer = 0.f;
+                } else if (!bridge1Visible && bridgeToggleTimer > bridgeInvisibleDuration) {
+                    bridge1Visible = true;
+                    bridgeToggleTimer = 0.f;
+                }
+
                 std::lock_guard<std::mutex> lock(movingPlats.mutex);
                 
                 // Update HORIZONTAL platform
@@ -389,14 +463,12 @@ int main(int, char**) {
                 
                 // Update VERTICAL platform
                 movingPlats.vertical.y += verticalSpeed * movingPlats.verticalDir * dt;
-                float verticalMin = rightY - 50.f;  // Can go slightly above right platform
-                float verticalMax = middleY;  // Down to middle platform level
                 
-                if (movingPlats.vertical.y < verticalMin) {
-                    movingPlats.vertical.y = verticalMin;
+                if (movingPlats.vertical.y < verticalMinY) {
+                    movingPlats.vertical.y = verticalMinY;
                     movingPlats.verticalDir = 1;
-                } else if (movingPlats.vertical.y > verticalMax) {
-                    movingPlats.vertical.y = verticalMax;
+                } else if (movingPlats.vertical.y > verticalMaxY) {
+                    movingPlats.vertical.y = verticalMaxY;
                     movingPlats.verticalDir = -1;
                 }
             }
@@ -497,7 +569,7 @@ int main(int, char**) {
         SDL_SetRenderDrawColor(renderer, 135, 206, 235, 255);
         SDL_RenderClear(renderer);
 
-        // Render spikes in BOTH gaps
+        // Render spikes in THREE gaps
         float spikeW = 220.f;
         float spikeH = 280.f;
         float spikeY = DESIGN_HEIGHT - spikeH;
@@ -509,14 +581,21 @@ int main(int, char**) {
             spike.render(renderer, window);
         }
         
-        // Spikes between middle and right
-        for (float x = middleX + platformWidth; x < rightX; x += spikeW) {
+        // Spikes between middle and platform 3
+        for (float x = middleX + platformWidth; x < platform3X; x += spikeW) {
+            spike.setPosition(x, spikeY);
+            spike.setSize(spikeW, spikeH);
+            spike.render(renderer, window);
+        }
+        
+        // Spikes below staircase area
+        for (float x = platform3X + platformWidth; x < finalX; x += spikeW) {
             spike.setPosition(x, spikeY);
             spike.setSize(spikeW, spikeH);
             spike.render(renderer, window);
         }
 
-        // Render static platforms (3 platforms now)
+        // Render static platforms (4 main + 2 bridges = 6 total)
         // Left platform
         groundBottom.setPosition(leftX, leftY);
         groundBottom.setSize(platformWidth, platformHeight);
@@ -533,18 +612,38 @@ int main(int, char**) {
         groundTop.setSize(platformWidth, 48.f);
         groundTop.render(renderer, window);
 
-        // Right elevated platform (with flag)
-        groundBottom.setPosition(rightX, rightY);
-        groundBottom.setSize(platformWidth, platformHeight);
+        // Platform 3 (elevated)
+        groundBottom.setPosition(platform3X, platform3TopY);
+        groundBottom.setSize(platformWidth, platform3Height);
         groundBottom.render(renderer, window);
-        groundTop.setPosition(rightX, rightY - 48.f);
+        groundTop.setPosition(platform3X, platform3TopY - 48.f);
         groundTop.setSize(platformWidth, 48.f);
         groundTop.render(renderer, window);
         
-        // Render flag on right elevated platform
+        // Bridge 1 (first stair step) - use platform texture
+        if (bridge1Visible) { // Only render if visible
+            platform.setPosition(bridge1X, bridge1Y);
+            platform.setSize(bridgeWidth, bridgeHeight);
+            platform.render(renderer, window);
+        }
+        
+        // Final platform (goal - ground level) with FLAG
+        groundBottom.setPosition(finalX, finalY);
+        groundBottom.setSize(platformWidth, platformHeight);
+        groundBottom.render(renderer, window);
+        groundTop.setPosition(finalX, finalY - 48.f);
+        groundTop.setSize(platformWidth, 48.f);
+        groundTop.render(renderer, window);
+        
+        // Render flag on FINAL platform
         float flagW = 150.f;
         float flagH = 150.f;
-        flag.setPosition(rightX + platformWidth - flagW - 30.f, rightY - flagH - 48.f);
+        flag.setPosition(finalX + platformWidth - flagW - 30.f, finalY - flagH - 48.f);
+        flag.setSize(flagW, flagH);
+        flag.render(renderer, window);
+
+        // Render spawn flag on STARTING platform
+        flag.setPosition(leftX + 30.f, leftY - flagH - 48.f);
         flag.setSize(flagW, flagH);
         flag.render(renderer, window);
 

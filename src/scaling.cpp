@@ -18,7 +18,7 @@ SDL_FRect Scaling::compute(const SDL_FRect& logical, SDL_Window* win) {
     int ww = 0, wh = 0;
     SDL_GetWindowSize(win, &ww, &wh);
 
-    constexpr float baseW = 1920.0f;
+    constexpr float baseW = 1720.0f;
     constexpr float baseH = 1080.0f;
 
     float scaleX = ww / baseW;
