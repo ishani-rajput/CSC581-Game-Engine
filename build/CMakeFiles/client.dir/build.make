@@ -86,116 +86,21 @@ CMakeFiles/client.dir/src/client.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/client.dir/src/client.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/client.cpp" -o CMakeFiles/client.dir/src/client.cpp.s
 
-CMakeFiles/client.dir/src/entity.cpp.o: CMakeFiles/client.dir/flags.make
-CMakeFiles/client.dir/src/entity.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/entity.cpp
-CMakeFiles/client.dir/src/entity.cpp.o: CMakeFiles/client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/client.dir/src/entity.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/client.dir/src/entity.cpp.o -MF CMakeFiles/client.dir/src/entity.cpp.o.d -o CMakeFiles/client.dir/src/entity.cpp.o -c "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/entity.cpp"
-
-CMakeFiles/client.dir/src/entity.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/client.dir/src/entity.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/entity.cpp" > CMakeFiles/client.dir/src/entity.cpp.i
-
-CMakeFiles/client.dir/src/entity.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/client.dir/src/entity.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/entity.cpp" -o CMakeFiles/client.dir/src/entity.cpp.s
-
-CMakeFiles/client.dir/src/input.cpp.o: CMakeFiles/client.dir/flags.make
-CMakeFiles/client.dir/src/input.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/input.cpp
-CMakeFiles/client.dir/src/input.cpp.o: CMakeFiles/client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/client.dir/src/input.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/client.dir/src/input.cpp.o -MF CMakeFiles/client.dir/src/input.cpp.o.d -o CMakeFiles/client.dir/src/input.cpp.o -c "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/input.cpp"
-
-CMakeFiles/client.dir/src/input.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/client.dir/src/input.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/input.cpp" > CMakeFiles/client.dir/src/input.cpp.i
-
-CMakeFiles/client.dir/src/input.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/client.dir/src/input.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/input.cpp" -o CMakeFiles/client.dir/src/input.cpp.s
-
-CMakeFiles/client.dir/src/physics.cpp.o: CMakeFiles/client.dir/flags.make
-CMakeFiles/client.dir/src/physics.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/physics.cpp
-CMakeFiles/client.dir/src/physics.cpp.o: CMakeFiles/client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/client.dir/src/physics.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/client.dir/src/physics.cpp.o -MF CMakeFiles/client.dir/src/physics.cpp.o.d -o CMakeFiles/client.dir/src/physics.cpp.o -c "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/physics.cpp"
-
-CMakeFiles/client.dir/src/physics.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/client.dir/src/physics.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/physics.cpp" > CMakeFiles/client.dir/src/physics.cpp.i
-
-CMakeFiles/client.dir/src/physics.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/client.dir/src/physics.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/physics.cpp" -o CMakeFiles/client.dir/src/physics.cpp.s
-
-CMakeFiles/client.dir/src/scaling.cpp.o: CMakeFiles/client.dir/flags.make
-CMakeFiles/client.dir/src/scaling.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/scaling.cpp
-CMakeFiles/client.dir/src/scaling.cpp.o: CMakeFiles/client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/client.dir/src/scaling.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/client.dir/src/scaling.cpp.o -MF CMakeFiles/client.dir/src/scaling.cpp.o.d -o CMakeFiles/client.dir/src/scaling.cpp.o -c "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/scaling.cpp"
-
-CMakeFiles/client.dir/src/scaling.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/client.dir/src/scaling.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/scaling.cpp" > CMakeFiles/client.dir/src/scaling.cpp.i
-
-CMakeFiles/client.dir/src/scaling.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/client.dir/src/scaling.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/scaling.cpp" -o CMakeFiles/client.dir/src/scaling.cpp.s
-
-CMakeFiles/client.dir/src/timeline.cpp.o: CMakeFiles/client.dir/flags.make
-CMakeFiles/client.dir/src/timeline.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/timeline.cpp
-CMakeFiles/client.dir/src/timeline.cpp.o: CMakeFiles/client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/client.dir/src/timeline.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/client.dir/src/timeline.cpp.o -MF CMakeFiles/client.dir/src/timeline.cpp.o.d -o CMakeFiles/client.dir/src/timeline.cpp.o -c "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/timeline.cpp"
-
-CMakeFiles/client.dir/src/timeline.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/client.dir/src/timeline.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/timeline.cpp" > CMakeFiles/client.dir/src/timeline.cpp.i
-
-CMakeFiles/client.dir/src/timeline.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/client.dir/src/timeline.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/timeline.cpp" -o CMakeFiles/client.dir/src/timeline.cpp.s
-
-CMakeFiles/client.dir/src/peer_manager.cpp.o: CMakeFiles/client.dir/flags.make
-CMakeFiles/client.dir/src/peer_manager.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/peer_manager.cpp
-CMakeFiles/client.dir/src/peer_manager.cpp.o: CMakeFiles/client.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/client.dir/src/peer_manager.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/client.dir/src/peer_manager.cpp.o -MF CMakeFiles/client.dir/src/peer_manager.cpp.o.d -o CMakeFiles/client.dir/src/peer_manager.cpp.o -c "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/peer_manager.cpp"
-
-CMakeFiles/client.dir/src/peer_manager.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/client.dir/src/peer_manager.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/peer_manager.cpp" > CMakeFiles/client.dir/src/peer_manager.cpp.i
-
-CMakeFiles/client.dir/src/peer_manager.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/client.dir/src/peer_manager.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/peer_manager.cpp" -o CMakeFiles/client.dir/src/peer_manager.cpp.s
-
 # Object files for target client
 client_OBJECTS = \
-"CMakeFiles/client.dir/src/client.cpp.o" \
-"CMakeFiles/client.dir/src/entity.cpp.o" \
-"CMakeFiles/client.dir/src/input.cpp.o" \
-"CMakeFiles/client.dir/src/physics.cpp.o" \
-"CMakeFiles/client.dir/src/scaling.cpp.o" \
-"CMakeFiles/client.dir/src/timeline.cpp.o" \
-"CMakeFiles/client.dir/src/peer_manager.cpp.o"
+"CMakeFiles/client.dir/src/client.cpp.o"
 
 # External object files for target client
 client_EXTERNAL_OBJECTS =
 
 client: CMakeFiles/client.dir/src/client.cpp.o
-client: CMakeFiles/client.dir/src/entity.cpp.o
-client: CMakeFiles/client.dir/src/input.cpp.o
-client: CMakeFiles/client.dir/src/physics.cpp.o
-client: CMakeFiles/client.dir/src/scaling.cpp.o
-client: CMakeFiles/client.dir/src/timeline.cpp.o
-client: CMakeFiles/client.dir/src/peer_manager.cpp.o
 client: CMakeFiles/client.dir/build.make
+client: libengine_objs.a
 client: /opt/homebrew/lib/libSDL3_image.0.2.4.dylib
 client: /opt/homebrew/lib/libzmq.dylib
 client: /opt/homebrew/lib/libSDL3.0.dylib
 client: CMakeFiles/client.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX executable client"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable client"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/client.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

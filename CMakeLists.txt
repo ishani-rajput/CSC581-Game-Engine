@@ -2,62 +2,122 @@ cmake_minimum_required(VERSION 3.10)
 project(FeelingLoopy)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# --- Dependencies -----------------------------------------------------------
 find_package(SDL3 REQUIRED CONFIG)
 find_package(SDL3_image REQUIRED CONFIG)
 
 # ZeroMQ (clients and server)
 find_package(ZeroMQ QUIET)
-if (NOT ZeroMQ_FOUND)
+if (ZeroMQ_FOUND)
+    if (TARGET libzmq)
+        set(ZMQ_LIB libzmq)
+    elseif (TARGET ZeroMQ::libzmq)
+        set(ZMQ_LIB ZeroMQ::libzmq)
+    elseif (TARGET ZeroMQ::ZeroMQ)
+        set(ZMQ_LIB ZeroMQ::ZeroMQ)
+    endif()
+endif()
+if (NOT ZMQ_LIB)
     find_library(ZMQ_LIB zmq REQUIRED)
 endif()
 
+# --- Include path -----------------------------------------------------------
 include_directories(include)
 
-# Main engine executable
-add_executable(main
-    ./src/main.cpp
-    ./src/entity.cpp
-    ./src/input.cpp
-    ./src/physics.cpp
-    ./src/scaling.cpp
-    ./src/timeline.cpp
+# --- Engine / shared sources -----------------------------------------------
+add_library(engine_objs
+    src/entity.cpp
+    src/input.cpp
+    src/physics.cpp
+    src/scaling.cpp
+    src/timeline.cpp
+    src/network_server.cpp
+    src/peer_manager.cpp
+    src/perf.cpp          # engine performance suite implementation
 )
 
+target_link_libraries(engine_objs
+    PRIVATE
+        SDL3::SDL3
+        SDL3_image::SDL3_image
+        ${ZMQ_LIB}
+)
+target_include_directories(engine_objs PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+# --- 1. Single-player demo (main) ------------------------------------------
+add_executable(main
+    src/main.cpp
+)
 target_link_libraries(main
     PRIVATE
+        engine_objs
         SDL3::SDL3
         SDL3_image::SDL3_image
 )
 
-# Client executable
+# --- 2. Multiplayer client --------------------------------------------------
 add_executable(client
-    ./src/client.cpp
-    ./src/entity.cpp
-    ./src/input.cpp
-    ./src/physics.cpp
-    ./src/scaling.cpp
-    ./src/timeline.cpp
-     ./src/peer_manager.cpp 
+    src/client.cpp
+)
+target_link_libraries(client
+    PRIVATE
+        engine_objs
+        SDL3::SDL3
+        SDL3_image::SDL3_image
+        ${ZMQ_LIB}
 )
 
-if (ZeroMQ_FOUND)
-    target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image libzmq)
-else()
-    target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
-endif()
-
-# Headless server executable
+# --- 3. Headless server -----------------------------------------------------
 add_executable(server
-    ./src/server.cpp
-    ./src/physics.cpp
-    ./src/timeline.cpp
-    ./src/network_server.cpp 
-     ./src/peer_manager.cpp 
+    src/server.cpp
+)
+target_link_libraries(server
+    PRIVATE
+        engine_objs
+        SDL3::SDL3   # used for SDL_GetTicks in server loop
+        ${ZMQ_LIB}
 )
 
-if (ZeroMQ_FOUND)
-    target_link_libraries(server PRIVATE SDL3::SDL3 libzmq)
+# --- 4. Performance comparison runner --------------------------------------
+add_executable(perf_runner
+    src/perf_main.cpp
+)
+target_link_libraries(perf_runner
+    PRIVATE
+        engine_objs
+        ${ZMQ_LIB}
+)
+
+# --- Compiler warnings ------------------------------------------------------
+if (MSVC)
+    target_compile_options(engine_objs PRIVATE /W4)
 else()
-    target_link_libraries(server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
+    target_compile_options(engine_objs PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+# --- Group targets (optional, helps IDEs) ----------------------------------
+set_target_properties(engine_objs PROPERTIES FOLDER "engine")
+set_target_properties(main client server perf_runner PROPERTIES FOLDER "apps")
+
+# --- Build info -------------------------------------------------------------
+message(STATUS "SDL3 include: ${SDL3_DIR}")
+message(STATUS "ZeroMQ lib: ${ZMQ_LIB}")
+
+
+# Part 2: Individual platformer game
+add_executable(platformer
+    src/platformer.cpp
+    src/entity.cpp
+    src/input.cpp
+    src/physics.cpp
+    src/scaling.cpp
+    src/timeline.cpp
+)
+target_include_directories(platformer PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(platformer
+    PRIVATE
+        SDL3::SDL3
+        SDL3_image::SDL3_image
+)

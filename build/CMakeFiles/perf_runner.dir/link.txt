@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/perf_runner.dir/src/perf_main.cpp.o -o perf_runner  -Wl,-rpath,/opt/homebrew/lib libengine_objs.a /opt/homebrew/lib/libzmq.dylib /opt/homebrew/lib/libSDL3_image.0.2.4.dylib /opt/homebrew/lib/libSDL3.0.dylib

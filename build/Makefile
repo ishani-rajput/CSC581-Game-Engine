@@ -117,6 +117,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named engine_objs
+
+# Build rule for target.
+engine_objs: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 engine_objs
+.PHONY : engine_objs
+
+# fast build rule for target.
+engine_objs/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/build
+.PHONY : engine_objs/fast
+
+#=============================================================================
 # Target rules for targets named main
 
 # Build rule for target.
@@ -155,6 +168,32 @@ server/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
 .PHONY : server/fast
 
+#=============================================================================
+# Target rules for targets named perf_runner
+
+# Build rule for target.
+perf_runner: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 perf_runner
+.PHONY : perf_runner
+
+# fast build rule for target.
+perf_runner/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/build
+.PHONY : perf_runner/fast
+
+#=============================================================================
+# Target rules for targets named platformer
+
+# Build rule for target.
+platformer: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 platformer
+.PHONY : platformer
+
+# fast build rule for target.
+platformer/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/build
+.PHONY : platformer/fast
+
 src/client.o: src/client.cpp.o
 .PHONY : src/client.o
 
@@ -184,8 +223,8 @@ src/entity.o: src/entity.cpp.o
 
 # target to build an object file
 src/entity.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/entity.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/entity.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/entity.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/entity.cpp.o
 .PHONY : src/entity.cpp.o
 
 src/entity.i: src/entity.cpp.i
@@ -193,8 +232,8 @@ src/entity.i: src/entity.cpp.i
 
 # target to preprocess a source file
 src/entity.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/entity.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/entity.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/entity.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/entity.cpp.i
 .PHONY : src/entity.cpp.i
 
 src/entity.s: src/entity.cpp.s
@@ -202,8 +241,8 @@ src/entity.s: src/entity.cpp.s
 
 # target to generate assembly for a file
 src/entity.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/entity.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/entity.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/entity.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/entity.cpp.s
 .PHONY : src/entity.cpp.s
 
 src/input.o: src/input.cpp.o
@@ -211,8 +250,8 @@ src/input.o: src/input.cpp.o
 
 # target to build an object file
 src/input.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/input.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/input.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/input.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/input.cpp.o
 .PHONY : src/input.cpp.o
 
 src/input.i: src/input.cpp.i
@@ -220,8 +259,8 @@ src/input.i: src/input.cpp.i
 
 # target to preprocess a source file
 src/input.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/input.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/input.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/input.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/input.cpp.i
 .PHONY : src/input.cpp.i
 
 src/input.s: src/input.cpp.s
@@ -229,8 +268,8 @@ src/input.s: src/input.cpp.s
 
 # target to generate assembly for a file
 src/input.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/input.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/input.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/input.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/input.cpp.s
 .PHONY : src/input.cpp.s
 
 src/main.o: src/main.cpp.o
@@ -262,7 +301,7 @@ src/network_server.o: src/network_server.cpp.o
 
 # target to build an object file
 src/network_server.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/network_server.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/network_server.cpp.o
 .PHONY : src/network_server.cpp.o
 
 src/network_server.i: src/network_server.cpp.i
@@ -270,7 +309,7 @@ src/network_server.i: src/network_server.cpp.i
 
 # target to preprocess a source file
 src/network_server.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/network_server.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/network_server.cpp.i
 .PHONY : src/network_server.cpp.i
 
 src/network_server.s: src/network_server.cpp.s
@@ -278,7 +317,7 @@ src/network_server.s: src/network_server.cpp.s
 
 # target to generate assembly for a file
 src/network_server.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/network_server.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/network_server.cpp.s
 .PHONY : src/network_server.cpp.s
 
 src/peer_manager.o: src/peer_manager.cpp.o
@@ -286,8 +325,7 @@ src/peer_manager.o: src/peer_manager.cpp.o
 
 # target to build an object file
 src/peer_manager.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/peer_manager.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/peer_manager.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/peer_manager.cpp.o
 .PHONY : src/peer_manager.cpp.o
 
 src/peer_manager.i: src/peer_manager.cpp.i
@@ -295,8 +333,7 @@ src/peer_manager.i: src/peer_manager.cpp.i
 
 # target to preprocess a source file
 src/peer_manager.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/peer_manager.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/peer_manager.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/peer_manager.cpp.i
 .PHONY : src/peer_manager.cpp.i
 
 src/peer_manager.s: src/peer_manager.cpp.s
@@ -304,18 +341,64 @@ src/peer_manager.s: src/peer_manager.cpp.s
 
 # target to generate assembly for a file
 src/peer_manager.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/peer_manager.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/peer_manager.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/peer_manager.cpp.s
 .PHONY : src/peer_manager.cpp.s
+
+src/perf.o: src/perf.cpp.o
+.PHONY : src/perf.o
+
+# target to build an object file
+src/perf.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/perf.cpp.o
+.PHONY : src/perf.cpp.o
+
+src/perf.i: src/perf.cpp.i
+.PHONY : src/perf.i
+
+# target to preprocess a source file
+src/perf.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/perf.cpp.i
+.PHONY : src/perf.cpp.i
+
+src/perf.s: src/perf.cpp.s
+.PHONY : src/perf.s
+
+# target to generate assembly for a file
+src/perf.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/perf.cpp.s
+.PHONY : src/perf.cpp.s
+
+src/perf_main.o: src/perf_main.cpp.o
+.PHONY : src/perf_main.o
+
+# target to build an object file
+src/perf_main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/src/perf_main.cpp.o
+.PHONY : src/perf_main.cpp.o
+
+src/perf_main.i: src/perf_main.cpp.i
+.PHONY : src/perf_main.i
+
+# target to preprocess a source file
+src/perf_main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/src/perf_main.cpp.i
+.PHONY : src/perf_main.cpp.i
+
+src/perf_main.s: src/perf_main.cpp.s
+.PHONY : src/perf_main.s
+
+# target to generate assembly for a file
+src/perf_main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/src/perf_main.cpp.s
+.PHONY : src/perf_main.cpp.s
 
 src/physics.o: src/physics.cpp.o
 .PHONY : src/physics.o
 
 # target to build an object file
 src/physics.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/physics.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/physics.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/physics.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/physics.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/physics.cpp.o
 .PHONY : src/physics.cpp.o
 
 src/physics.i: src/physics.cpp.i
@@ -323,9 +406,8 @@ src/physics.i: src/physics.cpp.i
 
 # target to preprocess a source file
 src/physics.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/physics.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/physics.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/physics.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/physics.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/physics.cpp.i
 .PHONY : src/physics.cpp.i
 
 src/physics.s: src/physics.cpp.s
@@ -333,18 +415,41 @@ src/physics.s: src/physics.cpp.s
 
 # target to generate assembly for a file
 src/physics.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/physics.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/physics.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/physics.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/physics.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/physics.cpp.s
 .PHONY : src/physics.cpp.s
+
+src/platformer.o: src/platformer.cpp.o
+.PHONY : src/platformer.o
+
+# target to build an object file
+src/platformer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/platformer.cpp.o
+.PHONY : src/platformer.cpp.o
+
+src/platformer.i: src/platformer.cpp.i
+.PHONY : src/platformer.i
+
+# target to preprocess a source file
+src/platformer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/platformer.cpp.i
+.PHONY : src/platformer.cpp.i
+
+src/platformer.s: src/platformer.cpp.s
+.PHONY : src/platformer.s
+
+# target to generate assembly for a file
+src/platformer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/platformer.cpp.s
+.PHONY : src/platformer.cpp.s
 
 src/scaling.o: src/scaling.cpp.o
 .PHONY : src/scaling.o
 
 # target to build an object file
 src/scaling.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/scaling.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/scaling.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/scaling.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/scaling.cpp.o
 .PHONY : src/scaling.cpp.o
 
 src/scaling.i: src/scaling.cpp.i
@@ -352,8 +457,8 @@ src/scaling.i: src/scaling.cpp.i
 
 # target to preprocess a source file
 src/scaling.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/scaling.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/scaling.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/scaling.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/scaling.cpp.i
 .PHONY : src/scaling.cpp.i
 
 src/scaling.s: src/scaling.cpp.s
@@ -361,8 +466,8 @@ src/scaling.s: src/scaling.cpp.s
 
 # target to generate assembly for a file
 src/scaling.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/scaling.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/scaling.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/scaling.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/scaling.cpp.s
 .PHONY : src/scaling.cpp.s
 
 src/server.o: src/server.cpp.o
@@ -394,9 +499,8 @@ src/timeline.o: src/timeline.cpp.o
 
 # target to build an object file
 src/timeline.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/timeline.cpp.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/timeline.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/timeline.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/timeline.cpp.o
 .PHONY : src/timeline.cpp.o
 
 src/timeline.i: src/timeline.cpp.i
@@ -404,9 +508,8 @@ src/timeline.i: src/timeline.cpp.i
 
 # target to preprocess a source file
 src/timeline.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/timeline.cpp.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/timeline.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/timeline.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/timeline.cpp.i
 .PHONY : src/timeline.cpp.i
 
 src/timeline.s: src/timeline.cpp.s
@@ -414,9 +517,8 @@ src/timeline.s: src/timeline.cpp.s
 
 # target to generate assembly for a file
 src/timeline.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/timeline.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/timeline.cpp.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/timeline.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/timeline.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/src/timeline.cpp.s
 .PHONY : src/timeline.cpp.s
 
 # Help Target
@@ -428,7 +530,10 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... client"
+	@echo "... engine_objs"
 	@echo "... main"
+	@echo "... perf_runner"
+	@echo "... platformer"
 	@echo "... server"
 	@echo "... src/client.o"
 	@echo "... src/client.i"
@@ -448,9 +553,18 @@ help:
 	@echo "... src/peer_manager.o"
 	@echo "... src/peer_manager.i"
 	@echo "... src/peer_manager.s"
+	@echo "... src/perf.o"
+	@echo "... src/perf.i"
+	@echo "... src/perf.s"
+	@echo "... src/perf_main.o"
+	@echo "... src/perf_main.i"
+	@echo "... src/perf_main.s"
 	@echo "... src/physics.o"
 	@echo "... src/physics.i"
 	@echo "... src/physics.s"
+	@echo "... src/platformer.o"
+	@echo "... src/platformer.i"
+	@echo "... src/platformer.s"
 	@echo "... src/scaling.o"
 	@echo "... src/scaling.i"
 	@echo "... src/scaling.s"

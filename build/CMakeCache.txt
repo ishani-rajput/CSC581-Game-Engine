@@ -252,6 +252,9 @@ ZMQ_LIB:FILEPATH=/opt/homebrew/lib/libzmq.dylib
 //The directory containing a CMake configuration file for ZeroMQ.
 ZeroMQ_DIR:PATH=ZeroMQ_DIR-NOTFOUND
 
+//Dependencies for the target
+engine_objs_LIB_DEPENDS:STATIC=general;SDL3::SDL3;general;SDL3_image::SDL3_image;general;/opt/homebrew/lib/libzmq.dylib;
+
 
 ########################
 # INTERNAL cache entries
