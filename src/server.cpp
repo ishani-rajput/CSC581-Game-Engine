@@ -1,5 +1,11 @@
 #include "network_server.h"
 #include "collision.h"
+
+// ENGINE INTEGRATION
+#include "net_strategy.h"
+#include "object_model.h"
+#include "registry.h"
+
 #include <iostream>
 #include <cstdio>
 #include <cstring>
@@ -11,7 +17,8 @@
 #include <mutex>
 #include <SDL3/SDL.h>
 
-struct Vec2 { float x=0, y=0; };
+// ENGINE GLOBAL REGISTRY (object model)
+static Engine::Registry serverRegistry;
 
 // Pipe structures
 struct PipePair {
@@ -29,26 +36,19 @@ static const float SCREEN_HEIGHT = 1080.f;
 static const float CHARACTER_SIZE = 108.f;
 
 static float floatRand(float a, float b) {
-    return a + (b-a) * (float)rand()/(float)RAND_MAX;
+    return a + (b - a) * (float)rand() / (float)RAND_MAX;
 }
-
-struct PlayerData {
-    Vec2  pos;
-    bool  paused = false;
-    float scale  = 1.0f;
-};
 
 class GameServer : public Engine::NetworkServer {
 private:
-    std::unordered_map<std::string, PlayerData> players;
     std::vector<PipePair> pipes;
     mutable std::mutex gameStateMutex;
 
     std::string lastMessage;
     mutable std::mutex messageMutex;
 
-    double  spawnTimer      = 0.0;
-    clock_t lastPipeUpdate  = clock();
+    double  spawnTimer     = 0.0;
+    clock_t lastPipeUpdate = clock();
 
 public:
     GameServer() {
@@ -67,6 +67,11 @@ protected:
         char id[256]; float x=0,y=0; int paused=0; float scale=1.0f;
         if (sscanf(message.c_str(), "ID %255s X %f Y %f PAUSED %d SCALE %f", id, &x, &y, &paused, &scale) == 5) {
             std::lock_guard<std::mutex> lock(gameStateMutex);
+            // ENGINE OBJECT MODEL update
+            auto& obj = serverRegistry.upsert(clientId);
+            obj.set<Engine::Vec2>("pos", {x, y});
+            obj.set<bool>("paused", paused == 1);
+            obj.set<float>("scale", scale);
 
             SDL_FRect playerRect{ x, y, CHARACTER_SIZE, CHARACTER_SIZE };
             bool hit = false;
@@ -76,8 +81,6 @@ protected:
                 if (aabbIntersect(playerRect, top) || aabbIntersect(playerRect, bot)) { hit = true; break; }
             }
             if (hit) { pipes.clear(); spawnTimer = 0.0; }
-
-            players[clientId] = PlayerData{ Vec2{x,y}, paused==1, scale };
         }
     }
 
@@ -90,14 +93,16 @@ protected:
         }
 
         std::lock_guard<std::mutex> lock(gameStateMutex);
-        std::string response = "N " + std::to_string(players.size()) + " P " + std::to_string(pipes.size()) + "\n";
+        std::string response =
+            "N " + std::to_string(serverRegistry.size()) + " P " + std::to_string(pipes.size()) + "\n";
 
-        for (const auto& kv : players) {
-            response += kv.first + " " +
-                        std::to_string(kv.second.pos.x) + " " +
-                        std::to_string(kv.second.pos.y) + " " +
-                        std::to_string(kv.second.paused ? 1 : 0) + " " +
-                        std::to_string(kv.second.scale) + "\n";
+        for (const auto& [id, objPtr] : serverRegistry) {
+            auto& obj = *objPtr;
+            Engine::Vec2 pos = obj.get<Engine::Vec2>("pos");
+            bool paused = obj.get<bool>("paused", false);
+            float scale = obj.get<float>("scale", 1.0f);
+            response += id + " " + std::to_string(pos.x) + " " + std::to_string(pos.y) + " " +
+                        std::to_string(paused ? 1 : 0) + " " + std::to_string(scale) + "\n";
         }
 
         for (const auto& p : pipes) {
@@ -111,11 +116,7 @@ protected:
 
     void onClientDisconnected(const std::string& clientId) override {
         std::lock_guard<std::mutex> lock(gameStateMutex);
-
-        if (players.erase(clientId) > 0) {
-            std::cout << "Player " << clientId << " disconnected and removed from state.\n";
-        }
-
+        serverRegistry.erase(clientId);
         std::string msg = "DISCONNECT " + clientId;
         broadcastToAllClients(msg);
     }
@@ -135,21 +136,21 @@ public:
                 spawnTimer += dtSec;
                 while (spawnTimer >= PIPE_SPAWN_EVERY) {
                     spawnTimer -= PIPE_SPAWN_EVERY;
-                    float center   = floatRand(SCREEN_HEIGHT * 0.30f, SCREEN_HEIGHT * 0.70f);
-                    float topH     = center - PIPE_GAP * 0.5f;
-                    float bottomY  = center + PIPE_GAP * 0.5f;
+                    float center = floatRand(SCREEN_HEIGHT * 0.30f, SCREEN_HEIGHT * 0.70f);
+                    float topH = center - PIPE_GAP * 0.5f;
+                    float bottomY = center + PIPE_GAP * 0.5f;
                     pipes.push_back({
                         SCREEN_WIDTH + PIPE_W, 0.f, PIPE_W, topH,
                         SCREEN_WIDTH + PIPE_W, bottomY, PIPE_W, SCREEN_HEIGHT - bottomY - 120.f
                     });
                 }
                 for (auto& p : pipes) {
-                    p.topX    += PIPE_SPEED * (float)dtSec;
+                    p.topX += PIPE_SPEED * (float)dtSec;
                     p.bottomX += PIPE_SPEED * (float)dtSec;
                 }
                 pipes.erase(std::remove_if(pipes.begin(), pipes.end(),
-                                           [](const PipePair& p){ return (p.topX + p.topW) < -50.f; }),
-                            pipes.end());
+                    [](const PipePair& p){ return (p.topX + p.topW) < -50.f; }),
+                    pipes.end());
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
@@ -162,7 +163,6 @@ int main() {
     server.startServer(5555);
 
     std::thread pipeThread(&GameServer::runPipeLoop, &server);
-
     std::cout << "Server running.\n";
     std::cin.get();
 

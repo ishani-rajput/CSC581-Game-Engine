@@ -7,6 +7,12 @@
 #include "scaling.h"
 #include "timeline.h"
 #include "peer_manager.h"
+
+// ENGINE INTEGRATION
+#include "net_strategy.h"
+#include "object_model.h"
+#include "registry.h"
+
 #include <string>
 #include <unordered_map>
 #include <iostream>
@@ -49,6 +55,9 @@ static SDL_Texture* tryLoadTexture(SDL_Renderer* r, const char* const* paths, in
     SDL_Log("Failed to load texture: %s", SDL_GetError()); return nullptr;
 }
 
+// ENGINE REGISTRY
+static Engine::Registry gRegistry;
+
 int main(int argc, char** argv){
     if (argc < 2) {
         std::cerr << "Usage: ./client <id>\n";
@@ -58,23 +67,26 @@ int main(int argc, char** argv){
 
     srand(12345);
 
+    // NETWORK STRATEGY
+    Engine::NetStrategy strat = Engine::NetStrategy::FullState;
+    if (const char* s = std::getenv("NET_STRATEGY")) 
+        if (std::string(s) == "input") strat = Engine::NetStrategy::InputDelta;
+
     PeerManager peerManager(CLIENT_ID);
     peerManager.connectToServer("tcp://127.0.0.1:5555");
-    
     peerManager.sendToServer("CONNECT");
     std::string handshakeResponse = peerManager.receiveFromServer();
     if (handshakeResponse.find("CONNECTED") == std::string::npos) {
         std::cerr << "Failed to connect to server" << std::endl;
         return 1;
     }
-    
     const int myClientNum = numericIdFrom(CLIENT_ID);
     const int myPubPort = 7000 + myClientNum;
-    
-    std::ostringstream oss; 
-    oss << "tcp://*:" << myPubPort; 
-    peerManager.startPeerListener(oss.str());
-    
+    {
+        std::ostringstream oss; 
+        oss << "tcp://*:" << myPubPort; 
+        peerManager.startPeerListener(oss.str());
+    }
     for(int i = 1; i <= 20; i++) {
         if(i == myClientNum) continue;
         std::ostringstream ep; ep << "tcp://localhost:" << (7000 + i);
@@ -107,7 +119,6 @@ int main(int argc, char** argv){
     SDL_FRect ground={0.f,1080.f-120.f,1920.f,120.f};
 
     std::vector<PipePair> pipes;
-    
     double localSpawnTimer = 0.0;
     const double PIPE_SPAWN_EVERY = 1.4;
     const float PIPE_W = 140.f;
@@ -209,7 +220,21 @@ int main(int argc, char** argv){
                 [](const PipePair& p){ return (p.top.x + p.top.w) < -50.f; }), pipes.end());
         }
 
-        peerManager.updateMyPlayerData(skully.x, skully.y, gameTime.isPaused(), gameTime.scale());
+        // ENGINE OBJECT MODEL - local player
+        auto& meGO = gRegistry.upsert(CLIENT_ID);
+        meGO.set<Engine::Vec2>("pos", {skully.x, skully.y});
+        meGO.set<bool>("paused", gameTime.isPaused());
+        meGO.set<float>("scale", gameTime.scale());
+
+        // NETWORK STRATEGY SEND
+        if (strat == Engine::NetStrategy::FullState) {
+            peerManager.updateMyPlayerData(skully.x, skully.y, gameTime.isPaused(), gameTime.scale());
+        } else {
+            bool L = Input::isKeyPressed(SDL_SCANCODE_A);
+            bool R = Input::isKeyPressed(SDL_SCANCODE_D);
+            bool J = Input::isKeyPressed(SDL_SCANCODE_SPACE);
+            peerManager.sendInputDelta(L, R, J, 0.f, 0.f, SDL_GetTicks());
+        }
         
         static auto lastCleanup = std::chrono::high_resolution_clock::now();
         auto now = std::chrono::high_resolution_clock::now();
@@ -223,6 +248,12 @@ int main(int argc, char** argv){
         others.clear();
         
         for (const auto& [peerId, playerData] : peerData) {
+            // ENGINE OBJECT MODEL - others
+            auto& go = gRegistry.upsert(peerId);
+            go.set<Engine::Vec2>("pos", {playerData.x, playerData.y});
+            go.set<bool>("paused", playerData.paused);
+            go.set<float>("scale", playerData.scale);
+
             auto elapsed = std::chrono::high_resolution_clock::now() - playerData.lastUpdate;
             if (elapsed > std::chrono::seconds(5)) continue; // skip stale peers
 
@@ -250,6 +281,7 @@ int main(int argc, char** argv){
                 char deadId[256];
                 if (sscanf(serverResponse.c_str(), "DISCONNECT %255s", deadId) == 1) {
                     others.erase(deadId);
+                    gRegistry.erase(deadId); // remove from registry as well
                     std::cout << "Peer " << deadId << " disconnected.\n";
                 }
             } else {

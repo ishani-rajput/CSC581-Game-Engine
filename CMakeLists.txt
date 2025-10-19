@@ -56,3 +56,15 @@ if (ZeroMQ_FOUND)
 else()
     target_link_libraries(server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 endif()
+
+# Performance test executable
+add_executable(perf_test
+    ./src/perf_main.cpp
+    ./src/perf.cpp
+)
+
+if (ZeroMQ_FOUND)
+    target_link_libraries(perf_test PRIVATE libzmq)
+else()
+    target_link_libraries(perf_test PRIVATE ${ZMQ_LIB})
+endif()
