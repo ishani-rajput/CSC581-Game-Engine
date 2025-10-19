@@ -27,7 +27,7 @@ const int DESIGN_WIDTH  = 1720;
 const int DESIGN_HEIGHT = 1080;
 
 const float PLAYER_SPEED   = 300.f;
-const float JUMP_VELOCITY  = -850.f;
+const float JUMP_VELOCITY  = -750.f;
 
 const float platformWidth = 200.f;
 const float platformHeight = 350.f;
@@ -35,7 +35,7 @@ const float bridgeWidth = 135.f;
 const float bridgeHeight = 54.f;
 
 const float leftX = 0.f;
-const float leftY = DESIGN_HEIGHT - platformHeight;
+const float leftY = DESIGN_HEIGHT - platformHeight - 70.f;
 const float middleX = DESIGN_WIDTH / 2.f - platformWidth / 2.f - 200.f;
 const float middleY = DESIGN_HEIGHT - platformHeight;
 const float platform3X = DESIGN_WIDTH - platformWidth - 470.f;
@@ -511,7 +511,7 @@ int main(int, char**) {
         groundTop.render(renderer, window);
 
         groundBottom.setPosition(platform3X, platform3TopY);
-        groundBottom.setSize(platformWidth, platform3Height);
+        groundBottom.setSize(platformWidth, 100.f);
         groundBottom.render(renderer, window);
         groundTop.setPosition(platform3X, platform3TopY - 48.f);
         groundTop.setSize(platformWidth, 48.f);
