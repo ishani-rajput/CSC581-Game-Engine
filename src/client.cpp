@@ -1,3 +1,4 @@
+// src/client.cpp
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
@@ -26,6 +27,7 @@
 #include <vector>
 #include <chrono>
 #include <cerrno>
+#include <cmath>
 #include <zmq.h>
 
 using Engine::NetStrategy;
@@ -39,7 +41,7 @@ static const char* PLATFORM_ASSET = "../assets/platform.png";
 static const char* GRAVE_ASSET    = "../assets/grave.png";
 static const char* BG_SKY_ASSET   = "../assets/background_sky.png";
 
-// --- helpers ---------------------------------------------------------------
+// ------------------------- helpers -----------------------------------------
 
 static inline bool AABB(float ax,float ay,float aw,float ah,
                         float bx,float by,float bw,float bh) {
@@ -69,7 +71,65 @@ struct GhostState {
     bool onGround=true;
 };
 
-// --- main -----------------------------------------------------------------
+// ------------------------- Part 2 additions --------------------------------
+
+struct Camera { float x = 0.f; };
+
+struct StaticPlat {
+    float wx, wy, ww, wh;      // world rect for collision
+    Entity* sprite = nullptr;  // optional visual (used for ground tiling base)
+};
+
+enum class MoveKind { HorizontalSine, Circular };
+
+struct MovingPlat {
+    float wx, wy, ww, wh;   // world coords (updated per frame)
+    MoveKind kind;
+    float cx=0, cy=0, amp=0, speed=1.0f, radius=0; // motion params
+    Entity* sprite = nullptr;
+
+    // track previous world position to carry player
+    float prevx=0.f, prevy=0.f;
+};
+
+struct Rect { float x,y,w,h; };
+
+// ---- Tiled visual platforms (no stretch) ----
+struct Tile {
+    float baseX, baseY;
+    Entity* e;
+};
+struct PlatSpan {
+    Rect hitbox;                 // single collision rect
+    std::vector<Tile> tiles;     // visual tiles (256x60)
+};
+
+static PlatSpan makeSpan(SDL_Renderer* r, float wx, float wy, float widthPx) {
+    PlatSpan span;
+    span.hitbox = { wx, wy, widthPx, 60.f };
+    int tiles = (int)std::ceil(widthPx / 256.f);
+    for (int i = 0; i < tiles; ++i) {
+        float tx = wx + i * 256.f;
+        Entity* e = new Entity(r, PLATFORM_ASSET, (int)tx, (int)wy, 256, 60, 1, 0);
+        span.tiles.push_back(Tile{tx, wy, e});
+    }
+    return span;
+}
+
+// Runtime containers (file-scope)
+static std::vector<StaticPlat> gStatic;   // ground collision (very wide)
+static std::vector<MovingPlat> gMoving;
+static std::vector<PlatSpan>  gSpans;     // fixed tiled platforms
+static std::vector<Engine::Vec2> gSpawns; // hidden spawn points (object model)
+static int gSpawnIndex = 0;
+static std::vector<Rect> gDeathZones;     // hidden death zones
+static Rect gScrollRight = { 1500.f, 0.f, 60.f, (float)WINDOW_HEIGHT }; // hidden scroll trigger
+static Camera gCam;
+
+// Engine-side runtime registry
+static Engine::Registry gRegistry;
+
+// ------------------------- main --------------------------------------------
 
 int main(int, char**) {
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
@@ -116,12 +176,12 @@ int main(int, char**) {
     const int myPubPort = 7000 + myNum;
     {
         std::ostringstream oss; oss << "tcp://*:" << myPubPort;
-        peerManager.startPeerListener(oss.str());  // binds a PUB socket internally
+        peerManager.startPeerListener(oss.str());
     }
     for (int i = 1; i <= 20; ++i) {
         if (i == myNum) continue;
         std::ostringstream ep; ep << "tcp://localhost:" << (7000 + i);
-        peerManager.connectToPeerNetwork(ep.str()); // connects to those PUBs internally
+        peerManager.connectToPeerNetwork(ep.str());
     }
 
     // raw SUB to receive peers' messages (POSE/PLAYER/INPUT)
@@ -135,14 +195,65 @@ int main(int, char**) {
 
     // scene assets
     SDL_Texture* bgSky = IMG_LoadTexture(renderer, BG_SKY_ASSET);
-    Entity platformE(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
+    Entity groundE(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
     Entity graveE(renderer, GRAVE_ASSET, 700, 700, 256, 256, 1, 0);
     Entity ghostE(renderer, GHOST_ASSET, 1500, 600, 256, 256, 1, 0);
     Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT - 322.f, 256, 256, 1, 0);
 
+    // ===== World setup ======================================================
+    // Ground collision: make it VERY wide so you never “leave” the ground in world space
+    gStatic.push_back({ -100000.f, 950.f, 200000.f, 130.f, &groundE });
+
+    // Fixed tiled platforms (higher & centered)
+    const float midW = 512.f;
+    const float midX = (WINDOW_WIDTH - midW) * 0.5f;
+    const float midY = 520.f;
+    gSpans.push_back(makeSpan(renderer, midX, midY, midW));
+
+    const float rightW = 512.f;
+    const float rightX = 1800.f;
+    const float rightY = 460.f;
+    gSpans.push_back(makeSpan(renderer, rightX, rightY, rightW));
+
+    // Moving platforms
+    gMoving.push_back(MovingPlat{
+        /*wx*/1500.f, /*wy*/(float)WINDOW_HEIGHT-420.f, /*ww*/260.f, /*wh*/60.f,
+        MoveKind::HorizontalSine, /*cx*/1500.f, /*cy*/(float)WINDOW_HEIGHT-420.f,
+        /*amp*/180.f, /*speed*/1.5f, /*radius*/0.f,
+        new Entity(renderer, PLATFORM_ASSET, 1500, WINDOW_HEIGHT-420, 260, 60, 1, 0)
+    });
+    gMoving.push_back(MovingPlat{
+        /*wx*/3000.f, /*wy*/(float)WINDOW_HEIGHT-380.f, /*ww*/260.f, /*wh*/60.f,
+        MoveKind::Circular, /*cx*/3000.f, /*cy*/(float)WINDOW_HEIGHT-450.f,
+        /*amp*/0.f, /*speed*/1.3f, /*radius*/120.f,
+        new Entity(renderer, PLATFORM_ASSET, 3000, WINDOW_HEIGHT-380, 260, 60, 1, 0)
+    });
+    for (auto& m : gMoving) { m.prevx = m.wx; m.prevy = m.wy; }
+
+    // Hidden spawn points (object-model, not rendered)
+    gSpawns = {
+        {  300.f, (float)WINDOW_HEIGHT-350.f },
+        { 1400.f, (float)WINDOW_HEIGHT-350.f },
+        { 2500.f, (float)WINDOW_HEIGHT-350.f },
+        { 3300.f, (float)WINDOW_HEIGHT-350.f },
+    };
+    for (int i=0;i<(int)gSpawns.size();++i) {
+        auto& sp = gRegistry.upsert("spawn_"+std::to_string(i));
+        sp.set<Engine::Vec2>("pos", gSpawns[i]);
+        sp.onUpdate([](Engine::GameObject&, float){});
+    }
+    gSpawnIndex = 0;
+
+    // Hidden death zones
+    gDeathZones = {
+        { 1800.f, (float)WINDOW_HEIGHT-120.f, 150.f, 120.f },  // pit
+        { -10000.f, (float)WINDOW_HEIGHT+5.f, 30000.f, 5000.f } // global bottom
+    };
+
     // map of on-screen entities for each player id
     std::unordered_map<std::string, Entity*> players;
     players[myId] = &playerE;
+    std::unordered_map<std::string, Engine::Vec2> playerWorld;
 
     // last-heard timestamps for disconnect culling
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastHeard;
@@ -150,10 +261,12 @@ int main(int, char**) {
 
     // gameplay state
     LocalPlayer me;
+    me.x = gSpawns[gSpawnIndex].x;
+    me.y = gSpawns[gSpawnIndex].y;
+
     Timeline myTime; myTime.anchorToRealTime(); myTime.setScale(1.0);
 
-    // engine-side registry (Part 1A used on endpoint)
-    static Engine::Registry gRegistry;
+    // seed engine-side object for this player
     {
         auto& meGO = gRegistry.upsert(myId);
         meGO.set<Engine::Vec2>("pos", {me.x, me.y});
@@ -167,29 +280,33 @@ int main(int, char**) {
     }
 
     bool paused = false, prevT = false, prevJump = false;
-    float ghostX = 1500.f, ghostY = 600.f;
+    float ghostX = 1500.f, ghostY = 600.f; // world coords
     bool running = true;
     SDL_Event ev;
 
     auto sendPose = [&](float px, float py) {
         peerManager.updateMyPlayerData(px, py, paused, (float)myTime.scale());
     };
-
     auto sendInputDelta = [&](bool L, bool R, bool J) {
         peerManager.sendInputDelta(L, R, J, 0.f, 0.f, SDL_GetTicks());
     };
 
     auto lastCull = std::chrono::steady_clock::now();
-    std::unordered_map<std::string, GhostState> ghostSim; // remote integrators
+    std::unordered_map<std::string, GhostState> ghostSim;
 
-    // --- main loop ---------------------------------------------------------
+    float scrollCooldown = 0.f;
+
+    // flappy-style params
+    const float JumpImpulse = 1100.f;
+    const float MaxUpSpeed  = -1500.f;
+
+    // ----------------------- main loop -------------------------------------
     while (running) {
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_EVENT_QUIT) running = false;
         }
         Input::poll();
 
-        // toggle pixel/proportional scaling
         bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
         if (tNow && !prevT) {
             auto current = Scaling::mode();
@@ -197,62 +314,155 @@ int main(int, char**) {
         }
         prevT = tNow;
 
-        // pause & time scaling
         if (Input::isKeyPressed(SDL_SCANCODE_P)) { paused = !paused; myTime.pause(paused); }
         if (Input::isKeyPressed(SDL_SCANCODE_1)) myTime.setScale(0.5);
         if (Input::isKeyPressed(SDL_SCANCODE_2)) myTime.setScale(1.0);
         if (Input::isKeyPressed(SDL_SCANCODE_3)) myTime.setScale(2.0);
 
-        // local controls
+        float dt = (float)myTime.tick();
+
+        // Flappy-style movement
         float desiredVx = 0.f;
-        if (Input::isKeyPressed(SDL_SCANCODE_A)) desiredVx = -400.f;
-        else if (Input::isKeyPressed(SDL_SCANCODE_D)) desiredVx = 400.f;
+        if (Input::isKeyPressed(SDL_SCANCODE_A)) desiredVx = -300.f;
+        else if (Input::isKeyPressed(SDL_SCANCODE_D)) desiredVx =  300.f;
 
         bool jumpNow = Input::isKeyPressed(SDL_SCANCODE_SPACE);
         bool wantJump = (jumpNow && !prevJump);
         prevJump = jumpNow;
 
-        // step local player via Timeline
-        float dt = (float)myTime.tick();
         me.vx = desiredVx;
-        if (wantJump) { me.vy = -900.f; me.onGround = false; }
+        if (wantJump) {
+            me.vy = -JumpImpulse;
+            if (me.vy < MaxUpSpeed) me.vy = MaxUpSpeed;
+        }
         me.vy += Physics::gravity() * dt;
         me.x  += me.vx * dt;
         me.y  += me.vy * dt;
 
-        // bounds & ground
         if (me.y < 0) { me.y = 0; me.vy = 0; }
-        if (me.x < 0) { me.x = 0; me.vx = 0; }
-        if (me.x > WINDOW_WIDTH - 256) { me.x = WINDOW_WIDTH - 256; me.vx = 0; }
-        if (AABB(me.x,me.y,256,256, 0,950,1920,130)) { me.vy = 0; me.y = 950-256; me.onGround = true; }
 
-        // collisions with grave or ghost reset
-        if (AABB(me.x,me.y,256,256,700,700,256,256) ||
-            AABB(me.x,me.y,256,256,ghostX,ghostY,256,256)) {
-            me = LocalPlayer{};
+        // Move moving platforms, track deltas
+        for (auto& m : gMoving) { m.prevx = m.wx; m.prevy = m.wy; }
+        static float tAccum = 0.f;
+        tAccum += dt;
+        for (auto& m : gMoving) {
+            if (m.kind == MoveKind::HorizontalSine) {
+                float phase = tAccum * m.speed;
+                m.wx = m.cx + std::sinf(phase) * m.amp;
+            } else if (m.kind == MoveKind::Circular) {
+                float ang = tAccum * m.speed;
+                m.wx = m.cx + std::cosf(ang) * m.radius;
+                m.wy = m.cy + std::sinf(ang) * m.radius;
+            }
         }
 
-        // apply to render entity
-        playerE.setPosition(me.x, me.y);
+        // Collisions
+        me.onGround = false;
 
-        // keep engine object in sync (prove object-model usage on endpoint)
+        auto collideRect = [&](float rx,float ry,float rw,float rh, MovingPlat* moving){
+            float pw = 256.f, ph = 256.f;
+            if (!AABB(me.x, me.y, pw, ph, rx, ry, rw, rh)) return;
+
+            float prevY = me.y - me.vy * dt;
+            float prevBottom = prevY + ph;
+            float platTop = ry;
+            const float EPS = 1.0f;
+
+            bool falling = me.vy > 0.f;
+            bool wasAbove = (prevBottom <= platTop + 4.f);
+            if (falling && wasAbove) {
+                me.y = platTop - ph;
+                me.vy = 0.f;
+                me.onGround = true;
+                if (moving) { // carry with moving platform
+                    me.x += (moving->wx - moving->prevx);
+                    me.y += (moving->wy - moving->prevy);
+                }
+                return;
+            }
+
+            float overlapLeft   = (me.x + pw) - rx;
+            float overlapRight  = (rx + rw) - me.x;
+            float overlapTop    = (me.y + ph) - ry;
+            float overlapBottom = (ry + rh) - me.y;
+
+            float minX = std::min(overlapLeft, overlapRight);
+            float minY = std::min(overlapTop, overlapBottom);
+
+            if (minX < minY) {
+                if (overlapLeft < overlapRight) me.x = rx - pw - EPS;
+                else                             me.x = rx + rw + EPS;
+                me.vx = 0.f;
+            } else {
+                if (overlapTop < overlapBottom) {
+                    me.y = ry - ph - EPS; me.vy = 0.f; me.onGround = true;
+                } else {
+                    me.y = ry + rh + EPS; if (me.vy < 0.f) me.vy = 0.f;
+                }
+            }
+        };
+
+        // ground collision (very wide)
+        for (auto& s : gStatic) collideRect(s.wx, s.wy, s.ww, s.wh, nullptr);
+        // fixed spans
+        for (auto& span : gSpans) collideRect(span.hitbox.x, span.hitbox.y, span.hitbox.w, span.hitbox.h, nullptr);
+        // movers
+        for (auto& m : gMoving) collideRect(m.wx, m.wy, m.ww, m.wh, &m);
+
+        // gentle friction when grounded
+        if (me.onGround) {
+            const float F = 1500.f;
+            if      (me.vx > 0.f) me.vx = std::max(0.f, me.vx - F*dt);
+            else if (me.vx < 0.f) me.vx = std::min(0.f, me.vx + F*dt);
+        }
+
+        // Grave/Ghost reset
+        if (AABB(me.x,me.y,256,256,700,700,256,256) ||
+            AABB(me.x,me.y,256,256,ghostX,ghostY,256,256)) {
+            gSpawnIndex = 0;
+            me.x = gSpawns[gSpawnIndex].x;
+            me.y = gSpawns[gSpawnIndex].y;
+            me.vx = me.vy = 0;
+        }
+
+        // Death zones -> next spawn
+        for (auto& dz : gDeathZones) {
+            if (AABB(me.x, me.y, 256,256, dz.x, dz.y, dz.w, dz.h)) {
+                gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
+                me.x = gSpawns[gSpawnIndex].x;
+                me.y = gSpawns[gSpawnIndex].y;
+                me.vx = me.vy = 0;
+                break;
+            }
+        }
+
+        // Side-scrolling boundary
+        if (scrollCooldown > 0.f) scrollCooldown -= dt;
+        if (scrollCooldown <= 0.f &&
+            AABB(me.x, me.y, 256,256, gScrollRight.x, gScrollRight.y, gScrollRight.w, gScrollRight.h)) {
+            gCam.x += 640.f;
+            gScrollRight.x += 640.f;
+            scrollCooldown = 0.15f;
+        }
+
+        // keep engine object in sync
         {
             auto& go = gRegistry.upsert(myId);
             go.set<Engine::Vec2>("pos", {me.x, me.y});
             go.set<Engine::Vec2>("vel", {me.vx, me.vy});
         }
 
-        // send network update according to strategy
+        // network update (world coords)
         if (strat == NetStrategy::FullState) {
-            sendPose(me.x, me.y);
+            peerManager.updateMyPlayerData(me.x, me.y, paused, (float)myTime.scale());
         } else {
             bool L = Input::isKeyPressed(SDL_SCANCODE_A);
             bool R = Input::isKeyPressed(SDL_SCANCODE_D);
             bool J = wantJump;
-            sendInputDelta(L, R, J);
+            peerManager.sendInputDelta(L, R, J, 0.f, 0.f, SDL_GetTicks());
         }
 
-        // --- consume ghost from server (PUB/SUB) ---------------------------
+        // consume ghost
         {
             char gbuf[128];
             int n = zmq_recv(ghostSub, gbuf, sizeof(gbuf)-1, ZMQ_DONTWAIT);
@@ -260,14 +470,11 @@ int main(int, char**) {
                 gbuf[n] = 0;
                 std::istringstream iss{std::string(gbuf)};
                 std::string tag; iss >> tag;
-                if (tag == "GHOST") {
-                    iss >> ghostX >> ghostY;
-                    ghostE.setPosition(ghostX, ghostY);
-                }
+                if (tag == "GHOST") iss >> ghostX >> ghostY;
             }
         }
 
-        // --- consume peer updates (PUB/SUB) --------------------------------
+        // consume peer updates
         {
             for (int i = 0; i < 32; ++i) {
                 char mbuf[512];
@@ -278,55 +485,40 @@ int main(int, char**) {
                 std::string tag; iss >> tag;
 
                 if (tag == "POSE" || tag == "PLAYER") {
-                    // Strategy A messages: "POSE pid x y [paused scale]" (the client’s sender keeps it short)
                     std::string pid; float px=0, py=0;
                     iss >> pid >> px >> py;
                     if (!pid.empty() && pid != myId) {
                         auto now = std::chrono::steady_clock::now();
-                        // ensure engine GameObject exists
+                        playerWorld[pid] = {px, py};
                         auto& go = gRegistry.upsert(pid);
                         go.set<Engine::Vec2>("pos", {px, py});
-
-                        // ensure render entity exists
                         if (players.find(pid) == players.end()) {
                             players[pid] = new Entity(renderer, PLAYER_ASSET, px, py, 256, 256, 1, 0);
                         }
-                        players[pid]->setPosition(px, py);
                         lastHeard[pid] = now;
                     }
-                }
-                else if (tag == "INPUT") {
-                    // Strategy B messages: "INPUT pid L R J ax ay ts"
+                } else if (tag == "INPUT") {
                     std::string pid; int L,R,J; float ax,ay; uint64_t ts;
                     iss >> pid >> L >> R >> J >> ax >> ay >> ts;
                     if (!pid.empty() && pid != myId) {
                         auto now = std::chrono::steady_clock::now();
-
-                        // remote integrator (very light)
                         GhostState& st = ghostSim[pid];
-                        float rdt = 0.016f; // can improve via Timeline or ts
+                        float rdt = 0.016f;
                         st.vx = (L?-400.f:0.f) + (R?400.f:0.f);
                         if (J && st.onGround) { st.vy = -900.f; st.onGround = false; }
                         st.vy += Physics::gravity() * rdt;
                         st.x  += st.vx * rdt;
                         st.y  += st.vy * rdt;
-
+                        if (AABB(st.x,st.y,256,256, -100000.f,950.f,200000.f,130.f)) { st.vy=0; st.y=950-256; st.onGround=true; }
                         if (st.x < 0) st.x = 0;
                         if (st.x > WINDOW_WIDTH-256) st.x = WINDOW_WIDTH-256;
 
-                        // ground against platform
-                        if (AABB(st.x,st.y,256,256, 0,950,1920,130)) { st.vy=0; st.y=950-256; st.onGround=true; }
-
-                        // keep engine object updated
+                        playerWorld[pid] = {st.x, st.y};
                         auto& go = gRegistry.upsert(pid);
                         go.set<Engine::Vec2>("pos", {st.x, st.y});
                         go.set<Engine::Vec2>("vel", {st.vx, st.vy});
-
-                        // ensure render entity exists
                         if (players.find(pid) == players.end()) {
                             players[pid] = new Entity(renderer, PLAYER_ASSET, st.x, st.y, 256, 256, 1, 0);
-                        } else {
-                            players[pid]->setPosition(st.x, st.y);
                         }
                         lastHeard[pid] = now;
                     }
@@ -334,7 +526,7 @@ int main(int, char**) {
             }
         }
 
-        // --- disconnect culling (graceful removal) -------------------------
+        // disconnect culling
         {
             auto now = std::chrono::steady_clock::now();
             if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCull).count() > 500) {
@@ -350,9 +542,10 @@ int main(int, char**) {
                 }
                 for (const auto& pid : toErase) {
                     if (players.count(pid)) { delete players[pid]; players.erase(pid); }
-                    gRegistry.erase(pid);  // keep engine model consistent on disconnect
-                    lastHeard.erase(pid);
+                    gRegistry.erase(pid);
+                    playerWorld.erase(pid);
                     ghostSim.erase(pid);
+                    lastHeard.erase(pid);
                 }
                 lastCull = now;
             }
@@ -362,22 +555,62 @@ int main(int, char**) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         if (bgSky) SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
-        platformE.render(renderer, window);
-        graveE.render(renderer, window);
-        ghostE.render(renderer, window);
 
+        // Ground (infinite tiling under the camera)
+        {
+            const int groundTileW = 1920; // your ground asset width
+            float camBase = std::floor(gCam.x / groundTileW) * groundTileW;
+            for (int i = -1; i <= 2; ++i) {
+                float gx = camBase + i * groundTileW;
+                groundE.setPosition(gx - gCam.x, 950.f);
+                groundE.update();
+                groundE.render(renderer, window);
+            }
+        }
+
+        // Fixed tiled platforms
+        for (auto& span : gSpans) {
+            for (auto& t : span.tiles) {
+                t.e->setPosition(t.baseX - gCam.x, t.baseY);
+                t.e->update(); t.e->render(renderer, window);
+            }
+        }
+
+        // Moving platforms
+        for (auto& m : gMoving) {
+            m.sprite->setPosition(m.wx - gCam.x, m.wy);
+            m.sprite->update(); m.sprite->render(renderer, window);
+        }
+
+        // Grave & ghost
+        graveE.setPosition(700.f - gCam.x, 700.f);
+        ghostE.setPosition(ghostX - gCam.x, ghostY);
+        graveE.update(); graveE.render(renderer, window);
+        ghostE.update(); ghostE.render(renderer, window);
+
+        // Local player
+        playerE.setPosition(me.x - gCam.x, me.y);
+        playerE.update(); playerE.render(renderer, window);
+
+        // Remote players
         for (auto& kv : players) {
+            const std::string& pid = kv.first;
+            if (pid == myId) continue;
+            auto it = playerWorld.find(pid);
+            if (it != playerWorld.end()) {
+                kv.second->setPosition(it->second.x - gCam.x, it->second.y);
+            }
             kv.second->update();
             kv.second->render(renderer, window);
         }
-        SDL_RenderPresent(renderer);
 
-        // keep ~60fps
+        SDL_RenderPresent(renderer);
         SDL_Delay(16);
     }
 
     // cleanup
-    for (auto& kv : players) if (kv.first != myId) delete kv.second;
+    for (auto& span : gSpans) for (auto& t : span.tiles) delete t.e;
+    for (auto& m : gMoving) if (m.sprite) delete m.sprite;
     if (bgSky) SDL_DestroyTexture(bgSky);
 
     zmq_close(rawPeerSub);

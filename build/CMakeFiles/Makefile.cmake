@@ -73,5 +73,4 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/client.dir/DependInfo.cmake"
   "CMakeFiles/server.dir/DependInfo.cmake"
   "CMakeFiles/perf_runner.dir/DependInfo.cmake"
-  "CMakeFiles/platformer.dir/DependInfo.cmake"
   )

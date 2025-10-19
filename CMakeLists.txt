@@ -104,20 +104,3 @@ set_target_properties(main client server perf_runner PROPERTIES FOLDER "apps")
 # --- Build info -------------------------------------------------------------
 message(STATUS "SDL3 include: ${SDL3_DIR}")
 message(STATUS "ZeroMQ lib: ${ZMQ_LIB}")
-
-
-# Part 2: Individual platformer game
-add_executable(platformer
-    src/platformer.cpp
-    src/entity.cpp
-    src/input.cpp
-    src/physics.cpp
-    src/scaling.cpp
-    src/timeline.cpp
-)
-target_include_directories(platformer PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(platformer
-    PRIVATE
-        SDL3::SDL3
-        SDL3_image::SDL3_image
-)

@@ -68,7 +68,6 @@ all: CMakeFiles/main.dir/all
 all: CMakeFiles/client.dir/all
 all: CMakeFiles/server.dir/all
 all: CMakeFiles/perf_runner.dir/all
-all: CMakeFiles/platformer.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
@@ -77,7 +76,6 @@ codegen: CMakeFiles/main.dir/codegen
 codegen: CMakeFiles/client.dir/codegen
 codegen: CMakeFiles/server.dir/codegen
 codegen: CMakeFiles/perf_runner.dir/codegen
-codegen: CMakeFiles/platformer.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -90,7 +88,6 @@ clean: CMakeFiles/main.dir/clean
 clean: CMakeFiles/client.dir/clean
 clean: CMakeFiles/server.dir/clean
 clean: CMakeFiles/perf_runner.dir/clean
-clean: CMakeFiles/platformer.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -196,7 +193,7 @@ CMakeFiles/client.dir/clean:
 CMakeFiles/server.dir/all: CMakeFiles/engine_objs.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=23,24 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=16,17 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
@@ -213,7 +210,7 @@ server: CMakeFiles/server.dir/rule
 # codegen rule for target.
 CMakeFiles/server.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=23,24 "Finished codegen for target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=16,17 "Finished codegen for target server"
 .PHONY : CMakeFiles/server.dir/codegen
 
 # clean rule for target.
@@ -252,38 +249,6 @@ CMakeFiles/perf_runner.dir/codegen:
 CMakeFiles/perf_runner.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/clean
 .PHONY : CMakeFiles/perf_runner.dir/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/platformer.dir
-
-# All Build rule for target.
-CMakeFiles/platformer.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=16,17,18,19,20,21,22 "Built target platformer"
-.PHONY : CMakeFiles/platformer.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/platformer.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" 7
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/platformer.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" 0
-.PHONY : CMakeFiles/platformer.dir/rule
-
-# Convenience name for target.
-platformer: CMakeFiles/platformer.dir/rule
-.PHONY : platformer
-
-# codegen rule for target.
-CMakeFiles/platformer.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=16,17,18,19,20,21,22 "Finished codegen for target platformer"
-.PHONY : CMakeFiles/platformer.dir/codegen
-
-# clean rule for target.
-CMakeFiles/platformer.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/platformer.dir/build.make CMakeFiles/platformer.dir/clean
-.PHONY : CMakeFiles/platformer.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
