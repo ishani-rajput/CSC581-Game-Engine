@@ -149,7 +149,7 @@ int main(int, char**) {
     
     // Vertical platform (between middle and right elevated)
     movingPlats.vertical = {
-        middleX + platformWidth + 70.f, // Moved left by 30
+        middleX + platformWidth + 40.f, // Moved left by 30
         middleY - 180.f,
         144.f, // 20% smaller (was 180)
         68.f   // 20% smaller (was 85)
@@ -639,11 +639,6 @@ int main(int, char**) {
         float flagW = 150.f;
         float flagH = 150.f;
         flag.setPosition(finalX + platformWidth - flagW - 30.f, finalY - flagH - 48.f);
-        flag.setSize(flagW, flagH);
-        flag.render(renderer, window);
-
-        // Render spawn flag on STARTING platform
-        flag.setPosition(leftX + 30.f, leftY - flagH - 48.f);
         flag.setSize(flagW, flagH);
         flag.render(renderer, window);
 
