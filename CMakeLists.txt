@@ -13,6 +13,10 @@ if (NOT ZeroMQ_FOUND)
 endif()
 
 include_directories(include)
+
+# ---------------------------
+# MAIN GAME (Milestone 1–2)
+# ---------------------------
 add_executable(main
     ./src/main.cpp
     ./src/entity.cpp
@@ -28,7 +32,9 @@ target_link_libraries(main
         SDL3_image::SDL3_image
 )
 
-# Client executable
+# ---------------------------
+# CLIENT (Milestone 3)
+# ---------------------------
 add_executable(client
     ./src/client.cpp
     ./src/entity.cpp
@@ -45,7 +51,9 @@ else()
     target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
 endif()
 
-# Headless server executable
+# ---------------------------
+# SERVER (Headless)
+# ---------------------------
 add_executable(server
     ./src/server.cpp
     ./src/network_server.cpp
@@ -57,14 +65,16 @@ else()
     target_link_libraries(server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 endif()
 
-# Performance test executable
-add_executable(perf_test
+# ---------------------------
+# PERFORMANCE TEST (Part 1C)
+# ---------------------------
+add_executable(perf
     ./src/perf_main.cpp
     ./src/perf.cpp
 )
 
 if (ZeroMQ_FOUND)
-    target_link_libraries(perf_test PRIVATE libzmq)
+    target_link_libraries(perf PRIVATE libzmq)
 else()
-    target_link_libraries(perf_test PRIVATE ${ZMQ_LIB})
+    target_link_libraries(perf PRIVATE ${ZMQ_LIB})
 endif()

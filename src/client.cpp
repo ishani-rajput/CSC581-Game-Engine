@@ -38,11 +38,6 @@ static inline int numericIdFrom(const std::string& s) {
     return n;
 }
 
-static float floatRand(float a, float b){
-    return a + (b-a) * (float)rand()/(float)RAND_MAX;
-}
-
-// TASK 6: Apply camera offset to world coordinates
 static SDL_FRect applyCamera(const SDL_FRect& worldRect, float cameraX) {
     return {worldRect.x - cameraX, worldRect.y, worldRect.w, worldRect.h};
 }
@@ -61,45 +56,35 @@ static SDL_Texture* tryLoadTexture(SDL_Renderer* r, const char* const* paths, in
     SDL_Log("Failed to load texture: %s", SDL_GetError()); return nullptr;
 }
 
-// ENGINE REGISTRY
 static Engine::Registry gRegistry;
 
-// TASK 4: Initialize spawn points (hidden, non-rendered objects)
 void initializeSpawnPoints() {
-    // Spawn point 1 - Ground level, left side
     auto& spawn1 = gRegistry.upsert("spawn_point_1");
     spawn1.set<Engine::Vec2>("pos", {100.f, 840.f});
     spawn1.set<bool>("active", true);
     
-    // Spawn point 2 - Ground level, center
     auto& spawn2 = gRegistry.upsert("spawn_point_2");
     spawn2.set<Engine::Vec2>("pos", {480.f, 840.f});
     spawn2.set<bool>("active", true);
     
-    // Spawn point 3 - Ground level, right side
     auto& spawn3 = gRegistry.upsert("spawn_point_3");
     spawn3.set<Engine::Vec2>("pos", {1400.f, 840.f});
     spawn3.set<bool>("active", true);
     
-    // Spawn point 4 - On skully platform
     auto& spawn4 = gRegistry.upsert("spawn_point_4");
-    spawn4.set<Engine::Vec2>("pos", {870.f, 392.f}); // 500 - 108 (character height)
+    spawn4.set<Engine::Vec2>("pos", {870.f, 392.f}); 
     spawn4.set<bool>("active", true);
     
-    // Spawn point 5 - On grey platform (right)
     auto& spawn5 = gRegistry.upsert("spawn_point_5");
-    spawn5.set<Engine::Vec2>("pos", {1620.f, 542.f}); // 650 - 108
+    spawn5.set<Engine::Vec2>("pos", {1620.f, 542.f}); 
     spawn5.set<bool>("active", true);
     
-    // Spawn point 6 - Near moving platform area
     auto& spawn6 = gRegistry.upsert("spawn_point_6");
     spawn6.set<Engine::Vec2>("pos", {1100.f, 840.f});
     spawn6.set<bool>("active", true);
 }
 
-// TASK 4: Get spawn point position by ID
 Engine::Vec2 getSpawnPointPosition(int spawnId) {
-    // Clamp spawn ID to valid range [1, 6]
     if (spawnId < 1) spawnId = 1;
     if (spawnId > 6) spawnId = ((spawnId - 1) % 6) + 1;
     
@@ -108,38 +93,30 @@ Engine::Vec2 getSpawnPointPosition(int spawnId) {
     if (spawn) {
         return spawn->get<Engine::Vec2>("pos", {480.f, 840.f});
     }
-    return {480.f, 840.f}; // Default position if spawn point not found
+    return {480.f, 840.f}; 
 }
 
-// TASK 5: Respawn player at a random spawn point
 void respawnPlayer(SDL_FRect& skully, Body& skBody) {
-    // Choose a random spawn point (1-6)
     int randomSpawn = 1 + (rand() % 6);
     Engine::Vec2 spawnPos = getSpawnPointPosition(randomSpawn);
     
-    // Reset player position
     skully.x = spawnPos.x;
     skully.y = spawnPos.y;
     
-    // Reset velocities
     skBody.vx = 0.f;
     skBody.vy = 0.f;
     
     SDL_Log("Player respawned at spawn point %d (%.1f, %.1f)", randomSpawn, spawnPos.x, spawnPos.y);
 }
 
-// TASK 5: Initialize death zones (hidden, non-rendered boundary objects)
 void initializeDeathZones() {
-    // Death zone - Left boundary (off screen left)
     auto& dz = gRegistry.upsert("death_zone_left");
     dz.set<Engine::Vec2>("pos", {-200.f, 0.f});
     dz.set<Engine::Vec2>("size", {200.f, 1080.f});
     dz.set<bool>("active", true);
 }
 
-// TASK 5: Check if player is in any death zone
 bool checkDeathZones(const SDL_FRect& player) {
-    // Check left boundary death zone
     auto* dz = gRegistry.get("death_zone_left");
     if (dz && dz->get<bool>("active", true)) {
         Engine::Vec2 pos = dz->get<Engine::Vec2>("pos", {0.f, 0.f});
@@ -161,16 +138,12 @@ int main(int argc, char** argv){
     }
     const std::string CLIENT_ID = argv[1];
     
-    // TASK 4: Initialize spawn points in the object model
     initializeSpawnPoints();
     
-    // TASK 5: Initialize death zones in the object model
     initializeDeathZones();
 
-    // Initialize random seed for spawn point selection
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    // NETWORK STRATEGY
     Engine::NetStrategy strat = Engine::NetStrategy::FullState;
     if (const char* s = std::getenv("NET_STRATEGY")) 
         if (std::string(s) == "input") strat = Engine::NetStrategy::InputDelta;
@@ -222,8 +195,6 @@ int main(int argc, char** argv){
 
     float characterSize=108.f;
     
-    // TASK 4: Use spawn points to determine initial player position
-    // Each client spawns at a different spawn point based on their ID
     Engine::Vec2 spawnPos = getSpawnPointPosition(myClientNum);
     SDL_FRect skully={spawnPos.x, spawnPos.y, characterSize, characterSize};
     
@@ -232,16 +203,13 @@ int main(int argc, char** argv){
     const float MOVE_SPEED = 400.f;
     SDL_FRect ground={0.f,1080.f-120.f,1920.f,120.f};
     
-    // Skully platform - floating platform with texture
     SDL_FRect skullyPlatform={800.f, 500.f, 250.f, 50.f};
     
-    // Grey platform - extreme right
     SDL_FRect greyPlatform={1550.f, 650.f, 300.f, 40.f};
     
-    // Red moving platform (Task 3 - vertical movement)
     SDL_FRect movingPlatform={1200.f, 550.f, 180.f, 35.f};
     const float MOVING_PLAT_SPEED = 120.f;
-    float movingPlatDir = 1.f;  // 1 = down, -1 = up
+    float movingPlatDir = 1.f;  
     const float MOVING_PLAT_MIN_Y = 400.f, MOVING_PLAT_MAX_Y = 700.f;
 
     std::vector<PipePair> pipes;
@@ -261,7 +229,6 @@ int main(int argc, char** argv){
 
     std::unordered_map<std::string, RemotePlayer> others;
     
-    // TASK 6: Camera tracking for side-scrolling
     float cameraX = 0.f;
 
     bool running=true; SDL_Event ev;
@@ -298,7 +265,6 @@ int main(int argc, char** argv){
         if(spaceNow && !prevSpace) skBody.vy=JUMP_VELOCITY;
         prevSpace=spaceNow;
 
-        // Horizontal movement
         bool moveLeft = Input::isKeyPressed(SDL_SCANCODE_A);
         bool moveRight = Input::isKeyPressed(SDL_SCANCODE_D);
         if (moveLeft && !moveRight) skBody.vx = -MOVE_SPEED;
@@ -308,24 +274,17 @@ int main(int argc, char** argv){
         if (!gameTime.isPaused()) {
             Physics::step(static_cast<float>(deltaSec*1000.0), skully.x, skully.y, skBody);
             
-            // TASK 6: Camera follows player (side-scrolling)
-            // Camera starts following when player moves beyond 30% of screen width
             const float CAMERA_FOLLOW_THRESHOLD = 1920.f * 0.3f;
             const float CAMERA_BACK_THRESHOLD = 1920.f * 0.2f;
             
-            // Move camera right when player moves right beyond threshold
             if (skully.x - cameraX > CAMERA_FOLLOW_THRESHOLD) {
                 cameraX = skully.x - CAMERA_FOLLOW_THRESHOLD;
             }
-            // Move camera left when player moves left beyond back threshold
             if (skully.x - cameraX < CAMERA_BACK_THRESHOLD && cameraX > 0.f) {
                 cameraX = skully.x - CAMERA_BACK_THRESHOLD;
                 if (cameraX < 0.f) cameraX = 0.f;
             }
             
-            // No hard screen edge limits - world can be infinite
-            
-            // Moving platform - vertical movement (Task 3)
             movingPlatform.y += MOVING_PLAT_SPEED * movingPlatDir * deltaSec;
             if (movingPlatform.y <= MOVING_PLAT_MIN_Y) {
                 movingPlatform.y = MOVING_PLAT_MIN_Y;
@@ -335,19 +294,16 @@ int main(int argc, char** argv){
                 movingPlatDir = -1.f;
             }
             
-            // Platform collisions
             if(skully.y+skully.h>=ground.y){ skully.y=ground.y-skully.h; skBody.vy=0.f; }
             if(aabbIntersect(skully, skullyPlatform) && skBody.vy > 0.f){ skully.y=skullyPlatform.y-skully.h; skBody.vy=0.f; }
             if(aabbIntersect(skully, greyPlatform) && skBody.vy > 0.f){ skully.y=greyPlatform.y-skully.h; skBody.vy=0.f; }
             if(aabbIntersect(skully, movingPlatform) && skBody.vy > 0.f){ skully.y=movingPlatform.y-skully.h; skBody.vy=0.f; }
             if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
 
-            // TASK 5: Death zone collision - respawn if player enters a death zone
             if (checkDeathZones(skully)) {
                 respawnPlayer(skully, skBody);
             }
 
-            // Pipe collisions - respawn on hit
             bool hit = false;
             for(auto& p : pipes) {
                 if(aabbIntersect(skully, p.top) || aabbIntersect(skully, p.bottom)) {
@@ -358,7 +314,7 @@ int main(int argc, char** argv){
                 pipes.clear(); 
                 localSpawnTimer = 0.0;
                 nextPipeId = 0;
-                respawnPlayer(skully, skBody);  // TASK 5: Respawn at a random spawn point
+                respawnPlayer(skully, skBody);  
             }
         }
 
@@ -368,23 +324,18 @@ int main(int argc, char** argv){
             currentFrame = (currentFrame + 1) % FRAME_COUNT;
         }
 
-        // TASK 6: Pipe movement and synchronized spawning
         if (!gameTime.isPaused()) {
-            // Move pipes toward player
             for(auto& p : pipes) {
                 p.top.x += PIPE_SPEED * deltaSec;
                 p.bottom.x += PIPE_SPEED * deltaSec;
             }
             
-            // Spawn pipes with synchronized heights using deterministic random
             localSpawnTimer += deltaSec;
             while(localSpawnTimer >= PIPE_SPAWN_EVERY) {
                 localSpawnTimer -= PIPE_SPAWN_EVERY;
                 
-                // Use deterministic pseudo-random based on pipe ID for sync across clients
-                // This ensures all clients see the same pattern
-                unsigned int seed = 12345 + nextPipeId * 7919;  // Prime multiplier for better distribution
-                float t = (float)((seed ^ (seed >> 16)) & 0xFFFF) / 65535.0f;  // Normalize to 0-1
+                unsigned int seed = 12345 + nextPipeId * 7919;
+                float t = (float)((seed ^ (seed >> 16)) & 0xFFFF) / 65535.0f;
                 
                 float minCenter = SCREEN_HEIGHT * 0.30f;
                 float maxCenter = SCREEN_HEIGHT * 0.70f;
@@ -392,7 +343,6 @@ int main(int argc, char** argv){
                 float topH = center - PIPE_GAP * 0.5f;
                 float bottomY = center + PIPE_GAP * 0.5f;
                 
-                // Spawn pipes at right edge relative to camera
                 float spawnX = cameraX + SCREEN_WIDTH + PIPE_W;
                 pipes.emplace_back(
                     spawnX, 0.f, PIPE_W, topH,
@@ -401,18 +351,15 @@ int main(int argc, char** argv){
                 nextPipeId++;
             }
             
-            // Remove off-screen pipes
             pipes.erase(std::remove_if(pipes.begin(), pipes.end(),
                 [](const PipePair& p){ return (p.top.x + p.top.w) < -50.f; }), pipes.end());
         }
 
-        // ENGINE OBJECT MODEL - local player
         auto& meGO = gRegistry.upsert(CLIENT_ID);
         meGO.set<Engine::Vec2>("pos", {skully.x, skully.y});
         meGO.set<bool>("paused", gameTime.isPaused());
         meGO.set<float>("scale", gameTime.scale());
 
-        // NETWORK STRATEGY SEND
         if (strat == Engine::NetStrategy::FullState) {
             peerManager.updateMyPlayerData(skully.x, skully.y, gameTime.isPaused(), gameTime.scale());
         } else {
@@ -434,14 +381,13 @@ int main(int argc, char** argv){
         others.clear();
         
         for (const auto& [peerId, playerData] : peerData) {
-            // ENGINE OBJECT MODEL - others
             auto& go = gRegistry.upsert(peerId);
             go.set<Engine::Vec2>("pos", {playerData.x, playerData.y});
             go.set<bool>("paused", playerData.paused);
             go.set<float>("scale", playerData.scale);
 
             auto elapsed = std::chrono::high_resolution_clock::now() - playerData.lastUpdate;
-            if (elapsed > std::chrono::seconds(5)) continue; // skip stale peers
+            if (elapsed > std::chrono::seconds(5)) continue; 
 
             RemotePlayer rp;
             rp.rect = {playerData.x, playerData.y, characterSize, characterSize};
@@ -467,25 +413,20 @@ int main(int argc, char** argv){
                 char deadId[256];
                 if (sscanf(serverResponse.c_str(), "DISCONNECT %255s", deadId) == 1) {
                     others.erase(deadId);
-                    gRegistry.erase(deadId); // remove from registry as well
+                    gRegistry.erase(deadId); 
                     std::cout << "Peer " << deadId << " disconnected.\n";
                 }
-            } else {
-                // Note: Server pipe sync removed - using local pipe spawning only
-                // (Each client spawns its own pipes independently)
             }
         }
 
         SDL_SetRenderDrawColor(renderer,100,150,255,255);
         SDL_RenderClear(renderer);
 
-        // Ground (with camera offset)
         SDL_FRect groundWorld = applyCamera(ground, cameraX);
         SDL_FRect gDst=Scaling::compute(groundWorld,window);
         if(brickTex){
             float tw=0,th=0; SDL_GetTextureSize(brickTex,&tw,&th); if(tw<1) tw=64; if(th<1) th=64;
             float scaleY=ground.h/th, tileW=tw*scaleY, tileH=th*scaleY;
-            // Extend ground for camera scrolling
             for(float x=-cameraX;x<1920.0f+cameraX+tileW;x+=tileW){
                 SDL_FRect tilePx{ x,ground.y,tileW,tileH };
                 SDL_FRect tileWorld = applyCamera(tilePx, cameraX);
@@ -494,7 +435,6 @@ int main(int argc, char** argv){
             }
         } else SDL_RenderFillRect(renderer,&gDst);
         
-        // Render skully platform (with camera offset)
         SDL_FRect spWorld = applyCamera(skullyPlatform, cameraX);
         SDL_FRect spDst=Scaling::compute(spWorld,window);
         if(skullyPlatformTex){
@@ -504,19 +444,16 @@ int main(int argc, char** argv){
             SDL_RenderFillRect(renderer,&spDst);
         }
         
-        // Render grey platform - extreme right (with camera offset)
         SDL_FRect gpWorld = applyCamera(greyPlatform, cameraX);
         SDL_FRect gpDst=Scaling::compute(gpWorld,window);
         SDL_SetRenderDrawColor(renderer, 120, 120, 130, 255);
         SDL_RenderFillRect(renderer,&gpDst);
         
-        // Render red moving platform (Task 3) (with camera offset)
         SDL_FRect mpWorld = applyCamera(movingPlatform, cameraX);
         SDL_FRect mpDst=Scaling::compute(mpWorld,window);
         SDL_SetRenderDrawColor(renderer, 220, 50, 50, 255);
         SDL_RenderFillRect(renderer,&mpDst);
 
-        // Render pipes (with camera offset)
         SDL_SetRenderDrawColor(renderer,20,120,50,255);
         for(auto& p:pipes){
             SDL_FRect tWorld = applyCamera(p.top, cameraX);
@@ -525,13 +462,11 @@ int main(int argc, char** argv){
             SDL_RenderFillRect(renderer,&t); SDL_RenderFillRect(renderer,&b);
         }
 
-        // Render local player (with camera offset)
         SDL_FRect src{ FRAME_W*currentFrame,0.f,FRAME_W,FRAME_H };
         SDL_FRect skullyWorld = applyCamera(skully, cameraX);
         SDL_FRect dst=Scaling::compute(skullyWorld,window);
         SDL_RenderTexture(renderer,skullTex,&src,&dst);
 
-        // Render other players (with camera offset)
         for(auto& kv:others){
             SDL_FRect otherWorld = applyCamera(kv.second.rect, cameraX);
             SDL_FRect d=Scaling::compute(otherWorld,window);

@@ -219,44 +219,44 @@ build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/serve
   TARGET_PDB = server.exe.dbg
 
 # =============================================================================
-# Object build statements for EXECUTABLE target perf_test
+# Object build statements for EXECUTABLE target perf
 
 
 #############################################
-# Order-only phony target for perf_test
+# Order-only phony target for perf
 
-build cmake_object_order_depends_target_perf_test: phony || .
+build cmake_object_order_depends_target_perf: phony || .
 
-build CMakeFiles/perf_test.dir/src/perf_main.cpp.obj: CXX_COMPILER__perf_test_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/perf_main.cpp || cmake_object_order_depends_target_perf_test
-  DEP_FILE = CMakeFiles\perf_test.dir\src\perf_main.cpp.obj.d
+build CMakeFiles/perf.dir/src/perf_main.cpp.obj: CXX_COMPILER__perf_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/perf_main.cpp || cmake_object_order_depends_target_perf
+  DEP_FILE = CMakeFiles\perf.dir\src\perf_main.cpp.obj.d
   FLAGS = -std=gnu++17
   INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
-  OBJECT_DIR = CMakeFiles\perf_test.dir
-  OBJECT_FILE_DIR = CMakeFiles\perf_test.dir\src
+  OBJECT_DIR = CMakeFiles\perf.dir
+  OBJECT_FILE_DIR = CMakeFiles\perf.dir\src
 
-build CMakeFiles/perf_test.dir/src/perf.cpp.obj: CXX_COMPILER__perf_test_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/perf.cpp || cmake_object_order_depends_target_perf_test
-  DEP_FILE = CMakeFiles\perf_test.dir\src\perf.cpp.obj.d
+build CMakeFiles/perf.dir/src/perf.cpp.obj: CXX_COMPILER__perf_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/perf.cpp || cmake_object_order_depends_target_perf
+  DEP_FILE = CMakeFiles\perf.dir\src\perf.cpp.obj.d
   FLAGS = -std=gnu++17
   INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
-  OBJECT_DIR = CMakeFiles\perf_test.dir
-  OBJECT_FILE_DIR = CMakeFiles\perf_test.dir\src
+  OBJECT_DIR = CMakeFiles\perf.dir
+  OBJECT_FILE_DIR = CMakeFiles\perf.dir\src
 
 
 # =============================================================================
-# Link build statements for EXECUTABLE target perf_test
+# Link build statements for EXECUTABLE target perf
 
 
 #############################################
-# Link the executable perf_test.exe
+# Link the executable perf.exe
 
-build perf_test.exe: CXX_EXECUTABLE_LINKER__perf_test_ CMakeFiles/perf_test.dir/src/perf_main.cpp.obj CMakeFiles/perf_test.dir/src/perf.cpp.obj | C$:/msys64/mingw64/lib/libzmq.dll.a
+build perf.exe: CXX_EXECUTABLE_LINKER__perf_ CMakeFiles/perf.dir/src/perf_main.cpp.obj CMakeFiles/perf.dir/src/perf.cpp.obj | C$:/msys64/mingw64/lib/libzmq.dll.a
   LINK_LIBRARIES = C:/msys64/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
-  OBJECT_DIR = CMakeFiles\perf_test.dir
+  OBJECT_DIR = CMakeFiles\perf.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
-  TARGET_FILE = perf_test.exe
-  TARGET_IMPLIB = libperf_test.dll.a
-  TARGET_PDB = perf_test.exe.dbg
+  TARGET_FILE = perf.exe
+  TARGET_IMPLIB = libperf.dll.a
+  TARGET_PDB = perf.exe.dbg
 
 
 #############################################
@@ -288,7 +288,7 @@ build client: phony client.exe
 
 build main: phony main.exe
 
-build perf_test: phony perf_test.exe
+build perf: phony perf.exe
 
 build server: phony server.exe
 
@@ -300,7 +300,7 @@ build server: phony server.exe
 #############################################
 # Folder: C:/courses/GameEngine/CSC481-581-M1/build
 
-build all: phony main.exe client.exe server.exe perf_test.exe
+build all: phony main.exe client.exe server.exe perf.exe
 
 # =============================================================================
 # Built-in targets
