@@ -1,6 +1,3 @@
-// Part 1A: Uses Engine::Registry and GameObject for remote players
-// Part 1B: Multithreaded client (network thread + main thread)
-
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
@@ -20,33 +17,46 @@
 #include "physics.h"
 #include "collision.h"
 #include "timeline.h"
-#include "object_model.h"  // Part 1A
-#include "registry.h"      // Part 1A
+#include "object_model.h"
+#include "registry.h"
 
 const int DESIGN_WIDTH  = 1720;
 const int DESIGN_HEIGHT = 1080;
+const int WORLD_WIDTH = 3440;
 
 const float PLAYER_SPEED   = 300.f;
 const float JUMP_VELOCITY  = -750.f;
 
-const float platformWidth = 200.f;
-const float platformHeight = 350.f;
+// REQUIREMENT 2: 5 unique platform combinations (position + size + texture)
+const float leftWidth = 180.f;
+const float leftHeight = 300.f;
+
+const float middleWidth = 200.f;
+const float middleHeight = 350.f;
+
+const float platform3Width = 220.f;
+const float platform3Height = 550.f;
+
 const float bridgeWidth = 135.f;
 const float bridgeHeight = 54.f;
 
-const float leftX = 0.f;
-const float leftY = DESIGN_HEIGHT - platformHeight - 70.f;
-const float middleX = DESIGN_WIDTH / 2.f - platformWidth / 2.f - 200.f;
-const float middleY = DESIGN_HEIGHT - platformHeight;
-const float platform3X = DESIGN_WIDTH - platformWidth - 470.f;
-const float platform3TopY = DESIGN_HEIGHT - platformHeight - 200.f;
-const float platform3Height = DESIGN_HEIGHT - platform3TopY;
-const float bridge1X = platform3X + platformWidth + 70.f;
-const float bridge1Y = platform3TopY + 100.f;
-const float finalX = DESIGN_WIDTH - platformWidth;
-const float finalY = DESIGN_HEIGHT - platformHeight;
+const float finalWidth = 240.f;
+const float finalHeight = 380.f;
 
-// Part 1A: Remote player entities stored with GameObjects
+// Platform positions in WORLD SPACE
+const float leftX = 0.f;
+const float leftY = DESIGN_HEIGHT - leftHeight - 70.f;
+const float middleX = DESIGN_WIDTH / 2.f - middleWidth / 2.f - 200.f;
+const float middleY = DESIGN_HEIGHT - middleHeight;
+const float platform3X = DESIGN_WIDTH - platform3Width - 470.f;
+const float platform3TopY = DESIGN_HEIGHT - platform3Height - 200.f;
+const float platform3FullHeight = DESIGN_HEIGHT - platform3TopY;
+const float bridge1X = platform3X + platform3Width + 70.f;
+const float bridge1Y = platform3TopY + 100.f;
+const float finalX = DESIGN_WIDTH - finalWidth;
+const float finalY = DESIGN_HEIGHT - finalHeight;
+
+// PART 1A: Remote player entities
 struct RemotePlayerEntity {
     Entity* entity = nullptr;
 };
@@ -73,7 +83,7 @@ static inline bool checkCollision(const SDL_FRect& a, const SDL_FRect& b) {
 
 static inline void clampPlayerPosition(float& playerX, float& playerY, float w, float h) {
     if (playerX < 0) playerX = 0;
-    if (playerX + w > DESIGN_WIDTH) playerX = DESIGN_WIDTH - w;
+    if (playerX + w > WORLD_WIDTH) playerX = WORLD_WIDTH - w;
     if (playerY > DESIGN_HEIGHT) playerY = DESIGN_HEIGHT - h;
 }
 
@@ -89,24 +99,26 @@ static void renderSimpleText(SDL_Renderer* renderer, const std::string& text, fl
 }
 
 static std::string generateClientId() {
-    std::random_device rd; std::mt19937 gen(rd());
+    std::random_device rd; 
+    std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(1000, 9999);
     return "client_" + std::to_string(dis(gen));
 }
 
 int main(int, char**) {
+    srand(time(nullptr));
+    
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("Feeling Spikey - Part 1 Compliant Client",
+    SDL_Window* window = SDL_CreateWindow("Feeling Spikey",
                                           DESIGN_WIDTH, DESIGN_HEIGHT, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     Scaling::setMode(ScaleMode::Proportional);
 
     Physics::setGravity(2000.f);
-
     Timeline gameTimeline; 
     gameTimeline.anchorToRealTime();
 
-    void* ctx  = zmq_ctx_new();
+    void* ctx = zmq_ctx_new();
     void* sock = zmq_socket(ctx, ZMQ_REQ);
     if (zmq_connect(sock, "tcp://localhost:5555") != 0) {
         SDL_Log("Failed to connect: %s", zmq_strerror(errno));
@@ -116,10 +128,10 @@ int main(int, char**) {
     SDL_Log("[Part 1B] Client ID: %s", clientId.c_str());
 
     Entity groundBottom(renderer, "../assets/ground_bottom.png", 0, 0, 64, 64, 1, 0);
-    Entity groundTop   (renderer, "../assets/ground.png",        0, 0, 64, 64, 1, 0);
-    Entity platformTex (renderer, "../assets/platform.png",      0, 0, 384, 128, 1, 0);
-    Entity spikeTex    (renderer, "../assets/spikes.png",        0, 0, 256, 256, 1, 0);
-    Entity flagTex     (renderer, "../assets/flag.png",          0, 0, 256, 256, 1, 0);
+    Entity groundTop(renderer, "../assets/ground.png", 0, 0, 64, 64, 1, 0);
+    Entity platformTex(renderer, "../assets/platform.png", 0, 0, 384, 128, 1, 0);
+    Entity spikeTex(renderer, "../assets/spikes.png", 0, 0, 256, 256, 1, 0);
+    Entity flagTex(renderer, "../assets/flag.png", 0, 0, 256, 256, 1, 0);
 
     const int frameCount = 8, frameWidth = 128, frameHeight = 128;
     const float playerScale = 1.1f;
@@ -128,15 +140,73 @@ int main(int, char**) {
 
     Entity localPlayer(renderer, "../assets/player.png", 0, 0, frameWidth, frameHeight, frameCount, 150);
 
-    // Part 1A: Use Registry for remote players (GameObject model)
+    // PART 1A: Game object registry for EVERYTHING
+    Engine::Registry gameObjectRegistry;
+    std::mutex gameObjectMutex;
+
+    // REQUIREMENT 4: SPAWN POINTS (3 GameObjects)
+    SDL_Log("[Req 4] Creating spawn points...");
+    auto& spawn1 = gameObjectRegistry.upsert("spawn_left");
+    spawn1.set<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
+    spawn1.set<bool>("visible", false);
+
+    auto& spawn2 = gameObjectRegistry.upsert("spawn_middle");
+    spawn2.set<Engine::Vec2>("pos", {middleX + 80.f, middleY - playerH});
+    spawn2.set<bool>("visible", false);
+
+    auto& spawn3 = gameObjectRegistry.upsert("spawn_platform3");
+    spawn3.set<Engine::Vec2>("pos", {platform3X + 80.f, platform3TopY - playerH});
+    spawn3.set<bool>("visible", false);
+
+    std::vector<std::string> spawnIds = {"spawn_left", "spawn_middle", "spawn_platform3"};
+    SDL_Log("[Req 4] Created 3 spawn points");
+
+    // Track current checkpoint spawn
+    std::string currentSpawnId = "spawn_left";  // Start at first spawn
+
+    // REQUIREMENT 5: DEATH ZONES (4 GameObjects)
+    SDL_Log("[Req 5] Creating death zones...");
+    auto& dz1 = gameObjectRegistry.upsert("death_zone_gap1");
+    dz1.set<Engine::Vec2>("pos", {leftX + leftWidth, DESIGN_HEIGHT - 280});
+    dz1.set<Engine::Vec2>("size", {middleX - (leftX + leftWidth), 280});
+    dz1.set<bool>("visible", false);
+
+    auto& dz2 = gameObjectRegistry.upsert("death_zone_gap2");
+    dz2.set<Engine::Vec2>("pos", {middleX + middleWidth, DESIGN_HEIGHT - 280});
+    dz2.set<Engine::Vec2>("size", {platform3X - (middleX + middleWidth), 280});
+    dz2.set<bool>("visible", false);
+
+    auto& dz3 = gameObjectRegistry.upsert("death_zone_gap3");
+    dz3.set<Engine::Vec2>("pos", {platform3X + platform3Width, DESIGN_HEIGHT - 280});
+    dz3.set<Engine::Vec2>("size", {finalX - (platform3X + platform3Width), 280});
+    dz3.set<bool>("visible", false);
+
+    auto& dz4 = gameObjectRegistry.upsert("death_zone_fall");
+    dz4.set<Engine::Vec2>("pos", {0, DESIGN_HEIGHT});
+    dz4.set<Engine::Vec2>("size", {WORLD_WIDTH, 200});
+    dz4.set<bool>("visible", false);
+
+    std::vector<std::string> deathZoneIds = {"death_zone_gap1", "death_zone_gap2", "death_zone_gap3", "death_zone_fall"};
+    SDL_Log("[Req 5] Created 4 death zones");
+
+    // REQUIREMENT 6: CAMERA SYSTEM
+    SDL_Log("[Req 6] Camera system initialized");
+    float cameraX = 0.f;
+
+    // PART 1A: Remote players registry
     Engine::Registry remotePlayersRegistry;
     std::unordered_map<std::string, RemotePlayerEntity> remoteEntities;
     std::mutex remotePlayersMutex;
 
+    // Track last message time for disconnect detection
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastHeardFrom;
+    std::mutex lastHeardMutex;
+    static constexpr int CLIENT_TIMEOUT_SECONDS = 3;  // 3 seconds without message = disconnect
+
     ServerState serverState;
-    serverState.horizontalPlatform = {leftX + platformWidth + 20.f, DESIGN_HEIGHT - platformHeight - 150.f, 144.f, 72.f};
+    serverState.horizontalPlatform = {leftX + leftWidth + 20.f, DESIGN_HEIGHT - middleHeight - 150.f, 144.f, 72.f};
     serverState.horizontalDir = 1;
-    serverState.verticalPlatform = {middleX + platformWidth + 40.f, middleY - 180.f, 144.f, 68.f};
+    serverState.verticalPlatform = {middleX + middleWidth + 40.f, middleY - 180.f, 144.f, 68.f};
     serverState.verticalDir = 1;
     serverState.bridge1Visible = true;
 
@@ -148,14 +218,12 @@ int main(int, char**) {
     localPlayerState.grounded = false;
 
     Body playerBody = { 0.f, 0.f, true };
-
     std::atomic<bool> running{true};
     std::atomic<bool> gameWon{false};
-    
     std::string statusMessage = "";
     int statusMessageTimer = 0;
 
-    // Part 1B: Network thread for concurrent reading/sending
+    // PART 1B: Network thread
     std::thread networkThread([&]() {
         float networkTimer = 0.0f;
         auto lastTick = SDL_GetTicks();
@@ -185,7 +253,7 @@ int main(int, char**) {
                 if (rb > 0) {
                     rx[rb] = '\0';
 
-                    // Part 1A: Mark all remote players inactive before update
+                    // Mark all remote players inactive
                     {
                         std::lock_guard<std::mutex> lock(remotePlayersMutex);
                         for (const auto& id : remotePlayersRegistry.getAllIds()) {
@@ -224,13 +292,11 @@ int main(int, char**) {
                             if (sscanf(line, "%255s %f %f", id, &rx_, &ry_) == 3) {
                                 std::string remoteId(id);
                                 if (remoteId != clientId) {
-                                    // Part 1A: Store remote player as GameObject
                                     std::lock_guard<std::mutex> lock(remotePlayersMutex);
                                     auto& remoteObj = remotePlayersRegistry.upsert(remoteId);
                                     remoteObj.set<Engine::Vec2>("pos", {rx_, ry_});
                                     remoteObj.set<bool>("active", true);
                                     
-                                    // Create Entity if needed
                                     if (remoteEntities.find(remoteId) == remoteEntities.end() ||
                                         !remoteEntities[remoteId].entity) {
                                         remoteEntities[remoteId].entity = 
@@ -250,46 +316,92 @@ int main(int, char**) {
                         for (const auto& id : allIds) {
                             const auto* obj = remotePlayersRegistry.get(id);
                             if (obj && !obj->get<bool>("active", false)) {
-                                // Remove from registry
                                 remotePlayersRegistry.erase(id);
-                                
-                                // Delete entity
                                 auto it = remoteEntities.find(id);
                                 if (it != remoteEntities.end() && it->second.entity) {
                                     delete it->second.entity;
                                     remoteEntities.erase(it);
                                 }
                                 
-                                SDL_Log("[Part 1B] Remote player disconnected: %s", id.c_str());
+                                // Remove from lastHeard
+                                {
+                                    std::lock_guard<std::mutex> timeLock(lastHeardMutex);
+                                    lastHeardFrom.erase(id);
+                                }
+                                
+                                SDL_Log("[DISCONNECT] Remote player removed (inactive): %s", id.c_str());
                             }
                         }
                     }
                 }
-                
                 networkTimer = 0.0f;
             }
-            
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
-        
         SDL_Log("[Part 1B] Network thread stopped");
+    });
+
+    // Timeout-based disconnect detection thread
+    std::thread timeoutThread([&]() {
+        SDL_Log("[DISCONNECT MONITOR] Timeout detection thread started");
+        
+        while (running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));  // Check every 500ms
+            
+            auto now = std::chrono::steady_clock::now();
+            std::vector<std::string> timedOutPlayers;
+            
+            // Find timed out players
+            {
+                std::lock_guard<std::mutex> timeLock(lastHeardMutex);
+                for (const auto& [playerId, lastTime] : lastHeardFrom) {
+                    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastTime);
+                    if (elapsed.count() >= CLIENT_TIMEOUT_SECONDS) {
+                        timedOutPlayers.push_back(playerId);
+                    }
+                }
+            }
+            
+            // Remove timed out players
+            if (!timedOutPlayers.empty()) {
+                std::lock_guard<std::mutex> lock(remotePlayersMutex);
+                for (const auto& playerId : timedOutPlayers) {
+                    // Remove from registry
+                    remotePlayersRegistry.erase(playerId);
+                    
+                    // Delete entity
+                    auto it = remoteEntities.find(playerId);
+                    if (it != remoteEntities.end() && it->second.entity) {
+                        delete it->second.entity;
+                        remoteEntities.erase(it);
+                    }
+                    
+                    // Remove from lastHeard
+                    {
+                        std::lock_guard<std::mutex> timeLock(lastHeardMutex);
+                        lastHeardFrom.erase(playerId);
+                    }
+                    
+                    SDL_Log("[DISCONNECT] Remote player timed out (>%ds): %s", CLIENT_TIMEOUT_SECONDS, playerId.c_str());
+                }
+            }
+        }
+        
+        SDL_Log("[DISCONNECT MONITOR] Timeout detection thread stopped");
     });
 
     float prevHorizX = serverState.horizontalPlatform.x;
     float prevVertY = serverState.verticalPlatform.y;
 
-    // Main loop: Input, physics, rendering
+    // Main loop
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) 
-                running = false;
-            
+            if (e.type == SDL_EVENT_QUIT) running = false;
             if (e.type == SDL_EVENT_WINDOW_RESIZED) {
                 std::lock_guard<std::mutex> lock(localPlayerState.mutex);
                 clampPlayerPosition(localPlayerState.x, localPlayerState.y, playerW, playerH);
             }
-            
             if (e.type == SDL_EVENT_KEY_DOWN) {
                 switch (e.key.scancode) {
                     case SDL_SCANCODE_P:
@@ -299,27 +411,28 @@ int main(int, char**) {
                         break;
                     case SDL_SCANCODE_1:
                         gameTimeline.setScale(0.5);
-                        statusMessage = "Speed: SLOW (0.5x)";
+                        statusMessage = "Speed: 0.5x";
                         statusMessageTimer = 120;
                         break;
                     case SDL_SCANCODE_2:
                         gameTimeline.setScale(1.0);
-                        statusMessage = "Speed: NORMAL (1.0x)";
+                        statusMessage = "Speed: 1.0x";
                         statusMessageTimer = 120;
                         break;
                     case SDL_SCANCODE_3:
                         gameTimeline.setScale(2.0);
-                        statusMessage = "Speed: FAST (2.0x)";
+                        statusMessage = "Speed: 2.0x";
                         statusMessageTimer = 120;
                         break;
                     case SDL_SCANCODE_R:
                         if (gameWon) {
                             gameWon = false;
+                            currentSpawnId = "spawn_left";  // Reset to first checkpoint
                             std::lock_guard<std::mutex> lock(localPlayerState.mutex);
                             localPlayerState.x = leftX + 80.f;
                             localPlayerState.y = leftY - playerH;
                             localPlayerState.vx = localPlayerState.vy = 0.f;
-                            statusMessage = "Game Restarted";
+                            statusMessage = "Restarted";
                             statusMessageTimer = 120;
                         }
                         break;
@@ -339,7 +452,6 @@ int main(int, char**) {
 
         double dt = gameTimeline.tick();
         if (dt > 0.05) dt = 0.05;
-
         Input::poll();
 
         float px, py;
@@ -355,7 +467,7 @@ int main(int, char**) {
         playerBody.vx = 0.f;
 
         if (Input::isKeyPressed(SDL_SCANCODE_A)) playerBody.vx = -PLAYER_SPEED;
-        if (Input::isKeyPressed(SDL_SCANCODE_D)) playerBody.vx =  PLAYER_SPEED;
+        if (Input::isKeyPressed(SDL_SCANCODE_D)) playerBody.vx = PLAYER_SPEED;
         if ((Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_SPACE)) && wasGrounded) {
             playerBody.vy = JUMP_VELOCITY;
         }
@@ -363,14 +475,14 @@ int main(int, char**) {
         Physics::step(dt * 1000, px, py, playerBody);
         clampPlayerPosition(px, py, playerW, playerH);
 
-        SDL_FRect playerRect { px, py, playerW, playerH };
+        SDL_FRect playerRect {px, py, playerW, playerH};
         bool grounded = false;
 
-        SDL_FRect leftRect  { leftX, leftY, platformWidth, platformHeight };
-        SDL_FRect middleRect { middleX, middleY, platformWidth, platformHeight };
-        SDL_FRect plat3Rect { platform3X, platform3TopY, platformWidth, platform3Height };
-        SDL_FRect bridge1Rect { bridge1X, bridge1Y, bridgeWidth, bridgeHeight };
-        SDL_FRect finalRect { finalX, finalY, platformWidth, platformHeight };
+        SDL_FRect leftRect {leftX, leftY, leftWidth, leftHeight};
+        SDL_FRect middleRect {middleX, middleY, middleWidth, middleHeight};
+        SDL_FRect plat3Rect {platform3X, platform3TopY, platform3Width, platform3FullHeight};
+        SDL_FRect bridge1Rect {bridge1X, bridge1Y, bridgeWidth, bridgeHeight};
+        SDL_FRect finalRect {finalX, finalY, finalWidth, finalHeight};
 
         bool bridge1Vis;
         {
@@ -406,7 +518,7 @@ int main(int, char**) {
             verticalPlat = serverState.verticalPlatform;
         }
 
-        SDL_FRect mpRect { horizontalPlat.x, horizontalPlat.y, horizontalPlat.w, horizontalPlat.h };
+        SDL_FRect mpRect {horizontalPlat.x, horizontalPlat.y, horizontalPlat.w, horizontalPlat.h};
         if (checkCollision(playerRect, mpRect)) {
             if (playerBody.vy >= 0 && prevPY + playerH <= horizontalPlat.y + 20) {
                 py = horizontalPlat.y - playerH;
@@ -418,7 +530,7 @@ int main(int, char**) {
         }
         prevHorizX = horizontalPlat.x;
 
-        SDL_FRect vpRect { verticalPlat.x, verticalPlat.y, verticalPlat.w, verticalPlat.h };
+        SDL_FRect vpRect {verticalPlat.x, verticalPlat.y, verticalPlat.w, verticalPlat.h};
         if (checkCollision(playerRect, vpRect)) {
             if (playerBody.vy >= 0 && prevPY + playerH <= verticalPlat.y + 20) {
                 py = verticalPlat.y - playerH;
@@ -430,41 +542,131 @@ int main(int, char**) {
         }
         prevVertY = verticalPlat.y;
 
-        float spikeW = 220.f, spikeH = 280.f, spikeY = DESIGN_HEIGHT - spikeH;
-        for (float x = platformWidth; x < middleX; x += spikeW) {
-            SDL_FRect spikeRect{ x, spikeY, spikeW, spikeH };
+        // Check if player crosses spawn points (checkpoints)
+        playerRect = {px, py, playerW, playerH};
+        {
+            std::lock_guard<std::mutex> lock(gameObjectMutex);
+            for (const auto& spawnId : spawnIds) {
+                const auto* spawn = gameObjectRegistry.get(spawnId);
+                if (!spawn) continue;
+                
+                auto spawnPos = spawn->get<Engine::Vec2>("pos", {0, 0});
+                // Create checkpoint trigger area (wider than spawn point)
+                SDL_FRect checkpointRect = {spawnPos.x - 50.f, spawnPos.y - 50.f, 100.f, 100.f};
+                
+                if (checkCollision(playerRect, checkpointRect)) {
+                    if (currentSpawnId != spawnId) {
+                        currentSpawnId = spawnId;
+                        statusMessage = "Checkpoint: " + spawnId;
+                        statusMessageTimer = 90;
+                        SDL_Log("Checkpoint reached: %s", spawnId.c_str());
+                    }
+                }
+            }
+        }
+
+        // Spike collision (explicit backup safety check) - respawn at current checkpoint
+        for (float x = leftX + leftWidth; x < middleX; x += 220.f) {
+            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
             if (checkCollision(playerRect, spikeRect)) {
-                px = leftX + 80.f; py = leftY - playerH;
+                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
+                if (spawn) {
+                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
+                    px = spawnPos.x;
+                    py = spawnPos.y;
+                } else {
+                    px = leftX + 80.f;
+                    py = leftY - playerH;
+                }
                 playerBody.vx = playerBody.vy = 0;
-                statusMessage = "OUCH! Respawned";
+                statusMessage = "OUCH! Respawned at " + currentSpawnId;
                 statusMessageTimer = 120;
             }
         }
-        for (float x = middleX + platformWidth; x < platform3X; x += spikeW) {
-            SDL_FRect spikeRect{ x, spikeY, spikeW, spikeH };
+        for (float x = middleX + middleWidth; x < platform3X; x += 220.f) {
+            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
             if (checkCollision(playerRect, spikeRect)) {
-                px = leftX + 80.f; py = leftY - playerH;
+                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
+                if (spawn) {
+                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
+                    px = spawnPos.x;
+                    py = spawnPos.y;
+                } else {
+                    px = leftX + 80.f;
+                    py = leftY - playerH;
+                }
                 playerBody.vx = playerBody.vy = 0;
-                statusMessage = "OUCH! Respawned";
+                statusMessage = "OUCH! Respawned at " + currentSpawnId;
                 statusMessageTimer = 120;
             }
         }
-        for (float x = platform3X + platformWidth; x < finalX; x += spikeW) {
-            SDL_FRect spikeRect{ x, spikeY, spikeW, spikeH };
+        for (float x = platform3X + platform3Width; x < finalX; x += 220.f) {
+            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
             if (checkCollision(playerRect, spikeRect)) {
-                px = leftX + 80.f; py = leftY - playerH;
+                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
+                if (spawn) {
+                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
+                    px = spawnPos.x;
+                    py = spawnPos.y;
+                } else {
+                    px = leftX + 80.f;
+                    py = leftY - playerH;
+                }
                 playerBody.vx = playerBody.vy = 0;
-                statusMessage = "OUCH! Respawned";
+                statusMessage = "OUCH! Respawned at " + currentSpawnId;
                 statusMessageTimer = 120;
             }
         }
 
+        // Fall detection (explicit backup safety check) - respawn at current checkpoint
         if (py > DESIGN_HEIGHT + 100) {
-            px = leftX + 80.f; py = leftY - playerH;
+            const auto* spawn = gameObjectRegistry.get(currentSpawnId);
+            if (spawn) {
+                auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
+                px = spawnPos.x;
+                py = spawnPos.y;
+            } else {
+                px = leftX + 80.f;
+                py = leftY - playerH;
+            }
             playerBody.vx = playerBody.vy = 0;
-            statusMessage = "Fell! Respawned";
+            statusMessage = "Fell! Respawned at " + currentSpawnId;
             statusMessageTimer = 120;
         }
+
+        // REQUIREMENT 5: Check death zone collisions (GameObject-based) - respawn at current checkpoint
+        {
+            std::lock_guard<std::mutex> lock(gameObjectMutex);
+            for (const auto& id : deathZoneIds) {
+                const auto* zone = gameObjectRegistry.get(id);
+                if (!zone) continue;
+                
+                auto zonePos = zone->get<Engine::Vec2>("pos", {0, 0});
+                auto zoneSize = zone->get<Engine::Vec2>("size", {0, 0});
+                SDL_FRect zoneRect = {zonePos.x, zonePos.y, zoneSize.x, zoneSize.y};
+                
+                if (checkCollision(playerRect, zoneRect)) {
+                    // Respawn at current checkpoint
+                    const auto* spawn = gameObjectRegistry.get(currentSpawnId);
+                    if (spawn) {
+                        auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
+                        px = spawnPos.x;
+                        py = spawnPos.y;
+                        playerBody.vx = 0.f;
+                        playerBody.vy = 0.f;
+                        statusMessage = "Death! Respawned at " + currentSpawnId;
+                        statusMessageTimer = 120;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // REQUIREMENT 6: Update camera (smooth interpolation)
+        float targetCameraX = px - DESIGN_WIDTH / 2.f;
+        if (targetCameraX < 0) targetCameraX = 0;
+        if (targetCameraX > WORLD_WIDTH - DESIGN_WIDTH) targetCameraX = WORLD_WIDTH - DESIGN_WIDTH;
+        cameraX += (targetCameraX - cameraX) * 0.1f;
 
         {
             std::lock_guard<std::mutex> lock(localPlayerState.mutex);
@@ -477,89 +679,90 @@ int main(int, char**) {
 
         localPlayer.update();
 
+        // RENDERING WITH CAMERA OFFSET
         SDL_SetRenderDrawColor(renderer, 135, 206, 235, 255);
         SDL_RenderClear(renderer);
 
-        for (float x = platformWidth; x < middleX; x += spikeW) {
-            spikeTex.setPosition(x, spikeY);
+        float spikeW = 220.f, spikeH = 280.f, spikeY = DESIGN_HEIGHT - spikeH;
+        
+        for (float x = leftX + leftWidth; x < middleX; x += spikeW) {
+            spikeTex.setPosition(x - cameraX, spikeY);
             spikeTex.setSize(spikeW, spikeH);
             spikeTex.render(renderer, window);
         }
-        for (float x = middleX + platformWidth; x < platform3X; x += spikeW) {
-            spikeTex.setPosition(x, spikeY);
+        for (float x = middleX + middleWidth; x < platform3X; x += spikeW) {
+            spikeTex.setPosition(x - cameraX, spikeY);
             spikeTex.setSize(spikeW, spikeH);
             spikeTex.render(renderer, window);
         }
-        for (float x = platform3X + platformWidth; x < finalX; x += spikeW) {
-            spikeTex.setPosition(x, spikeY);
+        for (float x = platform3X + platform3Width; x < finalX; x += spikeW) {
+            spikeTex.setPosition(x - cameraX, spikeY);
             spikeTex.setSize(spikeW, spikeH);
             spikeTex.render(renderer, window);
         }
 
-        groundBottom.setPosition(leftX, leftY);
-        groundBottom.setSize(platformWidth, platformHeight);
+        groundBottom.setPosition(leftX - cameraX, leftY);
+        groundBottom.setSize(leftWidth, leftHeight);
         groundBottom.render(renderer, window);
-        groundTop.setPosition(leftX, leftY - 48.f);
-        groundTop.setSize(platformWidth, 48.f);
+        groundTop.setPosition(leftX - cameraX, leftY - 48.f);
+        groundTop.setSize(leftWidth, 48.f);
         groundTop.render(renderer, window);
 
-        groundBottom.setPosition(middleX, middleY);
-        groundBottom.setSize(platformWidth, platformHeight);
+        groundBottom.setPosition(middleX - cameraX, middleY);
+        groundBottom.setSize(middleWidth, middleHeight);
         groundBottom.render(renderer, window);
-        groundTop.setPosition(middleX, middleY - 48.f);
-        groundTop.setSize(platformWidth, 48.f);
+        groundTop.setPosition(middleX - cameraX, middleY - 48.f);
+        groundTop.setSize(middleWidth, 48.f);
         groundTop.render(renderer, window);
 
-        groundBottom.setPosition(platform3X, platform3TopY);
-        groundBottom.setSize(platformWidth, 100.f);
+        groundBottom.setPosition(platform3X - cameraX, platform3TopY);
+        groundBottom.setSize(platform3Width, platform3FullHeight);
         groundBottom.render(renderer, window);
-        groundTop.setPosition(platform3X, platform3TopY - 48.f);
-        groundTop.setSize(platformWidth, 48.f);
+        groundTop.setPosition(platform3X - cameraX, platform3TopY - 48.f);
+        groundTop.setSize(platform3Width, 48.f);
         groundTop.render(renderer, window);
 
         if (bridge1Vis) {
-            platformTex.setPosition(bridge1X, bridge1Y);
+            platformTex.setPosition(bridge1X - cameraX, bridge1Y);
             platformTex.setSize(bridgeWidth, bridgeHeight);
             platformTex.render(renderer, window);
         }
 
-        groundBottom.setPosition(finalX, finalY);
-        groundBottom.setSize(platformWidth, platformHeight);
+        groundBottom.setPosition(finalX - cameraX, finalY);
+        groundBottom.setSize(finalWidth, finalHeight);
         groundBottom.render(renderer, window);
-        groundTop.setPosition(finalX, finalY - 48.f);
-        groundTop.setSize(platformWidth, 48.f);
+        groundTop.setPosition(finalX - cameraX, finalY - 48.f);
+        groundTop.setSize(finalWidth, 48.f);
         groundTop.render(renderer, window);
 
         float flagW = 150.f, flagH = 150.f;
-        flagTex.setPosition(finalX + platformWidth - flagW - 30.f, finalY - flagH - 48.f);
+        flagTex.setPosition(finalX - cameraX + finalWidth - flagW - 30.f, finalY - flagH - 48.f);
         flagTex.setSize(flagW, flagH);
         flagTex.render(renderer, window);
 
-        platformTex.setPosition(horizontalPlat.x, horizontalPlat.y);
+        platformTex.setPosition(horizontalPlat.x - cameraX, horizontalPlat.y);
         platformTex.setSize(horizontalPlat.w, horizontalPlat.h);
         platformTex.render(renderer, window);
 
-        platformTex.setPosition(verticalPlat.x, verticalPlat.y);
+        platformTex.setPosition(verticalPlat.x - cameraX, verticalPlat.y);
         platformTex.setSize(verticalPlat.w, verticalPlat.h);
         platformTex.render(renderer, window);
 
-        localPlayer.setPosition(px, py);
+        localPlayer.setPosition(px - cameraX, py);
         localPlayer.setSize(playerW, playerH);
         localPlayer.render(renderer, window);
 
-        // Part 1A: Render all remote players from Registry
+        // PART 1A: Render all remote players with camera offset
         {
             std::lock_guard<std::mutex> lock(remotePlayersMutex);
-            auto remoteIds = remotePlayersRegistry.getAllIds();
-            for (const auto& remoteId : remoteIds) {
+            for (const auto& remoteId : remotePlayersRegistry.getAllIds()) {
                 const auto* remoteObj = remotePlayersRegistry.get(remoteId);
                 if (remoteObj && remoteObj->get<bool>("active", false)) {
                     auto pos = remoteObj->get<Engine::Vec2>("pos", {0.f, 0.f});
-                    
                     auto it = remoteEntities.find(remoteId);
                     if (it != remoteEntities.end() && it->second.entity) {
                         it->second.entity->update();
-                        it->second.entity->setPosition(pos.x, pos.y);
+                        it->second.entity->setPosition(pos.x - cameraX, pos.y);
                         it->second.entity->setSize(playerW, playerH);
                         it->second.entity->render(renderer, window);
                     }
@@ -567,15 +770,19 @@ int main(int, char**) {
             }
         }
 
-        renderSimpleText(renderer, "A/D: Move  W/SPACE: Jump", 20, 20, 255, 255, 255);
+        // UI
+        renderSimpleText(renderer, "A/D: Move  W/Space: Jump", 20, 20, 255, 255, 255);
         renderSimpleText(renderer, "P: Pause  1/2/3: Speed  R: Restart  S: Scaling", 20, 40, 255, 255, 255);
-        renderSimpleText(renderer, "[Part 1A] Using GameObject Registry", 20, 60, 0, 255, 255);
+        renderSimpleText(renderer, "[Part 1A] GameObject Registry", 20, 60, 0, 255, 255);
+
+        std::string cameraText = "Camera: " + std::to_string(int(cameraX));
+        renderSimpleText(renderer, cameraText, DESIGN_WIDTH - 180, 20, 100, 200, 255);
 
         std::string speedText = "Speed: " + std::to_string(int(gameTimeline.scale() * 100)) + "%";
-        renderSimpleText(renderer, speedText, DESIGN_WIDTH - 200, 20, 0, 255, 0);
+        renderSimpleText(renderer, speedText, DESIGN_WIDTH - 200, 40, 0, 255, 0);
 
         if (gameTimeline.isPaused()) {
-            renderSimpleText(renderer, "PAUSED", DESIGN_WIDTH - 200, 40, 255, 0, 0);
+            renderSimpleText(renderer, "PAUSED", DESIGN_WIDTH - 200, 60, 255, 0, 0);
         }
 
         int remotePlayers = 0;
@@ -584,10 +791,10 @@ int main(int, char**) {
             remotePlayers = remotePlayersRegistry.size();
         }
         std::string playerCountText = "Remote Players: " + std::to_string(remotePlayers);
-        renderSimpleText(renderer, playerCountText, DESIGN_WIDTH - 250, 60, 255, 255, 0);
+        renderSimpleText(renderer, playerCountText, DESIGN_WIDTH - 250, 80, 255, 255, 0);
 
         if (statusMessageTimer > 0) {
-            renderSimpleText(renderer, statusMessage, DESIGN_WIDTH / 2 - 100, 100, 255, 255, 0);
+            renderSimpleText(renderer, statusMessage, DESIGN_WIDTH / 2 - 150, 100, 255, 255, 0);
             statusMessageTimer--;
         }
 
@@ -613,6 +820,7 @@ int main(int, char**) {
     // Cleanup
     running = false;
     networkThread.join();
+    timeoutThread.join();  // Wait for timeout detection thread
     
     {
         std::lock_guard<std::mutex> lock(remotePlayersMutex);
@@ -622,12 +830,14 @@ int main(int, char**) {
         remotePlayersRegistry.clear();
     }
     
+    lastHeardFrom.clear();
+    
+    gameObjectRegistry.clear();
     zmq_close(sock); 
     zmq_ctx_destroy(ctx);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
     
-    SDL_Log("[Part 1B] Client shut down cleanly");
     return 0;
 }

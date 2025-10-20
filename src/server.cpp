@@ -1,12 +1,11 @@
-// Part 1A: Uses Engine::Registry and GameObject (property-based model)
-// Part 1B: Multithreaded server with NetworkServer base class
-
 #include "network_server.h"
 #include "object_model.h"
 #include "registry.h"
 #include <iostream>
 #include <cstdio>
 #include <chrono>
+#include <thread>
+#include <atomic>
 
 struct Platform {
     float x, y, w, h;
@@ -18,7 +17,6 @@ struct Platform {
 
 class SpikeyServer : public Engine::NetworkServer {
 private:
-    // Part 1A: Runtime game object model using Registry
     Engine::Registry registry;
     
     Platform horizontalPlatform;
@@ -38,6 +36,10 @@ private:
     static constexpr float middleY = DESIGN_HEIGHT - platformHeight;
     static constexpr float platform3X = DESIGN_WIDTH - platformWidth - 470.f;
     static constexpr float platform3TopY = DESIGN_HEIGHT - platformHeight - 200.f;
+    
+    static constexpr int CLIENT_TIMEOUT_SECONDS = 3;
+    std::thread timeoutThread;
+    std::atomic<bool> timeoutRunning{false};
 
 public:
     SpikeyServer() {
@@ -65,10 +67,15 @@ public:
         startTime = std::chrono::steady_clock::now();
         lastUpdate = startTime;
         setWorldUpdateRate(60);
+        
+        startTimeoutDetection();
+    }
+    
+    ~SpikeyServer() {
+        stopTimeoutDetection();
     }
 
 protected:
-    // Part 1B: Handle client messages and update GameObjects
     void handleClientMessage(const std::string& clientId, const std::string& message) override {
         char id[256];
         float x = 0, y = 0;
@@ -76,22 +83,21 @@ protected:
         if (sscanf(message.c_str(), "ID %255s X %f Y %f", id, &x, &y) == 3) {
             std::string playerId(id);
             
-            // Part 1A: Store player as GameObject with properties
             auto& playerObj = registry.upsert(playerId);
             playerObj.set<Engine::Vec2>("pos", {x, y});
-            playerObj.set<float>("last_update", 
-                std::chrono::duration<float>(std::chrono::steady_clock::now() - startTime).count());
+            
+            auto now = std::chrono::steady_clock::now();
+            float timeSinceStart = std::chrono::duration<float>(now - startTime).count();
+            playerObj.set<float>("last_update", timeSinceStart);
         }
     }
     
-    // Part 1B: Generate world state and broadcast to all clients
     std::string generateWorldState() override {
         auto now = std::chrono::steady_clock::now();
         float currentTime = std::chrono::duration<float>(now - startTime).count();
         float deltaTime = std::chrono::duration<float>(now - lastUpdate).count();
         lastUpdate = now;
         
-        // Update bridge visibility
         bridgeToggleTimer += deltaTime;
         if (bridge1Visible && bridgeToggleTimer > 3.0f) {
             bridge1Visible = false;
@@ -101,7 +107,6 @@ protected:
             bridgeToggleTimer = 0.f;
         }
         
-        // Update horizontal moving platform
         if (!horizontalPlatform.isVertical) {
             horizontalPlatform.x += horizontalPlatform.speed * horizontalPlatform.dir * deltaTime;
             if (horizontalPlatform.x < horizontalPlatform.minBound) {
@@ -113,7 +118,6 @@ protected:
             }
         }
         
-        // Update vertical moving platform
         if (verticalPlatform.isVertical) {
             verticalPlatform.y += verticalPlatform.speed * verticalPlatform.dir * deltaTime;
             if (verticalPlatform.y < verticalPlatform.minBound) {
@@ -125,13 +129,11 @@ protected:
             }
         }
         
-        // Build response
         char buffer[16384];
         int offset = 0;
         
         offset += snprintf(buffer + offset, sizeof(buffer) - offset, "T %.3f\n", currentTime);
         
-        // Part 1A: Broadcast all player GameObjects using Registry
         auto playerIds = registry.getAllIds();
         offset += snprintf(buffer + offset, sizeof(buffer) - offset, "N %zu\n", playerIds.size());
         
@@ -144,7 +146,6 @@ protected:
             }
         }
         
-        // Platform and bridge data
         offset += snprintf(buffer + offset, sizeof(buffer) - offset,
                           "HP %.3f %.3f %.3f %.3f %d\n",
                           horizontalPlatform.x, horizontalPlatform.y, 
@@ -163,26 +164,70 @@ protected:
         return std::string(buffer, offset);
     }
     
-    // Part 1B: Handle new client connections
     void onClientConnected(const std::string& clientId) override {
-        std::cout << "[Part 1B] Spikey player joined: " << clientId << std::endl;
+        std::cout << "Spikey player joined: " << clientId << std::endl;
         
-        // Part 1A: Create GameObject for new player
         auto& playerObj = registry.upsert(clientId);
         playerObj.set<Engine::Vec2>("pos", {leftX + 80.f, leftY - 256.f});
         playerObj.set<bool>("active", true);
-        playerObj.set<float>("spawn_time", 
-            std::chrono::duration<float>(std::chrono::steady_clock::now() - startTime).count());
+        
+        auto now = std::chrono::steady_clock::now();
+        float timeSinceStart = std::chrono::duration<float>(now - startTime).count();
+        playerObj.set<float>("spawn_time", timeSinceStart);
+        playerObj.set<float>("last_update", timeSinceStart);
     }
     
-    // Part 1B: Handle client disconnects gracefully
     void onClientDisconnected(const std::string& clientId) override {
-        std::cout << "[Part 1B] Spikey player left: " << clientId << std::endl;
-        
-        // Part 1A: Remove GameObject from Registry
+        std::cout << "Spikey player left: " << clientId << std::endl;
         registry.erase(clientId);
+        std::cout << "Remaining players: " << registry.size() << std::endl;
+    }
+
+private:
+    void startTimeoutDetection() {
+        if (timeoutRunning.exchange(true)) return;
         
-        std::cout << "[Part 1A] Remaining players: " << registry.size() << std::endl;
+        timeoutThread = std::thread([this]() {
+            std::cout << "[SERVER] Timeout detection thread started (timeout: " 
+                      << CLIENT_TIMEOUT_SECONDS << "s)" << std::endl;
+            
+            while (timeoutRunning) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                
+                auto now = std::chrono::steady_clock::now();
+                float currentTime = std::chrono::duration<float>(now - startTime).count();
+                
+                std::vector<std::string> timedOutPlayers;
+                
+                auto playerIds = registry.getAllIds();
+                for (const auto& playerId : playerIds) {
+                    const auto* playerObj = registry.get(playerId);
+                    if (playerObj) {
+                        float lastUpdate = playerObj->get<float>("last_update", currentTime);
+                        float timeSinceUpdate = currentTime - lastUpdate;
+                        
+                        if (timeSinceUpdate >= CLIENT_TIMEOUT_SECONDS) {
+                            timedOutPlayers.push_back(playerId);
+                        }
+                    }
+                }
+                
+                for (const auto& playerId : timedOutPlayers) {
+                    std::cout << "[SERVER] Player timed out (>" << CLIENT_TIMEOUT_SECONDS 
+                              << "s): " << playerId << std::endl;
+                    registry.erase(playerId);
+                }
+            }
+            
+            std::cout << "[SERVER] Timeout detection thread stopped" << std::endl;
+        });
+    }
+    
+    void stopTimeoutDetection() {
+        if (!timeoutRunning.exchange(false)) return;
+        if (timeoutThread.joinable()) {
+            timeoutThread.join();
+        }
     }
 };
 
@@ -190,7 +235,6 @@ int main() {
     SpikeyServer server;
     server.startServer(5555);
     
-    std::cout << "Server running on port 5555" << std::endl;
     std::cout << "Press Enter to stop..." << std::endl;
     std::cin.get();
     
