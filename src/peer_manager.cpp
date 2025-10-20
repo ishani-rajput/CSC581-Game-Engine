@@ -66,6 +66,20 @@ void PeerManager::processPeerMessages() {
                 peers[pid] = {px, py, ppaused == 1, pscale, std::chrono::high_resolution_clock::now()};
             }
         }
+        else if (type == "INPUT") {
+            // Process input delta messages
+            // Format: INPUT <id> <left> <right> <jump> <ax> <ay> <ticks>
+            std::string pid; int left, right, jump; float ax, ay; uint64_t ticks;
+            if (iss >> pid >> left >> right >> jump >> ax >> ay >> ticks && pid != id) {
+                std::lock_guard<std::mutex> lk(peerMutex);
+                // Update peer data based on input deltas
+                // For input-based updates, we store minimal state
+                auto& peer = peers[pid];
+                peer.lastUpdate = std::chrono::high_resolution_clock::now();
+                // In a full implementation, we'd simulate movement based on inputs
+                // For performance testing, we just acknowledge receipt
+            }
+        }
     }
 }
 

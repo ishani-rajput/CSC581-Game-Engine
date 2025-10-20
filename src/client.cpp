@@ -123,8 +123,15 @@ static std::vector<PlatSpan>  gSpans;     // fixed tiled platforms
 static std::vector<Engine::Vec2> gSpawns; // hidden spawn points (object model)
 static int gSpawnIndex = 0;
 static std::vector<Rect> gDeathZones;     // hidden death zones
-static Rect gScrollRight = { 1500.f, 0.f, 60.f, (float)WINDOW_HEIGHT }; // hidden scroll trigger
 static Camera gCam;
+
+// Camera-relative scroll triggers (computed each frame)
+static const float kScrollStep   = 640.f;               // camera hop per trigger
+static const float kRightOffset  = 1500.f;              // px from camera-left
+static const float kLeftOffset   = 200.f;               // px from camera-left
+static const float kTriggerWidth = 60.f;
+static Rect gScrollRight;
+static Rect gScrollLeft;
 
 // Engine-side runtime registry
 static Engine::Registry gRegistry;
@@ -244,9 +251,9 @@ int main(int, char**) {
     }
     gSpawnIndex = 0;
 
-    // Hidden death zones
+    // Hidden death zones (fixed world zones + global bottom)
     gDeathZones = {
-        { 1800.f, (float)WINDOW_HEIGHT-120.f, 150.f, 120.f },  // pit
+        { 1800.f, (float)WINDOW_HEIGHT-120.f, 150.f, 120.f },  // pit (fixed place)
         { -10000.f, (float)WINDOW_HEIGHT+5.f, 30000.f, 5000.f } // global bottom
     };
 
@@ -425,23 +432,49 @@ int main(int, char**) {
             me.vx = me.vy = 0;
         }
 
-        // Death zones -> next spawn
+        // Death zones -> next spawn (fixed zones)
+        bool teleported = false;
         for (auto& dz : gDeathZones) {
             if (AABB(me.x, me.y, 256,256, dz.x, dz.y, dz.w, dz.h)) {
                 gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
                 me.x = gSpawns[gSpawnIndex].x;
                 me.y = gSpawns[gSpawnIndex].y;
                 me.vx = me.vy = 0;
+                teleported = true;
                 break;
             }
         }
+        // Optional: camera-following pit near right side of view
+        if (!teleported) {
+            Rect dynamicPit = { gCam.x + 1400.f, (float)WINDOW_HEIGHT - 120.f, 200.f, 120.f };
+            if (AABB(me.x, me.y, 256,256, dynamicPit.x, dynamicPit.y, dynamicPit.w, dynamicPit.h)) {
+                gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
+                me.x = gSpawns[gSpawnIndex].x;
+                me.y = gSpawns[gSpawnIndex].y;
+                me.vx = me.vy = 0;
+            }
+        }
 
-        // Side-scrolling boundary
+        // ===== Side-scrolling boundaries (camera-relative, both directions) =
         if (scrollCooldown > 0.f) scrollCooldown -= dt;
-        if (scrollCooldown <= 0.f &&
-            AABB(me.x, me.y, 256,256, gScrollRight.x, gScrollRight.y, gScrollRight.w, gScrollRight.h)) {
-            gCam.x += 640.f;
-            gScrollRight.x += 640.f;
+
+        // Recompute trigger rects from camera each frame (world-space)
+        gScrollRight = { gCam.x + kRightOffset, 0.f, kTriggerWidth, (float)WINDOW_HEIGHT };
+        gScrollLeft  = { gCam.x + kLeftOffset  - kTriggerWidth, 0.f, kTriggerWidth, (float)WINDOW_HEIGHT };
+
+        // Player’s world rect
+        Rect pr = { me.x, me.y, 256.f, 256.f };
+
+        // Right scroll
+        if (scrollCooldown <= 0.f && AABB(pr.x, pr.y, pr.w, pr.h,
+                                          gScrollRight.x, gScrollRight.y, gScrollRight.w, gScrollRight.h)) {
+            gCam.x += kScrollStep;
+            scrollCooldown = 0.15f;
+        }
+        // Left scroll
+        if (scrollCooldown <= 0.f && AABB(pr.x, pr.y, pr.w, pr.h,
+                                          gScrollLeft.x, gScrollLeft.y, gScrollLeft.w, gScrollLeft.h)) {
+            gCam.x -= kScrollStep;
             scrollCooldown = 0.15f;
         }
 
@@ -509,6 +542,7 @@ int main(int, char**) {
                         st.vy += Physics::gravity() * rdt;
                         st.x  += st.vx * rdt;
                         st.y  += st.vy * rdt;
+                        // collide with huge ground
                         if (AABB(st.x,st.y,256,256, -100000.f,950.f,200000.f,130.f)) { st.vy=0; st.y=950-256; st.onGround=true; }
                         if (st.x < 0) st.x = 0;
                         if (st.x > WINDOW_WIDTH-256) st.x = WINDOW_WIDTH-256;
@@ -529,6 +563,7 @@ int main(int, char**) {
         // disconnect culling
         {
             auto now = std::chrono::steady_clock::now();
+            static auto lastCullTick = now;
             if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCull).count() > 500) {
                 std::vector<std::string> toErase;
                 for (auto& kv : players) {
