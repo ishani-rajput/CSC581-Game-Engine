@@ -1,4 +1,3 @@
-// src/client.cpp
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
@@ -11,7 +10,6 @@
 #include "timeline.h"
 #include "peer_manager.h"
 
-// Engine-side (Part 1A integration)
 #include "net_strategy.h"
 #include "registry.h"
 #include "object_model.h"
@@ -40,8 +38,6 @@ static const char* GHOST_ASSET    = "../assets/ghost.png";
 static const char* PLATFORM_ASSET = "../assets/platform.png";
 static const char* GRAVE_ASSET    = "../assets/grave.png";
 static const char* BG_SKY_ASSET   = "../assets/background_sky.png";
-
-// ------------------------- helpers -----------------------------------------
 
 static inline bool AABB(float ax,float ay,float aw,float ah,
                         float bx,float by,float bw,float bh) {
@@ -75,37 +71,34 @@ struct GhostState {
     bool onGround=true;
 };
 
-// ------------------------- Part 2 additions --------------------------------
 
 struct Camera { float x = 0.f; };
 
 struct StaticPlat {
-    float wx, wy, ww, wh;      // world rect for collision
-    Entity* sprite = nullptr;  // optional visual (used for ground tiling base)
+    float wx, wy, ww, wh;      
+    Entity* sprite = nullptr; 
 };
 
 enum class MoveKind { HorizontalSine, Circular };
 
 struct MovingPlat {
-    float wx, wy, ww, wh;   // world coords (updated per frame)
+    float wx, wy, ww, wh;   
     MoveKind kind;
-    float cx=0, cy=0, amp=0, speed=1.0f, radius=0; // motion params
+    float cx=0, cy=0, amp=0, speed=1.0f, radius=0; 
     Entity* sprite = nullptr;
 
-    // track previous world position to carry player
     float prevx=0.f, prevy=0.f;
 };
 
 struct Rect { float x,y,w,h; };
 
-// ---- Tiled visual platforms (no stretch) ----
 struct Tile {
     float baseX, baseY;
     Entity* e;
 };
 struct PlatSpan {
-    Rect hitbox;                 // single collision rect
-    std::vector<Tile> tiles;     // visual tiles (256x60)
+    Rect hitbox;                
+    std::vector<Tile> tiles;    
 };
 
 static PlatSpan makeSpan(SDL_Renderer* r, float wx, float wy, float widthPx) {
@@ -120,38 +113,32 @@ static PlatSpan makeSpan(SDL_Renderer* r, float wx, float wy, float widthPx) {
     return span;
 }
 
-// ----------------- Level extents & player size (NEW) -----------------------
-static const float LEVEL_WIDTH = 3600.f;   // fits spawns up to ~3300
+static const float LEVEL_WIDTH = 3600.f;  
 static const float PLAYER_W    = 256.f;
 static const float PLAYER_H    = 256.f;
 
-// ---- Pit position moved away from upper platforms (NEW) ----
-static const float PIT_X = 2400.f;                 // was 1800.f
-static const float PIT_W = 360.f;                  // was 150.f
+static const float PIT_X = 2400.f;                 
+static const float PIT_W = 360.f;                  
 static const float PIT_Y = (float)WINDOW_HEIGHT - 120.f;
 static const float PIT_H = 120.f;
 
-// Runtime containers (file-scope)
-static std::vector<StaticPlat> gStatic;   // ground collision (pieces)
+static std::vector<StaticPlat> gStatic;   
 static std::vector<MovingPlat> gMoving;
-static std::vector<PlatSpan>  gSpans;     // fixed tiled platforms
-static std::vector<Engine::Vec2> gSpawns; // hidden spawn points (object model)
+static std::vector<PlatSpan>  gSpans;   
+static std::vector<Engine::Vec2> gSpawns;
 static int gSpawnIndex = 0;
-static std::vector<Rect> gDeathZones;     // hidden death zones
+static std::vector<Rect> gDeathZones;    
 static Camera gCam;
 
-// Camera-relative scroll triggers (computed each frame)
-static const float kScrollStep   = 640.f;               // camera hop per trigger
-static const float kRightOffset  = 1500.f;              // px from camera-left
-static const float kLeftOffset   = 200.f;               // px from camera-left
+static const float kScrollStep   = 640.f;               
+static const float kRightOffset  = 1500.f;             
+static const float kLeftOffset   = 200.f;              
 static const float kTriggerWidth = 60.f;
 static Rect gScrollRight;
 static Rect gScrollLeft;
 
-// Engine-side runtime registry
 static Engine::Registry gRegistry;
 
-// ------------------------- main --------------------------------------------
 
 int main(int, char**) {
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
@@ -163,37 +150,30 @@ int main(int, char**) {
                                      SDL_WINDOW_RESIZABLE,
                                      &window, &renderer)) return 1;
 
-    // Engine setup
     Scaling::setMode(ScaleMode::Pixel);
     Physics::setGravity(2000.f);
     srand((unsigned)time(nullptr));
 
-    // choose network strategy from env
     NetStrategy strat = NetStrategy::FullState;
     if (const char* s = std::getenv("NET_STRATEGY")) {
         if (std::string(s) == "input") strat = NetStrategy::InputDelta;
     }
 
-    // networking bootstrap
     const std::string myId = "client_" + std::to_string(1000 + (rand()%9000));
     PeerManager peerManager(myId);
 
-    // REQ/REP handshake with host
     peerManager.connectToServer("tcp://127.0.0.1:5555");
     peerManager.sendToServer("CONNECT");
     std::string resp = peerManager.receiveFromServer();
     if (resp.find("CONNECTED") == std::string::npos && resp.find("GHOST") == std::string::npos) return 1;
     std::cout << "Connected as " << myId << "\n";
 
-    // raw ZMQ context for SUB sockets (ghost + peer bus)
     void* ctx = zmq_ctx_new();
 
-    // subscribe to server-auth ghost
     void* ghostSub = zmq_socket(ctx, ZMQ_SUB);
     zmq_connect(ghostSub, "tcp://127.0.0.1:5556");
     zmq_setsockopt(ghostSub, ZMQ_SUBSCRIBE, "", 0);
 
-    // start our PUB and connect to others' PUB
     const int myNum = numericIdFrom(myId);
     const int myPubPort = 7000 + myNum;
     {
@@ -206,7 +186,6 @@ int main(int, char**) {
         peerManager.connectToPeerNetwork(ep.str());
     }
 
-    // raw SUB to receive peers' messages (POSE/PLAYER/INPUT)
     void* rawPeerSub = zmq_socket(ctx, ZMQ_SUB);
     for (int i = 1; i <= 20; ++i) {
         if (i == myNum) continue;
@@ -215,18 +194,14 @@ int main(int, char**) {
     }
     zmq_setsockopt(rawPeerSub, ZMQ_SUBSCRIBE, "", 0);
 
-    // scene assets
     SDL_Texture* bgSky = IMG_LoadTexture(renderer, BG_SKY_ASSET);
     Entity groundE(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
     Entity graveE(renderer, GRAVE_ASSET, 700, 700, 256, 256, 1, 0);
     Entity ghostE(renderer, GHOST_ASSET, 1500, 600, 256, 256, 1, 0);
     Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT - 322.f, 256, 256, 1, 0);
 
-    // ===== World setup ======================================================
-    // (initial ground collider will be replaced after death zones are defined)
     gStatic.push_back({ -100000.f, 950.f, 200000.f, 130.f, &groundE });
 
-    // Fixed tiled platforms (higher & centered)
     const float midW = 512.f;
     const float midX = (WINDOW_WIDTH - midW) * 0.5f;
     const float midY = 520.f;
@@ -237,22 +212,19 @@ int main(int, char**) {
     const float rightY = 460.f;
     gSpans.push_back(makeSpan(renderer, rightX, rightY, rightW));
 
-    // Moving platforms
-    gMoving.push_back(MovingPlat{
-        /*wx*/1500.f, /*wy*/(float)WINDOW_HEIGHT-420.f, /*ww*/260.f, /*wh*/60.f,
-        MoveKind::HorizontalSine, /*cx*/1500.f, /*cy*/(float)WINDOW_HEIGHT-420.f,
-        /*amp*/180.f, /*speed*/1.5f, /*radius*/0.f,
+    gMoving.push_back(MovingPlat{60.f,
+        MoveKind::HorizontalSine, 1500.f,(float)WINDOW_HEIGHT-420.f,
+        180.f, 1.5f, 0.f,
         new Entity(renderer, PLATFORM_ASSET, 1500, WINDOW_HEIGHT-420, 260, 60, 1, 0)
     });
     gMoving.push_back(MovingPlat{
-        /*wx*/3000.f, /*wy*/(float)WINDOW_HEIGHT-380.f, /*ww*/260.f, /*wh*/60.f,
-        MoveKind::Circular, /*cx*/3000.f, /*cy*/(float)WINDOW_HEIGHT-450.f,
-        /*amp*/0.f, /*speed*/1.3f, /*radius*/120.f,
+        3000.f, (float)WINDOW_HEIGHT-380.f, 260.f, 60.f,
+        MoveKind::Circular, 3000.f, (float)WINDOW_HEIGHT-450.f,
+        0.f, 1.3f, 120.f,
         new Entity(renderer, PLATFORM_ASSET, 3000, WINDOW_HEIGHT-380, 260, 60, 1, 0)
     });
     for (auto& m : gMoving) { m.prevx = m.wx; m.prevy = m.wy; }
 
-    // Hidden spawn points (object-model, not rendered)
     gSpawns = {
         {  300.f, (float)WINDOW_HEIGHT-350.f },
         { 1400.f, (float)WINDOW_HEIGHT-350.f },
@@ -266,41 +238,33 @@ int main(int, char**) {
     }
     gSpawnIndex = 0;
 
-    // Hidden death zones (fixed world zones + global bottom)  --- UPDATED PIT
     gDeathZones = {
-        { PIT_X, PIT_Y, PIT_W, PIT_H },                                  // pit moved to 2400
-        { -10000.f, (float)WINDOW_HEIGHT+5.f, 30000.f, 5000.f }          // global bottom
+        { PIT_X, PIT_Y, PIT_W, PIT_H },                                
+        { -10000.f, (float)WINDOW_HEIGHT+5.f, 30000.f, 5000.f }        
     };
 
-    // --- REPLACE the old ground collider with two pieces around the pit (NEW)
     gStatic.clear();
-    const float GY = 950.f;     // ground Y
-    const float GH = 130.f;     // ground H
+    const float GY = 950.f;    
+    const float GH = 130.f;    
     const float pitStart = gDeathZones[0].x;
     const float pitEnd   = gDeathZones[0].x + gDeathZones[0].w;
 
-    // Left ground piece (up to pit)
     gStatic.push_back({ -100000.f, GY, pitStart - (-100000.f), GH, &groundE });
-    // Right ground piece (after pit)
     gStatic.push_back({ pitEnd,    GY, 200000.f - pitEnd,      GH, nullptr });
 
-    // map of on-screen entities for each player id
     std::unordered_map<std::string, Entity*> players;
     players[myId] = &playerE;
     std::unordered_map<std::string, Engine::Vec2> playerWorld;
 
-    // last-heard timestamps for disconnect culling
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastHeard;
     lastHeard[myId] = std::chrono::steady_clock::now();
 
-    // gameplay state
     LocalPlayer me;
     me.x = gSpawns[gSpawnIndex].x;
     me.y = gSpawns[gSpawnIndex].y;
 
     Timeline myTime; myTime.anchorToRealTime(); myTime.setScale(1.0);
 
-    // seed engine-side object for this player
     {
         auto& meGO = gRegistry.upsert(myId);
         meGO.set<Engine::Vec2>("pos", {me.x, me.y});
@@ -316,11 +280,10 @@ int main(int, char**) {
     bool paused = false, prevT = false, prevJump = false;
     bool running = true;
 
-    // Debug overlay toggle
     bool showDebug = false;
     static bool prevF1 = false;
 
-    float ghostX = 1500.f, ghostY = 600.f; // world coords
+    float ghostX = 1500.f, ghostY = 600.f; 
     SDL_Event ev;
 
     auto sendPose = [&](float px, float py) {
@@ -335,18 +298,15 @@ int main(int, char**) {
 
     float scrollCooldown = 0.f;
 
-    // flappy-style params
     const float JumpImpulse = 1100.f;
     const float MaxUpSpeed  = -1500.f;
 
-    // Camera clamp helper (NEW)
-    auto clampCam = [&](){
+\    auto clampCam = [&](){
         float maxCam = std::max(0.f, LEVEL_WIDTH - (float)WINDOW_WIDTH);
         if (gCam.x < 0.f) gCam.x = 0.f;
         if (gCam.x > maxCam) gCam.x = maxCam;
     };
 
-    // --- NEW: Initialize camera snapped to the starting spawn frame
     {
         float desiredCam = me.x - (WINDOW_WIDTH * 0.5f);
         if (desiredCam < 0.f) desiredCam = 0.f;
@@ -354,14 +314,12 @@ int main(int, char**) {
         clampCam();
     }
 
-    // ----------------------- main loop -------------------------------------
     while (running) {
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_EVENT_QUIT) running = false;
         }
         Input::poll();
 
-        // Toggle debug overlay with F1
         {
             bool f1Now = Input::isKeyPressed(SDL_SCANCODE_F1);
             if (f1Now && !prevF1) showDebug = !showDebug;
@@ -382,7 +340,6 @@ int main(int, char**) {
 
         float dt = (float)myTime.tick();
 
-        // Flappy-style movement
         float desiredVx = 0.f;
         if (Input::isKeyPressed(SDL_SCANCODE_A)) desiredVx = -300.f;
         else if (Input::isKeyPressed(SDL_SCANCODE_D)) desiredVx =  300.f;
@@ -402,7 +359,6 @@ int main(int, char**) {
 
         if (me.y < 0) { me.y = 0; me.vy = 0; }
 
-        // Move moving platforms, track deltas
         for (auto& m : gMoving) { m.prevx = m.wx; m.prevy = m.wy; }
         static float tAccum = 0.f;
         tAccum += dt;
@@ -417,7 +373,6 @@ int main(int, char**) {
             }
         }
 
-        // Collisions
         me.onGround = false;
 
         auto collideRect = [&](float rx,float ry,float rw,float rh, MovingPlat* moving){
@@ -435,7 +390,7 @@ int main(int, char**) {
                 me.y = platTop - ph;
                 me.vy = 0.f;
                 me.onGround = true;
-                if (moving) { // carry with moving platform
+                if (moving) { 
                     me.x += (moving->wx - moving->prevx);
                     me.y += (moving->wy - moving->prevy);
                 }
@@ -463,33 +418,27 @@ int main(int, char**) {
             }
         };
 
-        // ground collision (two pieces; true gap over pit)
         for (auto& s : gStatic) collideRect(s.wx, s.wy, s.ww, s.wh, nullptr);
-        // fixed spans
         for (auto& span : gSpans) collideRect(span.hitbox.x, span.hitbox.y, span.hitbox.w, span.hitbox.h, nullptr);
-        // movers
         for (auto& m : gMoving) collideRect(m.wx, m.wy, m.ww, m.wh, &m);
 
-        // gentle friction when grounded
         if (me.onGround) {
             const float F = 1500.f;
             if      (me.vx > 0.f) me.vx = std::max(0.f, me.vx - F*dt);
             else if (me.vx < 0.f) me.vx = std::min(0.f, me.vx + F*dt);
         }
 
-        // Clamp player inside finite level (NEW)
         if (me.x < 0.f) me.x = 0.f;
         if (me.x > LEVEL_WIDTH - PLAYER_W) me.x = LEVEL_WIDTH - PLAYER_W;
 
         auto snapCameraToPlayer = [&](){
-            float desiredCam = me.x - (WINDOW_WIDTH * 0.5f); // center player
+            float desiredCam = me.x - (WINDOW_WIDTH * 0.5f);
             if (desiredCam < 0.f) desiredCam = 0.f;
             gCam.x = snapToStep(desiredCam, kScrollStep);
             clampCam();
-            scrollCooldown = 0.2f; // prevent immediate retrigger
+            scrollCooldown = 0.2f; 
         };
 
-        // Grave/Ghost reset to spawn 0 (with camera snap)
         if (AABB(me.x,me.y,PLAYER_W,PLAYER_H,700,700,256,256) ||
             AABB(me.x,me.y,PLAYER_W,PLAYER_H,ghostX,ghostY,256,256)) {
             gSpawnIndex = 0;
@@ -499,7 +448,6 @@ int main(int, char**) {
             snapCameraToPlayer(); // NEW
         }
 
-        // Death zones -> next spawn (fixed zones) + camera snap
         bool teleported = false;
         for (auto& dz : gDeathZones) {
             if (AABB(me.x, me.y, PLAYER_W,PLAYER_H, dz.x, dz.y, dz.w, dz.h)) {
@@ -508,11 +456,10 @@ int main(int, char**) {
                 me.y = gSpawns[gSpawnIndex].y;
                 me.vx = me.vy = 0;
                 teleported = true;
-                snapCameraToPlayer(); // NEW
+                snapCameraToPlayer(); 
                 break;
             }
         }
-        // Optional: camera-following pit near right side of view (keep within level)
         if (!teleported) {
             Rect dynamicPit = { gCam.x + 1400.f, (float)WINDOW_HEIGHT - 120.f, 200.f, 120.f };
             if (!(dynamicPit.x + dynamicPit.w <= 0.f || dynamicPit.x >= LEVEL_WIDTH)) {
@@ -521,29 +468,24 @@ int main(int, char**) {
                     me.x = gSpawns[gSpawnIndex].x;
                     me.y = gSpawns[gSpawnIndex].y;
                     me.vx = me.vy = 0;
-                    snapCameraToPlayer(); // NEW
+                    snapCameraToPlayer(); 
                 }
             }
         }
 
-        // ===== Side-scrolling boundaries (camera-relative, both directions) =
         if (scrollCooldown > 0.f) scrollCooldown -= dt;
 
-        // Recompute trigger rects from camera each frame (world-space)
         gScrollRight = { gCam.x + kRightOffset, 0.f, kTriggerWidth, (float)WINDOW_HEIGHT };
         gScrollLeft  = { gCam.x + kLeftOffset  - kTriggerWidth, 0.f, kTriggerWidth, (float)WINDOW_HEIGHT };
 
-        // Player’s world rect
         Rect pr = { me.x, me.y, PLAYER_W, PLAYER_H };
 
-        // Right scroll
         if (scrollCooldown <= 0.f && AABB(pr.x, pr.y, pr.w, pr.h,
                                           gScrollRight.x, gScrollRight.y, gScrollRight.w, gScrollRight.h)) {
             gCam.x += kScrollStep;
             clampCam();
             scrollCooldown = 0.15f;
         }
-        // Left scroll
         if (scrollCooldown <= 0.f && AABB(pr.x, pr.y, pr.w, pr.h,
                                           gScrollLeft.x, gScrollLeft.y, gScrollLeft.w, gScrollLeft.h)) {
             gCam.x -= kScrollStep;
@@ -551,14 +493,12 @@ int main(int, char**) {
             scrollCooldown = 0.15f;
         }
 
-        // keep engine object in sync
         {
             auto& go = gRegistry.upsert(myId);
             go.set<Engine::Vec2>("pos", {me.x, me.y});
             go.set<Engine::Vec2>("vel", {me.vx, me.vy});
         }
 
-        // network update (world coords)
         if (strat == NetStrategy::FullState) {
             peerManager.updateMyPlayerData(me.x, me.y, paused, (float)myTime.scale());
         } else {
@@ -568,7 +508,6 @@ int main(int, char**) {
             peerManager.sendInputDelta(L, R, J, 0.f, 0.f, SDL_GetTicks());
         }
 
-        // consume ghost
         {
             char gbuf[128];
             int n = zmq_recv(ghostSub, gbuf, sizeof(gbuf)-1, ZMQ_DONTWAIT);
@@ -580,7 +519,6 @@ int main(int, char**) {
             }
         }
 
-        // consume peer updates
         {
             for (int i = 0; i < 32; ++i) {
                 char mbuf[512];
@@ -615,7 +553,6 @@ int main(int, char**) {
                         st.vy += Physics::gravity() * rdt;
                         st.x  += st.vx * rdt;
                         st.y  += st.vy * rdt;
-                        // collide with huge ground pieces
                         for (auto& s : gStatic) {
                             if (AABB(st.x,st.y,PLAYER_W,PLAYER_H, s.wx,s.wy,s.ww,s.wh)) {
                                 st.vy=0; st.y=s.wy-PLAYER_H; st.onGround=true;
@@ -637,7 +574,6 @@ int main(int, char**) {
             }
         }
 
-        // disconnect culling
         {
             auto now = std::chrono::steady_clock::now();
             static auto lastCullTick = now;
@@ -663,37 +599,31 @@ int main(int, char**) {
             }
         }
 
-        // --- render ---------------------------------------------------------
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         if (bgSky) SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
 
-        // Ground (finite, with pit visual hole)
         {
             const int   groundTileW = 1920;
             const float groundY     = GY;
 
-            // Only draw tiles that overlap the visible screen and the level bounds
             float screenL = gCam.x;
             float firstTileX = std::floor(screenL / groundTileW) * groundTileW;
 
-            // Pit visual range (world)
             const float pitStartWorld = gDeathZones[0].x;
             const float pitEndWorld   = gDeathZones[0].x + gDeathZones[0].w;
 
             for (int i = -1; i <= 2; ++i) {
-                float gx = firstTileX + i * groundTileW;     // world tile x
+                float gx = firstTileX + i * groundTileW;    
                 float gxEnd = gx + groundTileW;
 
-                // Skip tiles completely outside level bounds
                 if (gxEnd <= 0.f || gx >= LEVEL_WIDTH) continue;
 
-                float dx = gx - gCam.x;                      // screen x
+                float dx = gx - gCam.x;                     
                 groundE.setPosition(dx, groundY);
                 groundE.update();
                 groundE.render(renderer, window);
 
-                // Punch the pit hole visually
                 if (bgSky) {
                     float holeX0 = std::max(dx,               pitStartWorld - gCam.x);
                     float holeX1 = std::min(dx + groundTileW, pitEndWorld   - gCam.x);
@@ -705,7 +635,6 @@ int main(int, char**) {
             }
         }
 
-        // Fixed tiled platforms
         for (auto& span : gSpans) {
             for (auto& t : span.tiles) {
                 t.e->setPosition(t.baseX - gCam.x, t.baseY);
@@ -713,23 +642,19 @@ int main(int, char**) {
             }
         }
 
-        // Moving platforms
         for (auto& m : gMoving) {
             m.sprite->setPosition(m.wx - gCam.x, m.wy);
             m.sprite->update(); m.sprite->render(renderer, window);
         }
 
-        // Grave & ghost
         graveE.setPosition(700.f - gCam.x, 700.f);
         ghostE.setPosition(ghostX - gCam.x, ghostY);
         graveE.update(); graveE.render(renderer, window);
         ghostE.update(); ghostE.render(renderer, window);
 
-        // Local player
         playerE.setPosition(me.x - gCam.x, me.y);
         playerE.update(); playerE.render(renderer, window);
 
-        // Remote players
         for (auto& kv : players) {
             const std::string& pid = kv.first;
             if (pid == myId) continue;
@@ -741,43 +666,36 @@ int main(int, char**) {
             kv.second->render(renderer, window);
         }
 
-        // ---------------- Debug overlay -------------------------------------
         if (showDebug) {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-            // Spawns: green semi-transparent 50x50 squares
             SDL_SetRenderDrawColor(renderer, 0, 255, 0, 100);
             for (const auto& sp : gSpawns) {
                 SDL_FRect r = { sp.x - gCam.x, sp.y, 50.f, 50.f };
                 SDL_RenderFillRect(renderer, &r);
             }
 
-            // Fixed death zones: red semi-transparent (pit now at PIT_X..PIT_X+PIT_W)
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 100);
             for (const auto& dz : gDeathZones) {
                 SDL_FRect r = { dz.x - gCam.x, dz.y, dz.w, dz.h };
                 SDL_RenderFillRect(renderer, &r);
             }
 
-            // Dynamic camera-following pit: blue semi-transparent
             SDL_SetRenderDrawColor(renderer, 0, 0, 255, 100);
             SDL_FRect dyn = { (gCam.x + 1400.f) - gCam.x, (float)WINDOW_HEIGHT - 120.f, 200.f, 120.f };
             SDL_RenderFillRect(renderer, &dyn);
 
-            // Outline current spawn
             if (!gSpawns.empty()) {
                 SDL_SetRenderDrawColor(renderer, 0, 200, 0, 255);
                 SDL_FRect r = { gSpawns[gSpawnIndex].x - gCam.x, gSpawns[gSpawnIndex].y, 50.f, 50.f };
                 SDL_RenderRect(renderer, &r);
             }
         }
-        // --------------------------------------------------------------------
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
     }
 
-    // cleanup
     for (auto& span : gSpans) for (auto& t : span.tiles) delete t.e;
     for (auto& m : gMoving) if (m.sprite) delete m.sprite;
     if (bgSky) SDL_DestroyTexture(bgSky);

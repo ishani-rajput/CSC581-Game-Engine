@@ -1,9 +1,3 @@
-// server.cpp
-// Headless ghost authority server with NetworkServer + ghost PUB
-// - REP on 5555: "CONNECT" -> "CONNECTED client_####"; anything else -> "GHOST gx gy"
-// - PUB on 5556: broadcasts "GHOST gx gy" at ~30Hz
-// - Engine object model is used on this endpoint via Registry (players as GameObjects)
-
 #include <SDL3/SDL.h>
 #include <cstdlib>
 #include <ctime>
@@ -21,7 +15,6 @@
 #include "timeline.h"
 #include "network_server.h"
 
-// Engine model on server endpoint (Part 1A requirement)
 #include "object_model.h"
 #include "registry.h"
 
@@ -40,12 +33,11 @@ struct Ghost {
 class GhostServer : public Engine::NetworkServer {
 public:
     GhostServer() {
-        // Initialize SDL so SDL_GetTicks works (SDL3: pass a valid flag like VIDEO)
         if (!SDL_WasInit(0)) SDL_Init(SDL_INIT_VIDEO);
         srand(static_cast<unsigned>(time(nullptr)));
         Physics::setGravity(2000.f);
         ghostTime.anchorToRealTime();
-        setWorldUpdateRate(60); // server worker cadence (for per-client IO)
+        setWorldUpdateRate(60); 
     }
 
     ~GhostServer() override {
@@ -55,20 +47,16 @@ public:
         SDL_Quit();
     }
 
-    // Start REP server and PUB broadcaster
     void startAll(int repPort = 5555, int pubPort = 5556) {
-        startServer(repPort);   // from Engine::NetworkServer
-        startPub(pubPort);      // ZMQ PUB for ghost broadcast
-        startBroadcaster();     // ~30 Hz broadcast loop
+        startServer(repPort);   
+        startPub(pubPort);     
+        startBroadcaster();  
         std::cout << "Server started. CONNECT on " << repPort << ", GHOST PUB on " << pubPort << "\n";
     }
 
 protected:
-    // ===== Engine::NetworkServer hooks ====================================
 
-    // Called by a worker thread when a client message arrives on REP
     void handleClientMessage(const std::string& clientKey, const std::string& msg) override {
-        // Protocol: "CONNECT" -> assign an ID; else reply with current ghost pose
         if (msg.rfind("CONNECT", 0) == 0) {
             const std::string newId = allocateClientId();
             {
@@ -85,7 +73,6 @@ protected:
             return;
         }
 
-        // Fallback: reply with current ghost state
         std::ostringstream oss;
         {
             std::lock_guard<std::mutex> lk(ghostMutex);
@@ -94,7 +81,6 @@ protected:
         sendToClient(clientKey, oss.str());
     }
 
-    // Not used (we reply directly in handleClientMessage), but required by base.
     std::string generateWorldState() override {
         std::ostringstream oss;
         std::lock_guard<std::mutex> lk(ghostMutex);
@@ -103,11 +89,10 @@ protected:
     }
 
 private:
-    // ===== Engine-side object model (Part 1A on server) ===================
     Engine::Registry registry;
     std::mutex regMutex;
-    std::unordered_set<std::string> activeClients;          // connected logical ids
-    std::unordered_map<std::string,std::string> keyToId;    // REP routing key -> logical id
+    std::unordered_set<std::string> activeClients;         
+    std::unordered_map<std::string,std::string> keyToId;    
 
     static float spawnX() { return 100.f + (rand() % (WINDOW_WIDTH - 356)); }
     static float spawnY() { return WINDOW_HEIGHT - 322.f; }
@@ -117,16 +102,13 @@ private:
         return "client_" + std::to_string(nid);
     }
 
-    // ===== Ghost simulation ===============================================
     Ghost ghost;
     Timeline ghostTime;
     std::mutex ghostMutex;
 
-    // ===== PUB socket for ghost broadcast =================================
     void* ctx = nullptr;
     void* pub = nullptr;
 
-    // ===== Broadcaster thread (~30 Hz) ====================================
     std::atomic<bool> running{false};
     std::thread broadcaster;
 
