@@ -49,6 +49,10 @@ static inline bool AABB(float ax,float ay,float aw,float ah,
            (ay < by + bh) && (ay + ah > by);
 }
 
+static inline float snapToStep(float x, float step) {
+    return std::floor(x / step) * step;
+}
+
 static int numericIdFrom(const std::string& s) {
     int n = 0; bool any = false;
     for (char c : s) if (std::isdigit((unsigned char)c)) { any = true; n = n*10 + (c - '0'); }
@@ -116,8 +120,19 @@ static PlatSpan makeSpan(SDL_Renderer* r, float wx, float wy, float widthPx) {
     return span;
 }
 
+// ----------------- Level extents & player size (NEW) -----------------------
+static const float LEVEL_WIDTH = 3600.f;   // fits spawns up to ~3300
+static const float PLAYER_W    = 256.f;
+static const float PLAYER_H    = 256.f;
+
+// ---- Pit position moved away from upper platforms (NEW) ----
+static const float PIT_X = 2400.f;                 // was 1800.f
+static const float PIT_W = 360.f;                  // was 150.f
+static const float PIT_Y = (float)WINDOW_HEIGHT - 120.f;
+static const float PIT_H = 120.f;
+
 // Runtime containers (file-scope)
-static std::vector<StaticPlat> gStatic;   // ground collision (very wide)
+static std::vector<StaticPlat> gStatic;   // ground collision (pieces)
 static std::vector<MovingPlat> gMoving;
 static std::vector<PlatSpan>  gSpans;     // fixed tiled platforms
 static std::vector<Engine::Vec2> gSpawns; // hidden spawn points (object model)
@@ -208,7 +223,7 @@ int main(int, char**) {
     Entity playerE(renderer, PLAYER_ASSET, 100, WINDOW_HEIGHT - 322.f, 256, 256, 1, 0);
 
     // ===== World setup ======================================================
-    // Ground collision: make it VERY wide so you never “leave” the ground in world space
+    // (initial ground collider will be replaced after death zones are defined)
     gStatic.push_back({ -100000.f, 950.f, 200000.f, 130.f, &groundE });
 
     // Fixed tiled platforms (higher & centered)
@@ -251,11 +266,23 @@ int main(int, char**) {
     }
     gSpawnIndex = 0;
 
-    // Hidden death zones (fixed world zones + global bottom)
+    // Hidden death zones (fixed world zones + global bottom)  --- UPDATED PIT
     gDeathZones = {
-        { 1800.f, (float)WINDOW_HEIGHT-120.f, 150.f, 120.f },  // pit (fixed place)
-        { -10000.f, (float)WINDOW_HEIGHT+5.f, 30000.f, 5000.f } // global bottom
+        { PIT_X, PIT_Y, PIT_W, PIT_H },                                  // pit moved to 2400
+        { -10000.f, (float)WINDOW_HEIGHT+5.f, 30000.f, 5000.f }          // global bottom
     };
+
+    // --- REPLACE the old ground collider with two pieces around the pit (NEW)
+    gStatic.clear();
+    const float GY = 950.f;     // ground Y
+    const float GH = 130.f;     // ground H
+    const float pitStart = gDeathZones[0].x;
+    const float pitEnd   = gDeathZones[0].x + gDeathZones[0].w;
+
+    // Left ground piece (up to pit)
+    gStatic.push_back({ -100000.f, GY, pitStart - (-100000.f), GH, &groundE });
+    // Right ground piece (after pit)
+    gStatic.push_back({ pitEnd,    GY, 200000.f - pitEnd,      GH, nullptr });
 
     // map of on-screen entities for each player id
     std::unordered_map<std::string, Entity*> players;
@@ -287,8 +314,13 @@ int main(int, char**) {
     }
 
     bool paused = false, prevT = false, prevJump = false;
-    float ghostX = 1500.f, ghostY = 600.f; // world coords
     bool running = true;
+
+    // Debug overlay toggle
+    bool showDebug = false;
+    static bool prevF1 = false;
+
+    float ghostX = 1500.f, ghostY = 600.f; // world coords
     SDL_Event ev;
 
     auto sendPose = [&](float px, float py) {
@@ -307,12 +339,34 @@ int main(int, char**) {
     const float JumpImpulse = 1100.f;
     const float MaxUpSpeed  = -1500.f;
 
+    // Camera clamp helper (NEW)
+    auto clampCam = [&](){
+        float maxCam = std::max(0.f, LEVEL_WIDTH - (float)WINDOW_WIDTH);
+        if (gCam.x < 0.f) gCam.x = 0.f;
+        if (gCam.x > maxCam) gCam.x = maxCam;
+    };
+
+    // --- NEW: Initialize camera snapped to the starting spawn frame
+    {
+        float desiredCam = me.x - (WINDOW_WIDTH * 0.5f);
+        if (desiredCam < 0.f) desiredCam = 0.f;
+        gCam.x = snapToStep(desiredCam, kScrollStep);
+        clampCam();
+    }
+
     // ----------------------- main loop -------------------------------------
     while (running) {
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_EVENT_QUIT) running = false;
         }
         Input::poll();
+
+        // Toggle debug overlay with F1
+        {
+            bool f1Now = Input::isKeyPressed(SDL_SCANCODE_F1);
+            if (f1Now && !prevF1) showDebug = !showDebug;
+            prevF1 = f1Now;
+        }
 
         bool tNow = Input::isKeyPressed(SDL_SCANCODE_T);
         if (tNow && !prevT) {
@@ -367,7 +421,7 @@ int main(int, char**) {
         me.onGround = false;
 
         auto collideRect = [&](float rx,float ry,float rw,float rh, MovingPlat* moving){
-            float pw = 256.f, ph = 256.f;
+            float pw = PLAYER_W, ph = PLAYER_H;
             if (!AABB(me.x, me.y, pw, ph, rx, ry, rw, rh)) return;
 
             float prevY = me.y - me.vy * dt;
@@ -409,7 +463,7 @@ int main(int, char**) {
             }
         };
 
-        // ground collision (very wide)
+        // ground collision (two pieces; true gap over pit)
         for (auto& s : gStatic) collideRect(s.wx, s.wy, s.ww, s.wh, nullptr);
         // fixed spans
         for (auto& span : gSpans) collideRect(span.hitbox.x, span.hitbox.y, span.hitbox.w, span.hitbox.h, nullptr);
@@ -423,35 +477,52 @@ int main(int, char**) {
             else if (me.vx < 0.f) me.vx = std::min(0.f, me.vx + F*dt);
         }
 
-        // Grave/Ghost reset
-        if (AABB(me.x,me.y,256,256,700,700,256,256) ||
-            AABB(me.x,me.y,256,256,ghostX,ghostY,256,256)) {
+        // Clamp player inside finite level (NEW)
+        if (me.x < 0.f) me.x = 0.f;
+        if (me.x > LEVEL_WIDTH - PLAYER_W) me.x = LEVEL_WIDTH - PLAYER_W;
+
+        auto snapCameraToPlayer = [&](){
+            float desiredCam = me.x - (WINDOW_WIDTH * 0.5f); // center player
+            if (desiredCam < 0.f) desiredCam = 0.f;
+            gCam.x = snapToStep(desiredCam, kScrollStep);
+            clampCam();
+            scrollCooldown = 0.2f; // prevent immediate retrigger
+        };
+
+        // Grave/Ghost reset to spawn 0 (with camera snap)
+        if (AABB(me.x,me.y,PLAYER_W,PLAYER_H,700,700,256,256) ||
+            AABB(me.x,me.y,PLAYER_W,PLAYER_H,ghostX,ghostY,256,256)) {
             gSpawnIndex = 0;
             me.x = gSpawns[gSpawnIndex].x;
             me.y = gSpawns[gSpawnIndex].y;
             me.vx = me.vy = 0;
+            snapCameraToPlayer(); // NEW
         }
 
-        // Death zones -> next spawn (fixed zones)
+        // Death zones -> next spawn (fixed zones) + camera snap
         bool teleported = false;
         for (auto& dz : gDeathZones) {
-            if (AABB(me.x, me.y, 256,256, dz.x, dz.y, dz.w, dz.h)) {
+            if (AABB(me.x, me.y, PLAYER_W,PLAYER_H, dz.x, dz.y, dz.w, dz.h)) {
                 gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
                 me.x = gSpawns[gSpawnIndex].x;
                 me.y = gSpawns[gSpawnIndex].y;
                 me.vx = me.vy = 0;
                 teleported = true;
+                snapCameraToPlayer(); // NEW
                 break;
             }
         }
-        // Optional: camera-following pit near right side of view
+        // Optional: camera-following pit near right side of view (keep within level)
         if (!teleported) {
             Rect dynamicPit = { gCam.x + 1400.f, (float)WINDOW_HEIGHT - 120.f, 200.f, 120.f };
-            if (AABB(me.x, me.y, 256,256, dynamicPit.x, dynamicPit.y, dynamicPit.w, dynamicPit.h)) {
-                gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
-                me.x = gSpawns[gSpawnIndex].x;
-                me.y = gSpawns[gSpawnIndex].y;
-                me.vx = me.vy = 0;
+            if (!(dynamicPit.x + dynamicPit.w <= 0.f || dynamicPit.x >= LEVEL_WIDTH)) {
+                if (AABB(me.x, me.y, PLAYER_W,PLAYER_H, dynamicPit.x, dynamicPit.y, dynamicPit.w, dynamicPit.h)) {
+                    gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
+                    me.x = gSpawns[gSpawnIndex].x;
+                    me.y = gSpawns[gSpawnIndex].y;
+                    me.vx = me.vy = 0;
+                    snapCameraToPlayer(); // NEW
+                }
             }
         }
 
@@ -463,18 +534,20 @@ int main(int, char**) {
         gScrollLeft  = { gCam.x + kLeftOffset  - kTriggerWidth, 0.f, kTriggerWidth, (float)WINDOW_HEIGHT };
 
         // Player’s world rect
-        Rect pr = { me.x, me.y, 256.f, 256.f };
+        Rect pr = { me.x, me.y, PLAYER_W, PLAYER_H };
 
         // Right scroll
         if (scrollCooldown <= 0.f && AABB(pr.x, pr.y, pr.w, pr.h,
                                           gScrollRight.x, gScrollRight.y, gScrollRight.w, gScrollRight.h)) {
             gCam.x += kScrollStep;
+            clampCam();
             scrollCooldown = 0.15f;
         }
         // Left scroll
         if (scrollCooldown <= 0.f && AABB(pr.x, pr.y, pr.w, pr.h,
                                           gScrollLeft.x, gScrollLeft.y, gScrollLeft.w, gScrollLeft.h)) {
             gCam.x -= kScrollStep;
+            clampCam();
             scrollCooldown = 0.15f;
         }
 
@@ -542,10 +615,14 @@ int main(int, char**) {
                         st.vy += Physics::gravity() * rdt;
                         st.x  += st.vx * rdt;
                         st.y  += st.vy * rdt;
-                        // collide with huge ground
-                        if (AABB(st.x,st.y,256,256, -100000.f,950.f,200000.f,130.f)) { st.vy=0; st.y=950-256; st.onGround=true; }
+                        // collide with huge ground pieces
+                        for (auto& s : gStatic) {
+                            if (AABB(st.x,st.y,PLAYER_W,PLAYER_H, s.wx,s.wy,s.ww,s.wh)) {
+                                st.vy=0; st.y=s.wy-PLAYER_H; st.onGround=true;
+                            }
+                        }
                         if (st.x < 0) st.x = 0;
-                        if (st.x > WINDOW_WIDTH-256) st.x = WINDOW_WIDTH-256;
+                        if (st.x > LEVEL_WIDTH-PLAYER_W) st.x = LEVEL_WIDTH-PLAYER_W;
 
                         playerWorld[pid] = {st.x, st.y};
                         auto& go = gRegistry.upsert(pid);
@@ -591,15 +668,40 @@ int main(int, char**) {
         SDL_RenderClear(renderer);
         if (bgSky) SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
 
-        // Ground (infinite tiling under the camera)
+        // Ground (finite, with pit visual hole)
         {
-            const int groundTileW = 1920; // your ground asset width
-            float camBase = std::floor(gCam.x / groundTileW) * groundTileW;
+            const int   groundTileW = 1920;
+            const float groundY     = GY;
+
+            // Only draw tiles that overlap the visible screen and the level bounds
+            float screenL = gCam.x;
+            float firstTileX = std::floor(screenL / groundTileW) * groundTileW;
+
+            // Pit visual range (world)
+            const float pitStartWorld = gDeathZones[0].x;
+            const float pitEndWorld   = gDeathZones[0].x + gDeathZones[0].w;
+
             for (int i = -1; i <= 2; ++i) {
-                float gx = camBase + i * groundTileW;
-                groundE.setPosition(gx - gCam.x, 950.f);
+                float gx = firstTileX + i * groundTileW;     // world tile x
+                float gxEnd = gx + groundTileW;
+
+                // Skip tiles completely outside level bounds
+                if (gxEnd <= 0.f || gx >= LEVEL_WIDTH) continue;
+
+                float dx = gx - gCam.x;                      // screen x
+                groundE.setPosition(dx, groundY);
                 groundE.update();
                 groundE.render(renderer, window);
+
+                // Punch the pit hole visually
+                if (bgSky) {
+                    float holeX0 = std::max(dx,               pitStartWorld - gCam.x);
+                    float holeX1 = std::min(dx + groundTileW, pitEndWorld   - gCam.x);
+                    if (holeX1 > holeX0) {
+                        SDL_FRect dst = { holeX0, groundY, holeX1 - holeX0, GH };
+                        SDL_RenderTexture(renderer, bgSky, nullptr, &dst);
+                    }
+                }
             }
         }
 
@@ -639,6 +741,38 @@ int main(int, char**) {
             kv.second->render(renderer, window);
         }
 
+        // ---------------- Debug overlay -------------------------------------
+        if (showDebug) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+            // Spawns: green semi-transparent 50x50 squares
+            SDL_SetRenderDrawColor(renderer, 0, 255, 0, 100);
+            for (const auto& sp : gSpawns) {
+                SDL_FRect r = { sp.x - gCam.x, sp.y, 50.f, 50.f };
+                SDL_RenderFillRect(renderer, &r);
+            }
+
+            // Fixed death zones: red semi-transparent (pit now at PIT_X..PIT_X+PIT_W)
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 100);
+            for (const auto& dz : gDeathZones) {
+                SDL_FRect r = { dz.x - gCam.x, dz.y, dz.w, dz.h };
+                SDL_RenderFillRect(renderer, &r);
+            }
+
+            // Dynamic camera-following pit: blue semi-transparent
+            SDL_SetRenderDrawColor(renderer, 0, 0, 255, 100);
+            SDL_FRect dyn = { (gCam.x + 1400.f) - gCam.x, (float)WINDOW_HEIGHT - 120.f, 200.f, 120.f };
+            SDL_RenderFillRect(renderer, &dyn);
+
+            // Outline current spawn
+            if (!gSpawns.empty()) {
+                SDL_SetRenderDrawColor(renderer, 0, 200, 0, 255);
+                SDL_FRect r = { gSpawns[gSpawnIndex].x - gCam.x, gSpawns[gSpawnIndex].y, 50.f, 50.f };
+                SDL_RenderRect(renderer, &r);
+            }
+        }
+        // --------------------------------------------------------------------
+
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
     }
@@ -657,3 +791,4 @@ int main(int, char**) {
     SDL_Quit();
     return 0;
 }
+
