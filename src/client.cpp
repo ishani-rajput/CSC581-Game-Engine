@@ -105,8 +105,13 @@ int main(int argc, char** argv){
     if(!skullTex){ SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_Quit(); return 1; }
     const char* brickPaths[] = {"../assets/platform.png","assets/platform.png"};
     SDL_Texture* brickTex = tryLoadTexture(renderer, brickPaths, 2);
+    
+    const char* skullyPlatformPaths[] = {"../assets/skullyPlatform.png", "assets/skullyPlatform.png"};
+    SDL_Texture* skullyPlatformTex = tryLoadTexture(renderer, skullyPlatformPaths, 2);
+    
     SDL_SetTextureScaleMode(skullTex, SDL_SCALEMODE_NEAREST);
     if(brickTex) SDL_SetTextureScaleMode(brickTex, SDL_SCALEMODE_NEAREST);
+    if(skullyPlatformTex) SDL_SetTextureScaleMode(skullyPlatformTex, SDL_SCALEMODE_NEAREST);
 
     float texW=0, texH=0; SDL_GetTextureSize(skullTex,&texW,&texH);
     const int FRAME_COUNT=6; const float FRAME_W=texW/FRAME_COUNT, FRAME_H=texH;
@@ -116,7 +121,20 @@ int main(int argc, char** argv){
     SDL_FRect skully={480.f,540.f,characterSize,characterSize};
     Body skBody; skBody.affectedByGravity=true; Physics::setGravity(2400.f);
     const float JUMP_VELOCITY=-900.f;
+    const float MOVE_SPEED = 400.f;
     SDL_FRect ground={0.f,1080.f-120.f,1920.f,120.f};
+    
+    // Skully platform - floating platform with texture
+    SDL_FRect skullyPlatform={800.f, 500.f, 250.f, 50.f};
+    
+    // Grey platform - extreme right
+    SDL_FRect greyPlatform={1550.f, 650.f, 300.f, 40.f};
+    
+    // Red moving platform (Task 3 - vertical movement)
+    SDL_FRect movingPlatform={1200.f, 550.f, 180.f, 35.f};
+    const float MOVING_PLAT_SPEED = 120.f;
+    float movingPlatDir = 1.f;  // 1 = down, -1 = up
+    const float MOVING_PLAT_MIN_Y = 400.f, MOVING_PLAT_MAX_Y = 700.f;
 
     std::vector<PipePair> pipes;
     double localSpawnTimer = 0.0;
@@ -173,9 +191,35 @@ int main(int argc, char** argv){
         if(spaceNow && !prevSpace) skBody.vy=JUMP_VELOCITY;
         prevSpace=spaceNow;
 
+        // Horizontal movement
+        bool moveLeft = Input::isKeyPressed(SDL_SCANCODE_A);
+        bool moveRight = Input::isKeyPressed(SDL_SCANCODE_D);
+        if (moveLeft && !moveRight) skBody.vx = -MOVE_SPEED;
+        else if (moveRight && !moveLeft) skBody.vx = MOVE_SPEED;
+        else skBody.vx = 0.f;
+
         if (!gameTime.isPaused()) {
             Physics::step(static_cast<float>(deltaSec*1000.0), skully.x, skully.y, skBody);
+            
+            // Screen edges
+            if (skully.x < 0.f) { skully.x = 0.f; skBody.vx = 0.f; }
+            if (skully.x + skully.w > 1920.f) { skully.x = 1920.f - skully.w; skBody.vx = 0.f; }
+            
+            // Moving platform - vertical movement (Task 3)
+            movingPlatform.y += MOVING_PLAT_SPEED * movingPlatDir * deltaSec;
+            if (movingPlatform.y <= MOVING_PLAT_MIN_Y) {
+                movingPlatform.y = MOVING_PLAT_MIN_Y;
+                movingPlatDir = 1.f;
+            } else if (movingPlatform.y >= MOVING_PLAT_MAX_Y) {
+                movingPlatform.y = MOVING_PLAT_MAX_Y;
+                movingPlatDir = -1.f;
+            }
+            
+            // Platform collisions
             if(skully.y+skully.h>=ground.y){ skully.y=ground.y-skully.h; skBody.vy=0.f; }
+            if(aabbIntersect(skully, skullyPlatform) && skBody.vy > 0.f){ skully.y=skullyPlatform.y-skully.h; skBody.vy=0.f; }
+            if(aabbIntersect(skully, greyPlatform) && skBody.vy > 0.f){ skully.y=greyPlatform.y-skully.h; skBody.vy=0.f; }
+            if(aabbIntersect(skully, movingPlatform) && skBody.vy > 0.f){ skully.y=movingPlatform.y-skully.h; skBody.vy=0.f; }
             if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
 
             if (gameTime.scale() != 1.0) {
@@ -320,6 +364,25 @@ int main(int argc, char** argv){
                 SDL_RenderTexture(renderer,brickTex,nullptr,&tileDst);
             }
         } else SDL_RenderFillRect(renderer,&gDst);
+        
+        // Render skully platform
+        SDL_FRect spDst=Scaling::compute(skullyPlatform,window);
+        if(skullyPlatformTex){
+            SDL_RenderTexture(renderer,skullyPlatformTex,nullptr,&spDst);
+        } else {
+            SDL_SetRenderDrawColor(renderer, 200, 100, 200, 255);
+            SDL_RenderFillRect(renderer,&spDst);
+        }
+        
+        // Render grey platform - extreme right
+        SDL_FRect gpDst=Scaling::compute(greyPlatform,window);
+        SDL_SetRenderDrawColor(renderer, 120, 120, 130, 255);
+        SDL_RenderFillRect(renderer,&gpDst);
+        
+        // Render red moving platform (Task 3)
+        SDL_FRect mpDst=Scaling::compute(movingPlatform,window);
+        SDL_SetRenderDrawColor(renderer, 220, 50, 50, 255);
+        SDL_RenderFillRect(renderer,&mpDst);
 
         SDL_SetRenderDrawColor(renderer,20,120,50,255);
         for(auto& p:pipes){
@@ -351,6 +414,7 @@ int main(int argc, char** argv){
     }
 
     if(brickTex) SDL_DestroyTexture(brickTex);
+    if(skullyPlatformTex) SDL_DestroyTexture(skullyPlatformTex);
     SDL_DestroyTexture(skullTex);
     SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window);
     SDL_Quit();
