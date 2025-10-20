@@ -26,6 +26,7 @@ struct GameState {
     Body skBody;
     std::vector<PipePair> pipes;
     int currentFrame;
+    float cameraX = 0.f;  // TASK 6: Camera offset for side-scrolling
 };
 
 // Global states for render/logic threads
@@ -48,6 +49,11 @@ bool moveRight = false;
 // Random helper
 static float floatRand(float a, float b) {
     return a + (b - a) * (float)rand() / (float)RAND_MAX;
+}
+
+// TASK 6: Apply camera offset to world coordinates
+static SDL_FRect applyCamera(const SDL_FRect& worldRect, float cameraX) {
+    return {worldRect.x - cameraX, worldRect.y, worldRect.w, worldRect.h};
 }
 
 // Texture loader
@@ -197,8 +203,23 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         // Physics integration
         Physics::step(static_cast<float>(dtSec * 1000.0), local.skully.x, local.skully.y, local.skBody);
 
-        // Right screen edge (left edge handled by death zone)
-        if (local.skully.x + local.skully.w > 1920.f) { local.skully.x = 1920.f - local.skully.w; local.skBody.vx = 0.f; }
+        // TASK 6: Camera follows player (side-scrolling)
+        // Camera starts following when player moves beyond 30% of screen width
+        const float CAMERA_FOLLOW_THRESHOLD = 1920.f * 0.3f;  // Reduced from 40% to 30%
+        const float CAMERA_BACK_THRESHOLD = 1920.f * 0.2f;
+        
+        // Move camera right when player moves right beyond threshold
+        if (local.skully.x - local.cameraX > CAMERA_FOLLOW_THRESHOLD) {
+            local.cameraX = local.skully.x - CAMERA_FOLLOW_THRESHOLD;
+        }
+        // Move camera left when player moves left beyond back threshold
+        if (local.skully.x - local.cameraX < CAMERA_BACK_THRESHOLD && local.cameraX > 0.f) {
+            local.cameraX = local.skully.x - CAMERA_BACK_THRESHOLD;
+            if (local.cameraX < 0.f) local.cameraX = 0.f;
+        }
+
+        // No hard screen edge limits - world can be infinite
+        // Players can move freely, camera follows them
         
         // Moving platform - vertical movement (Task 3)
         staticPlatforms[3].y += MOVING_PLAT_SPEED * movingPlatDir * dtSec;
@@ -224,16 +245,18 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             respawnPlayer(local);
         }
 
-        // Pipe spawning
+        // Pipe spawning (relative to camera for side-scrolling)
         spawnTimer += dtSec;
         while (spawnTimer >= PIPE_SPAWN_EVERY) {
             spawnTimer -= PIPE_SPAWN_EVERY;
             float center = floatRand(1080.f * 0.30f, 1080.f * 0.70f);
             float topH = center - PIPE_GAP * 0.5f;
             float bottomY = center + PIPE_GAP * 0.5f;
+            // Spawn pipes ahead of camera view
+            float spawnX = local.cameraX + 1920.f + PIPE_W;
             local.pipes.push_back({
-                SDL_FRect{1920.f + PIPE_W, 0.f, PIPE_W, topH},
-                SDL_FRect{1920.f + PIPE_W, bottomY, PIPE_W, 1080.f - bottomY - 120.f}
+                SDL_FRect{spawnX, 0.f, PIPE_W, topH},
+                SDL_FRect{spawnX, bottomY, PIPE_W, 1080.f - bottomY - 120.f}
             });
         }
         for (auto& p : local.pipes) {
@@ -392,18 +415,21 @@ int main(int, char**) {
             snapshot = renderState;
         }
 
-        // --- STATIC PLATFORMS ---
+        // --- STATIC PLATFORMS (with camera offset) ---
         for (size_t i = 0; i < staticPlatforms.size(); ++i) {
-            SDL_FRect plat = Scaling::compute(staticPlatforms[i], window);
+            SDL_FRect platWorld = applyCamera(staticPlatforms[i], snapshot.cameraX);
+            SDL_FRect plat = Scaling::compute(platWorld, window);
             if (brickTex && i == 0) {
-                // Ground - tiled brick texture
+                // Ground - tiled brick texture (extend for scrolling)
                 float tw = 0, th = 0; SDL_GetTextureSize(brickTex, &tw, &th);
                 if (tw < 1) tw = 64; if (th < 1) th = 64;
                 float scaleY = staticPlatforms[i].h / th;
                 float tileW = tw * scaleY, tileH = th * scaleY;
-                for (float x = 0; x < 1920.0f + tileW; x += tileW) {
+                // Extend ground for camera scrolling
+                for (float x = -snapshot.cameraX; x < 1920.0f + snapshot.cameraX + tileW; x += tileW) {
                     SDL_FRect tilePx{ x, staticPlatforms[i].y, tileW, tileH };
-                    SDL_FRect tiledest = Scaling::compute(tilePx, window);
+                    SDL_FRect tileWorld = applyCamera(tilePx, snapshot.cameraX);
+                    SDL_FRect tiledest = Scaling::compute(tileWorld, window);
                     SDL_RenderTexture(renderer, brickTex, nullptr, &tiledest);
                 }
             } else if (i == 1 && skullyPlatformTex) {
@@ -420,16 +446,20 @@ int main(int, char**) {
             }
         }
 
-        // --- PIPES ---
+
+        // --- PIPES (with camera offset) ---
         SDL_SetRenderDrawColor(renderer, 20, 120, 50, 255);
         for (auto& p : snapshot.pipes) {
-            SDL_FRect t = Scaling::compute(p.top, window), b = Scaling::compute(p.bottom, window);
+            SDL_FRect tWorld = applyCamera(p.top, snapshot.cameraX);
+            SDL_FRect bWorld = applyCamera(p.bottom, snapshot.cameraX);
+            SDL_FRect t = Scaling::compute(tWorld, window), b = Scaling::compute(bWorld, window);
             SDL_RenderFillRect(renderer, &t); SDL_RenderFillRect(renderer, &b);
         }
 
-        // --- SKULLY ---
+        // --- SKULLY (with camera offset) ---
         SDL_FRect src{ FRAME_W * snapshot.currentFrame, 0.f, FRAME_W, FRAME_H };
-        SDL_FRect dest = Scaling::compute(snapshot.skully, window);
+        SDL_FRect skullyWorld = applyCamera(snapshot.skully, snapshot.cameraX);
+        SDL_FRect dest = Scaling::compute(skullyWorld, window);
         SDL_RenderTexture(renderer, skullTex, &src, &dest);
 
         SDL_RenderPresent(renderer);
