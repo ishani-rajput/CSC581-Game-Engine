@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <vector>
 #include <chrono>
 
@@ -58,14 +59,111 @@ static SDL_Texture* tryLoadTexture(SDL_Renderer* r, const char* const* paths, in
 // ENGINE REGISTRY
 static Engine::Registry gRegistry;
 
+// TASK 4: Initialize spawn points (hidden, non-rendered objects)
+void initializeSpawnPoints() {
+    // Spawn point 1 - Ground level, left side
+    auto& spawn1 = gRegistry.upsert("spawn_point_1");
+    spawn1.set<Engine::Vec2>("pos", {100.f, 840.f});
+    spawn1.set<bool>("active", true);
+    
+    // Spawn point 2 - Ground level, center
+    auto& spawn2 = gRegistry.upsert("spawn_point_2");
+    spawn2.set<Engine::Vec2>("pos", {480.f, 840.f});
+    spawn2.set<bool>("active", true);
+    
+    // Spawn point 3 - Ground level, right side
+    auto& spawn3 = gRegistry.upsert("spawn_point_3");
+    spawn3.set<Engine::Vec2>("pos", {1400.f, 840.f});
+    spawn3.set<bool>("active", true);
+    
+    // Spawn point 4 - On skully platform
+    auto& spawn4 = gRegistry.upsert("spawn_point_4");
+    spawn4.set<Engine::Vec2>("pos", {870.f, 392.f}); // 500 - 108 (character height)
+    spawn4.set<bool>("active", true);
+    
+    // Spawn point 5 - On grey platform (right)
+    auto& spawn5 = gRegistry.upsert("spawn_point_5");
+    spawn5.set<Engine::Vec2>("pos", {1620.f, 542.f}); // 650 - 108
+    spawn5.set<bool>("active", true);
+    
+    // Spawn point 6 - Near moving platform area
+    auto& spawn6 = gRegistry.upsert("spawn_point_6");
+    spawn6.set<Engine::Vec2>("pos", {1100.f, 840.f});
+    spawn6.set<bool>("active", true);
+}
+
+// TASK 4: Get spawn point position by ID
+Engine::Vec2 getSpawnPointPosition(int spawnId) {
+    // Clamp spawn ID to valid range [1, 6]
+    if (spawnId < 1) spawnId = 1;
+    if (spawnId > 6) spawnId = ((spawnId - 1) % 6) + 1;
+    
+    std::string spawnName = "spawn_point_" + std::to_string(spawnId);
+    auto* spawn = gRegistry.get(spawnName);
+    if (spawn) {
+        return spawn->get<Engine::Vec2>("pos", {480.f, 840.f});
+    }
+    return {480.f, 840.f}; // Default position if spawn point not found
+}
+
+// TASK 5: Respawn player at a random spawn point
+void respawnPlayer(SDL_FRect& skully, Body& skBody) {
+    // Choose a random spawn point (1-6)
+    int randomSpawn = 1 + (rand() % 6);
+    Engine::Vec2 spawnPos = getSpawnPointPosition(randomSpawn);
+    
+    // Reset player position
+    skully.x = spawnPos.x;
+    skully.y = spawnPos.y;
+    
+    // Reset velocities
+    skBody.vx = 0.f;
+    skBody.vy = 0.f;
+    
+    SDL_Log("Player respawned at spawn point %d (%.1f, %.1f)", randomSpawn, spawnPos.x, spawnPos.y);
+}
+
+// TASK 5: Initialize death zones (hidden, non-rendered boundary objects)
+void initializeDeathZones() {
+    // Death zone - Left boundary (off screen left)
+    auto& dz = gRegistry.upsert("death_zone_left");
+    dz.set<Engine::Vec2>("pos", {-200.f, 0.f});
+    dz.set<Engine::Vec2>("size", {200.f, 1080.f});
+    dz.set<bool>("active", true);
+}
+
+// TASK 5: Check if player is in any death zone
+bool checkDeathZones(const SDL_FRect& player) {
+    // Check left boundary death zone
+    auto* dz = gRegistry.get("death_zone_left");
+    if (dz && dz->get<bool>("active", true)) {
+        Engine::Vec2 pos = dz->get<Engine::Vec2>("pos", {0.f, 0.f});
+        Engine::Vec2 size = dz->get<Engine::Vec2>("size", {0.f, 0.f});
+        SDL_FRect dzRect = {pos.x, pos.y, size.x, size.y};
+        if (aabbIntersect(player, dzRect)) {
+            SDL_Log("Player entered death zone (left boundary)");
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 int main(int argc, char** argv){
     if (argc < 2) {
         std::cerr << "Usage: ./client <id>\n";
         return 1;
     }
     const std::string CLIENT_ID = argv[1];
+    
+    // TASK 4: Initialize spawn points in the object model
+    initializeSpawnPoints();
+    
+    // TASK 5: Initialize death zones in the object model
+    initializeDeathZones();
 
-    srand(12345);
+    // Initialize random seed for spawn point selection
+    srand(static_cast<unsigned int>(time(nullptr)));
 
     // NETWORK STRATEGY
     Engine::NetStrategy strat = Engine::NetStrategy::FullState;
@@ -118,7 +216,12 @@ int main(int argc, char** argv){
     int currentFrame=0; double animationAccum=0.0; const double ANIM_FRAME_SEC=0.100;
 
     float characterSize=108.f;
-    SDL_FRect skully={480.f,540.f,characterSize,characterSize};
+    
+    // TASK 4: Use spawn points to determine initial player position
+    // Each client spawns at a different spawn point based on their ID
+    Engine::Vec2 spawnPos = getSpawnPointPosition(myClientNum);
+    SDL_FRect skully={spawnPos.x, spawnPos.y, characterSize, characterSize};
+    
     Body skBody; skBody.affectedByGravity=true; Physics::setGravity(2400.f);
     const float JUMP_VELOCITY=-900.f;
     const float MOVE_SPEED = 400.f;
@@ -154,7 +257,6 @@ int main(int argc, char** argv){
     bool running=true; SDL_Event ev;
     bool prevSpace=false, prevToggle=false;
     bool prevP=false, prev1=false, prev2=false, prev3=false;
-    double lastScale = 1.0;
 
     while(running){
         while(SDL_PollEvent(&ev)){ if(ev.type==SDL_EVENT_QUIT) running=false; }
@@ -181,11 +283,6 @@ int main(int argc, char** argv){
         prev1=onePress; prev2=twoPress; prev3=threePress;
 
         double deltaSec=gameTime.tick();
-        
-        if (gameTime.scale() != lastScale) {
-            lastScale = gameTime.scale();
-            if (gameTime.scale() == 1.0) { pipes.clear(); }
-        }
 
         bool spaceNow=Input::isKeyPressed(SDL_SCANCODE_SPACE);
         if(spaceNow && !prevSpace) skBody.vy=JUMP_VELOCITY;
@@ -201,8 +298,7 @@ int main(int argc, char** argv){
         if (!gameTime.isPaused()) {
             Physics::step(static_cast<float>(deltaSec*1000.0), skully.x, skully.y, skBody);
             
-            // Screen edges
-            if (skully.x < 0.f) { skully.x = 0.f; skBody.vx = 0.f; }
+            // Right screen edge (left edge handled by death zone)
             if (skully.x + skully.w > 1920.f) { skully.x = 1920.f - skully.w; skBody.vx = 0.f; }
             
             // Moving platform - vertical movement (Task 3)
@@ -222,14 +318,22 @@ int main(int argc, char** argv){
             if(aabbIntersect(skully, movingPlatform) && skBody.vy > 0.f){ skully.y=movingPlatform.y-skully.h; skBody.vy=0.f; }
             if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
 
-            if (gameTime.scale() != 1.0) {
-                bool hit = false;
-                for(auto& p : pipes) {
-                    if(aabbIntersect(skully, p.top) || aabbIntersect(skully, p.bottom)) {
-                        hit = true; break;
-                    }
+            // TASK 5: Death zone collision - respawn if player enters a death zone
+            if (checkDeathZones(skully)) {
+                respawnPlayer(skully, skBody);
+            }
+
+            // Pipe collisions - respawn on hit
+            bool hit = false;
+            for(auto& p : pipes) {
+                if(aabbIntersect(skully, p.top) || aabbIntersect(skully, p.bottom)) {
+                    hit = true; break;
                 }
-                if (hit) { pipes.clear(); localSpawnTimer = 0.0; }
+            }
+            if (hit) { 
+                pipes.clear(); 
+                localSpawnTimer = 0.0;
+                respawnPlayer(skully, skBody);  // TASK 5: Respawn at a random spawn point
             }
         }
 
@@ -246,18 +350,17 @@ int main(int argc, char** argv){
                 p.bottom.x += PIPE_SPEED * deltaSec;
             }
             
-            if (gameTime.scale() != 1.0) {
-                localSpawnTimer += deltaSec;
-                while(localSpawnTimer >= PIPE_SPAWN_EVERY) {
-                    localSpawnTimer -= PIPE_SPAWN_EVERY;
-                    float center = floatRand(SCREEN_HEIGHT * 0.30f, SCREEN_HEIGHT * 0.70f);
-                    float topH = center - PIPE_GAP * 0.5f;
-                    float bottomY = center + PIPE_GAP * 0.5f;
-                    pipes.emplace_back(
-                        SCREEN_WIDTH + PIPE_W, 0.f, PIPE_W, topH,
-                        SCREEN_WIDTH + PIPE_W, bottomY, PIPE_W, SCREEN_HEIGHT - bottomY - 120.f
-                    );
-                }
+            // Spawn pipes continuously
+            localSpawnTimer += deltaSec;
+            while(localSpawnTimer >= PIPE_SPAWN_EVERY) {
+                localSpawnTimer -= PIPE_SPAWN_EVERY;
+                float center = floatRand(SCREEN_HEIGHT * 0.30f, SCREEN_HEIGHT * 0.70f);
+                float topH = center - PIPE_GAP * 0.5f;
+                float bottomY = center + PIPE_GAP * 0.5f;
+                pipes.emplace_back(
+                    SCREEN_WIDTH + PIPE_W, 0.f, PIPE_W, topH,
+                    SCREEN_WIDTH + PIPE_W, bottomY, PIPE_W, SCREEN_HEIGHT - bottomY - 120.f
+                );
             }
             
             pipes.erase(std::remove_if(pipes.begin(), pipes.end(),
@@ -329,25 +432,8 @@ int main(int argc, char** argv){
                     std::cout << "Peer " << deadId << " disconnected.\n";
                 }
             } else {
-                size_t numPlayers = 0, numPipes = 0;
-                if (sscanf(serverResponse.c_str(), "N %zu P %zu", &numPlayers, &numPipes) == 2) {
-                    const char* lines = strchr(serverResponse.c_str(), '\n');
-                    for (size_t i = 0; i < numPlayers && lines; i++) {
-                        lines++; lines = strchr(lines, '\n');
-                    }
-                    if (!gameTime.isPaused() && gameTime.scale() == 1.0) {
-                        pipes.clear();
-                        for(size_t i = 0; i < numPipes && lines; i++){
-                            lines++;
-                            float tx,ty,tw,th,bx,by,bw,bh;
-                            if(sscanf(lines,"%f %f %f %f %f %f %f %f",
-                                      &tx,&ty,&tw,&th,&bx,&by,&bw,&bh)==8){
-                                pipes.emplace_back(tx,ty,tw,th,bx,by,bw,bh);
-                            }
-                            lines=strchr(lines,'\n');
-                        }
-                    }
-                }
+                // Note: Server pipe sync removed - using local pipe spawning only
+                // (Each client spawns its own pipes independently)
             }
         }
 

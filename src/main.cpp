@@ -6,9 +6,12 @@
 #include "collision.h"
 #include "scaling.h"
 #include "timeline.h"
+#include "object_model.h"
+#include "registry.h"
 #include <vector>
 #include <algorithm>
 #include <cstdlib>
+#include <ctime>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -57,6 +60,99 @@ static SDL_Texture* tryLoadTexture(SDL_Renderer* r, const char* const* paths, in
     return nullptr;
 }
 
+// ENGINE REGISTRY
+static Engine::Registry gRegistry;
+
+// TASK 4: Initialize spawn points (hidden, non-rendered objects)
+void initializeSpawnPoints() {
+    // Spawn point 1 - Ground level, left side
+    auto& spawn1 = gRegistry.upsert("spawn_point_1");
+    spawn1.set<Engine::Vec2>("pos", {100.f, 840.f});
+    spawn1.set<bool>("active", true);
+    
+    // Spawn point 2 - Ground level, center (default)
+    auto& spawn2 = gRegistry.upsert("spawn_point_2");
+    spawn2.set<Engine::Vec2>("pos", {480.f, 840.f});
+    spawn2.set<bool>("active", true);
+    
+    // Spawn point 3 - Ground level, right side
+    auto& spawn3 = gRegistry.upsert("spawn_point_3");
+    spawn3.set<Engine::Vec2>("pos", {1400.f, 840.f});
+    spawn3.set<bool>("active", true);
+    
+    // Spawn point 4 - On skully platform
+    auto& spawn4 = gRegistry.upsert("spawn_point_4");
+    spawn4.set<Engine::Vec2>("pos", {870.f, 392.f}); // 500 - 108 (character height)
+    spawn4.set<bool>("active", true);
+    
+    // Spawn point 5 - On grey platform (right)
+    auto& spawn5 = gRegistry.upsert("spawn_point_5");
+    spawn5.set<Engine::Vec2>("pos", {1620.f, 542.f}); // 650 - 108
+    spawn5.set<bool>("active", true);
+    
+    // Spawn point 6 - Near moving platform area
+    auto& spawn6 = gRegistry.upsert("spawn_point_6");
+    spawn6.set<Engine::Vec2>("pos", {1100.f, 840.f});
+    spawn6.set<bool>("active", true);
+}
+
+// TASK 4: Get spawn point position by ID
+Engine::Vec2 getSpawnPointPosition(int spawnId) {
+    // Clamp spawn ID to valid range [1, 6]
+    if (spawnId < 1) spawnId = 1;
+    if (spawnId > 6) spawnId = ((spawnId - 1) % 6) + 1;
+    
+    std::string spawnName = "spawn_point_" + std::to_string(spawnId);
+    auto* spawn = gRegistry.get(spawnName);
+    if (spawn) {
+        return spawn->get<Engine::Vec2>("pos", {480.f, 840.f});
+    }
+    return {480.f, 840.f}; // Default position if spawn point not found
+}
+
+// TASK 5: Respawn player at a random spawn point
+void respawnPlayer(GameState& state) {
+    // Choose a random spawn point (1-6)
+    int randomSpawn = 1 + (rand() % 6);
+    Engine::Vec2 spawnPos = getSpawnPointPosition(randomSpawn);
+    
+    // Reset player position
+    state.skully.x = spawnPos.x;
+    state.skully.y = spawnPos.y;
+    
+    // Reset velocities
+    state.skBody.vx = 0.f;
+    state.skBody.vy = 0.f;
+    
+    SDL_Log("Player respawned at spawn point %d (%.1f, %.1f)", randomSpawn, spawnPos.x, spawnPos.y);
+}
+
+// TASK 5: Initialize death zones (hidden, non-rendered boundary objects)
+void initializeDeathZones() {
+    // Death zone - Left boundary (off screen left)
+    auto& dz = gRegistry.upsert("death_zone_left");
+    dz.set<Engine::Vec2>("pos", {-200.f, 0.f});
+    dz.set<Engine::Vec2>("size", {200.f, 1080.f});
+    dz.set<bool>("active", true);
+}
+
+// TASK 5: Check if player is in any death zone
+bool checkDeathZones(const SDL_FRect& player) {
+    // Check left boundary death zone
+    auto* dz = gRegistry.get("death_zone_left");
+    if (dz && dz->get<bool>("active", true)) {
+        Engine::Vec2 pos = dz->get<Engine::Vec2>("pos", {0.f, 0.f});
+        Engine::Vec2 size = dz->get<Engine::Vec2>("size", {0.f, 0.f});
+        SDL_FRect dzRect = {pos.x, pos.y, size.x, size.y};
+        if (aabbIntersect(player, dzRect)) {
+            SDL_Log("Player entered death zone (left boundary)");
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 // ----------------------------------------------------------
 // Logic Thread
 // ----------------------------------------------------------
@@ -101,8 +197,7 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         // Physics integration
         Physics::step(static_cast<float>(dtSec * 1000.0), local.skully.x, local.skully.y, local.skBody);
 
-        // Screen edges
-        if (local.skully.x < 0.f) { local.skully.x = 0.f; local.skBody.vx = 0.f; }
+        // Right screen edge (left edge handled by death zone)
         if (local.skully.x + local.skully.w > 1920.f) { local.skully.x = 1920.f - local.skully.w; local.skBody.vx = 0.f; }
         
         // Moving platform - vertical movement (Task 3)
@@ -124,6 +219,11 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         }
         if (local.skully.y < 0.f) { local.skully.y = 0.f; local.skBody.vy = 0.f; }
 
+        // TASK 5: Death zone collision - respawn if player enters a death zone
+        if (checkDeathZones(local.skully)) {
+            respawnPlayer(local);
+        }
+
         // Pipe spawning
         spawnTimer += dtSec;
         while (spawnTimer >= PIPE_SPAWN_EVERY) {
@@ -143,12 +243,16 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         local.pipes.erase(std::remove_if(local.pipes.begin(), local.pipes.end(),
             [&](PipePair& pp) { return (pp.top.x + pp.top.w) < -50.f; }), local.pipes.end());
 
-        // Pipe collisions
+        // Pipe collisions - respawn on hit
         bool hit = false;
         for (auto& p : local.pipes) {
             if (aabbIntersect(local.skully, p.top) || aabbIntersect(local.skully, p.bottom)) { hit = true; break; }
         }
-        if (hit) { local.pipes.clear(); spawnTimer = 0.0; }
+        if (hit) { 
+            local.pipes.clear(); 
+            spawnTimer = 0.0;
+            respawnPlayer(local);  // TASK 5: Respawn at a random spawn point
+        }
 
         // Animation
         animationAccum += dtSec;
@@ -171,6 +275,15 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
 // Rendering (Main Thread)
 // ----------------------------------------------------------
 int main(int, char**) {
+    // TASK 4: Initialize spawn points in the object model
+    initializeSpawnPoints();
+    
+    // TASK 5: Initialize death zones in the object model
+    initializeDeathZones();
+    
+    // Initialize random seed for spawn point selection
+    srand(static_cast<unsigned int>(time(nullptr)));
+    
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("SDL init failed: %s", SDL_GetError());
         return 1;
@@ -209,7 +322,9 @@ int main(int, char**) {
     };
 
     // --- PLAYER INIT ---
-    logicState.skully = {480.f, 540.f, 108.f, 108.f};
+    // Use spawn point 2 (center position) by default
+    Engine::Vec2 spawnPos = getSpawnPointPosition(2);
+    logicState.skully = {spawnPos.x, spawnPos.y, 108.f, 108.f};
     logicState.skBody.affectedByGravity = true;
     Physics::setGravity(2400.f);
     logicState.currentFrame = 0;
