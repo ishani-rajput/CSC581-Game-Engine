@@ -140,11 +140,9 @@ int main(int, char**) {
 
     Entity localPlayer(renderer, "../assets/player.png", 0, 0, frameWidth, frameHeight, frameCount, 150);
 
-    // PART 1A: Game object registry for EVERYTHING
     Engine::Registry gameObjectRegistry;
     std::mutex gameObjectMutex;
 
-    // REQUIREMENT 4: SPAWN POINTS (3 GameObjects)
     SDL_Log("[Req 4] Creating spawn points...");
     auto& spawn1 = gameObjectRegistry.upsert("spawn_left");
     spawn1.set<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
@@ -161,10 +159,8 @@ int main(int, char**) {
     std::vector<std::string> spawnIds = {"spawn_left", "spawn_middle", "spawn_platform3"};
     SDL_Log("[Req 4] Created 3 spawn points");
 
-    // Track current checkpoint spawn
     std::string currentSpawnId = "spawn_left";  // Start at first spawn
 
-    // REQUIREMENT 5: DEATH ZONES (4 GameObjects)
     SDL_Log("[Req 5] Creating death zones...");
     auto& dz1 = gameObjectRegistry.upsert("death_zone_gap1");
     dz1.set<Engine::Vec2>("pos", {leftX + leftWidth, DESIGN_HEIGHT - 280});
@@ -189,16 +185,13 @@ int main(int, char**) {
     std::vector<std::string> deathZoneIds = {"death_zone_gap1", "death_zone_gap2", "death_zone_gap3", "death_zone_fall"};
     SDL_Log("[Req 5] Created 4 death zones");
 
-    // REQUIREMENT 6: CAMERA SYSTEM
     SDL_Log("[Req 6] Camera system initialized");
     float cameraX = 0.f;
 
-    // PART 1A: Remote players registry
     Engine::Registry remotePlayersRegistry;
     std::unordered_map<std::string, RemotePlayerEntity> remoteEntities;
     std::mutex remotePlayersMutex;
 
-    // Track last message time for disconnect detection
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastHeardFrom;
     std::mutex lastHeardMutex;
     static constexpr int CLIENT_TIMEOUT_SECONDS = 3;  // 3 seconds without message = disconnect
@@ -223,7 +216,6 @@ int main(int, char**) {
     std::string statusMessage = "";
     int statusMessageTimer = 0;
 
-    // PART 1B: Network thread
     std::thread networkThread([&]() {
         float networkTimer = 0.0f;
         auto lastTick = SDL_GetTicks();
@@ -253,7 +245,6 @@ int main(int, char**) {
                 if (rb > 0) {
                     rx[rb] = '\0';
 
-                    // Mark all remote players inactive
                     {
                         std::lock_guard<std::mutex> lock(remotePlayersMutex);
                         for (const auto& id : remotePlayersRegistry.getAllIds()) {
@@ -309,7 +300,6 @@ int main(int, char**) {
                         line = std::strtok(nullptr, "\n");
                     }
 
-                    // Part 1A & 1B: Remove inactive remote players (disconnect handling)
                     {
                         std::lock_guard<std::mutex> lock(remotePlayersMutex);
                         auto allIds = remotePlayersRegistry.getAllIds();
@@ -323,7 +313,6 @@ int main(int, char**) {
                                     remoteEntities.erase(it);
                                 }
                                 
-                                // Remove from lastHeard
                                 {
                                     std::lock_guard<std::mutex> timeLock(lastHeardMutex);
                                     lastHeardFrom.erase(id);
@@ -341,7 +330,6 @@ int main(int, char**) {
         SDL_Log("[Part 1B] Network thread stopped");
     });
 
-    // Timeout-based disconnect detection thread
     std::thread timeoutThread([&]() {
         SDL_Log("[DISCONNECT MONITOR] Timeout detection thread started");
         
@@ -351,7 +339,6 @@ int main(int, char**) {
             auto now = std::chrono::steady_clock::now();
             std::vector<std::string> timedOutPlayers;
             
-            // Find timed out players
             {
                 std::lock_guard<std::mutex> timeLock(lastHeardMutex);
                 for (const auto& [playerId, lastTime] : lastHeardFrom) {
@@ -362,21 +349,17 @@ int main(int, char**) {
                 }
             }
             
-            // Remove timed out players
             if (!timedOutPlayers.empty()) {
                 std::lock_guard<std::mutex> lock(remotePlayersMutex);
                 for (const auto& playerId : timedOutPlayers) {
-                    // Remove from registry
                     remotePlayersRegistry.erase(playerId);
                     
-                    // Delete entity
                     auto it = remoteEntities.find(playerId);
                     if (it != remoteEntities.end() && it->second.entity) {
                         delete it->second.entity;
                         remoteEntities.erase(it);
                     }
                     
-                    // Remove from lastHeard
                     {
                         std::lock_guard<std::mutex> timeLock(lastHeardMutex);
                         lastHeardFrom.erase(playerId);
@@ -393,7 +376,6 @@ int main(int, char**) {
     float prevHorizX = serverState.horizontalPlatform.x;
     float prevVertY = serverState.verticalPlatform.y;
 
-    // Main loop
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
@@ -565,7 +547,6 @@ int main(int, char**) {
             }
         }
 
-        // Spike collision (explicit backup safety check) - respawn at current checkpoint
         for (float x = leftX + leftWidth; x < middleX; x += 220.f) {
             SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
             if (checkCollision(playerRect, spikeRect)) {
@@ -618,7 +599,6 @@ int main(int, char**) {
             }
         }
 
-        // Fall detection (explicit backup safety check) - respawn at current checkpoint
         if (py > DESIGN_HEIGHT + 100) {
             const auto* spawn = gameObjectRegistry.get(currentSpawnId);
             if (spawn) {
@@ -634,7 +614,6 @@ int main(int, char**) {
             statusMessageTimer = 120;
         }
 
-        // REQUIREMENT 5: Check death zone collisions (GameObject-based) - respawn at current checkpoint
         {
             std::lock_guard<std::mutex> lock(gameObjectMutex);
             for (const auto& id : deathZoneIds) {
@@ -662,7 +641,6 @@ int main(int, char**) {
             }
         }
 
-        // REQUIREMENT 6: Update camera (smooth interpolation)
         float targetCameraX = px - DESIGN_WIDTH / 2.f;
         if (targetCameraX < 0) targetCameraX = 0;
         if (targetCameraX > WORLD_WIDTH - DESIGN_WIDTH) targetCameraX = WORLD_WIDTH - DESIGN_WIDTH;
@@ -679,7 +657,6 @@ int main(int, char**) {
 
         localPlayer.update();
 
-        // RENDERING WITH CAMERA OFFSET
         SDL_SetRenderDrawColor(renderer, 135, 206, 235, 255);
         SDL_RenderClear(renderer);
 
@@ -752,7 +729,6 @@ int main(int, char**) {
         localPlayer.setSize(playerW, playerH);
         localPlayer.render(renderer, window);
 
-        // PART 1A: Render all remote players with camera offset
         {
             std::lock_guard<std::mutex> lock(remotePlayersMutex);
             for (const auto& remoteId : remotePlayersRegistry.getAllIds()) {
@@ -820,7 +796,7 @@ int main(int, char**) {
     // Cleanup
     running = false;
     networkThread.join();
-    timeoutThread.join();  // Wait for timeout detection thread
+    timeoutThread.join();
     
     {
         std::lock_guard<std::mutex> lock(remotePlayersMutex);

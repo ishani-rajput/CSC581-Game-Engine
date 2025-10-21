@@ -71,3 +71,9 @@
 28	1114	7827165902536152	CMakeFiles/hybrid_client.dir/src/peer_manager.cpp.obj	8d2a2acc3f4d4da5
 19	1689	7827165902446190	CMakeFiles/hybrid_client.dir/src/hybrid_client.cpp.obj	394a162499e24730
 1690	1986	7827165919157997	hybrid_client.exe	7b7800c2137e5d8f
+119	2140	7827180838049532	CMakeFiles/hybrid_client.dir/src/peer_manager.cpp.obj	8d2a2acc3f4d4da5
+99	2177	7827180837849491	CMakeFiles/main.dir/src/main.cpp.obj	73119f7ef189db40
+2178	2780	7827180858641397	main.exe	eae0091acb48fb67
+2142	2810	7827180858271426	hybrid_client.exe	7b7800c2137e5d8f
+109	4019	7827180837939449	CMakeFiles/client.dir/src/client.cpp.obj	3a4a67d5f1c6c2bc
+4020	4393	7827180877058839	client.exe	fc59bfd9c97bbf52
