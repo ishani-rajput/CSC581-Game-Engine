@@ -3,6 +3,7 @@
 #include <string>
 #include <mutex>
 #include <zmq.h>
+#include "net_strategy.h"
 #include <chrono>
 
 class PeerManager {
@@ -31,6 +32,8 @@ public:
     void cleanupStalePeers();
     
     void processPeerMessages();
+    void sendInputDelta(bool left, bool right, bool jump,
+                    float analogX, float analogY, uint64_t ticksMs);
 
 private:
     std::string id;

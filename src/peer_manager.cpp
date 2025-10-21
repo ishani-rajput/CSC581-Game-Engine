@@ -1,6 +1,7 @@
 #include "peer_manager.h"
 #include <sstream>
 #include <iostream>
+#include "net_strategy.h"
 
 PeerManager::PeerManager(const std::string& myId) : id(myId) {
     ctx = zmq_ctx_new();
@@ -65,6 +66,20 @@ void PeerManager::processPeerMessages() {
                 peers[pid] = {px, py, ppaused == 1, pscale, std::chrono::high_resolution_clock::now()};
             }
         }
+        else if (type == "INPUT") {
+            // Process input delta messages
+            // Format: INPUT <id> <left> <right> <jump> <ax> <ay> <ticks>
+            std::string pid; int left, right, jump; float ax, ay; uint64_t ticks;
+            if (iss >> pid >> left >> right >> jump >> ax >> ay >> ticks && pid != id) {
+                std::lock_guard<std::mutex> lk(peerMutex);
+                // Update peer data based on input deltas
+                // For input-based updates, we store minimal state
+                auto& peer = peers[pid];
+                peer.lastUpdate = std::chrono::high_resolution_clock::now();
+                // In a full implementation, we'd simulate movement based on inputs
+                // For performance testing, we just acknowledge receipt
+            }
+        }
     }
 }
 
@@ -106,4 +121,18 @@ void PeerManager::cleanupStalePeers() {
             ++it;
         }
     }
+}
+
+// add this method body anywhere after other PeerManager methods
+void PeerManager::sendInputDelta(bool left, bool right, bool jump,
+                                 float ax, float ay, uint64_t ticksMs) {
+    std::ostringstream oss;
+    oss << "INPUT " << id << " "
+        << (left?1:0) << " " << (right?1:0) << " " << (jump?1:0) << " "
+        << ax << " " << ay << " " << ticksMs;
+    const std::string msg = oss.str();
+    if (zmq_send(pub, msg.c_str(), (int)msg.size(), 0) == -1) {
+        std::cerr << "Failed to send INPUT: " << zmq_strerror(errno) << "\n";
+    }
+    processPeerMessages(); // keep RX draining
 }
