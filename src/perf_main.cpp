@@ -12,7 +12,6 @@ int main(int argc, char** argv) {
     if (argc>2) c.objects    = std::atoi(argv[2]);
     if (argc>3) c.iterations = std::atoi(argv[3]);
 
-    // run 5x to get stats
     std::vector<double> a, b;
     for (int i=0;i<5;i++) a.push_back(Engine::PerfSuite::RunFullState(c).ms);
     for (int i=0;i<5;i++) b.push_back(Engine::PerfSuite::RunInputDelta(c).ms);

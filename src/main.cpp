@@ -264,7 +264,7 @@ int main(int, char**) {
     }
 
     SDL_Window* window = nullptr; SDL_Renderer* renderer = nullptr;
-    if (!SDL_CreateWindowAndRenderer("Skully Bird - Static Platforms", 1500, 900, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("Skully Bird", 1920, 1080, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("CreateWindowAndRenderer failed: %s", SDL_GetError()); SDL_Quit(); return 1;
     }
     SDL_SetRenderVSync(renderer, 1);
