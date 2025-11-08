@@ -8,6 +8,10 @@
 #include "timeline.h"
 #include "object_model.h"
 #include "registry.h"
+
+// MILESTONE 4: Event System
+#include "event_manager.h"
+
 #include <vector>
 #include <algorithm>
 #include <cstdlib>
@@ -41,6 +45,9 @@ bool jumpRequested = false;
 std::mutex moveMutex;
 bool moveLeft = false;
 bool moveRight = false;
+
+// MILESTONE 4: Global Event Manager
+static Engine::EventManager* gEventManager = nullptr;
 
 static float floatRand(float a, float b) {
     return a + (b - a) * (float)rand() / (float)RAND_MAX;
@@ -96,7 +103,7 @@ Engine::Vec2 getSpawnPointPosition(int spawnId) {
     if (spawn) {
         return spawn->get<Engine::Vec2>("pos", {480.f, 840.f});
     }
-    return {480.f, 840.f}; // Default position if spawn point not found
+    return {480.f, 840.f};
 }
 
 void respawnPlayer(GameState& state) {
@@ -110,6 +117,14 @@ void respawnPlayer(GameState& state) {
     state.skBody.vy = 0.f;
     
     SDL_Log("Player respawned at spawn point %d (%.1f, %.1f)", randomSpawn, spawnPos.x, spawnPos.y);
+    
+    // MILESTONE 4: Raise Spawn Event
+    if (gEventManager) {
+        Engine::Event spawnEvent = Engine::Events::Spawn(
+            "player", spawnPos.x, spawnPos.y, &gameTime
+        );
+        gEventManager->raiseEvent(spawnEvent);
+    }
 }
 
 void initializeDeathZones() {
@@ -160,6 +175,13 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             if (jumpRequested) {
                 local.skBody.vy = JUMP_VELOCITY;
                 jumpRequested = false;
+                
+                // MILESTONE 4: Raise Input Event for Jump
+                if (gEventManager) {
+                    Engine::Event jumpEvent = Engine::Events::Input("SPACE", true, &gameTime);
+                    jumpEvent.payload["action"] = std::string("jump");
+                    gEventManager->raiseEvent(jumpEvent);
+                }
             }
         }
 
@@ -201,6 +223,11 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         if (local.skully.y < 0.f) { local.skully.y = 0.f; local.skBody.vy = 0.f; }
 
         if (checkDeathZones(local.skully)) {
+            // MILESTONE 4: Raise Death Event
+            if (gEventManager) {
+                Engine::Event deathEvent = Engine::Events::Death("player", &gameTime);
+                gEventManager->raiseEvent(deathEvent);
+            }
             respawnPlayer(local);
         }
 
@@ -225,7 +252,24 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
 
         bool hit = false;
         for (auto& p : local.pipes) {
-            if (aabbIntersect(local.skully, p.top) || aabbIntersect(local.skully, p.bottom)) { hit = true; break; }
+            if (aabbIntersect(local.skully, p.top) || aabbIntersect(local.skully, p.bottom)) { 
+                // MILESTONE 4: Raise Collision Event
+                if (gEventManager) {
+                    Engine::Event collisionEvent = Engine::Events::Collision(
+                        "player", "pipe", &gameTime
+                    );
+                    gEventManager->raiseEvent(collisionEvent);
+                }
+                
+                // MILESTONE 4: Raise Death Event
+                if (gEventManager) {
+                    Engine::Event deathEvent = Engine::Events::Death("player", &gameTime);
+                    gEventManager->raiseEvent(deathEvent);
+                }
+                
+                hit = true; 
+                break; 
+            }
         }
         if (hit) { 
             local.pipes.clear(); 
@@ -240,6 +284,11 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             local.currentFrame = (local.currentFrame + 1) % 6;
         }
 
+        // MILESTONE 4: Process Events
+        if (gEventManager) {
+            gEventManager->dispatchEvents();
+        }
+
         // Publish new state
         {
             std::lock_guard<std::mutex> lock(stateMutex);
@@ -249,11 +298,10 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         SDL_Delay(1);
     }
 }
-// Rendering (Main Thread)
 
+// Rendering (Main Thread)
 int main(int, char**) {
     initializeSpawnPoints();
-    
     initializeDeathZones();
     
     srand(static_cast<unsigned int>(time(nullptr)));
@@ -264,7 +312,7 @@ int main(int, char**) {
     }
 
     SDL_Window* window = nullptr; SDL_Renderer* renderer = nullptr;
-    if (!SDL_CreateWindowAndRenderer("Skully Bird", 1920, 1080, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("Skully Bird", 960,720, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("CreateWindowAndRenderer failed: %s", SDL_GetError()); SDL_Quit(); return 1;
     }
     SDL_SetRenderVSync(renderer, 1);
@@ -305,10 +353,71 @@ int main(int, char**) {
     gameTime.anchorToRealTime();
     gameTime.setScale(1.0);
 
+    // MILESTONE 4: Initialize Event Manager
+    Engine::EventManager eventManager(&gameTime);
+    gEventManager = &eventManager;
+
+    // MILESTONE 4: Register Event Listeners
+    eventManager.registerListener(Engine::EventType::Collision, [&](const Engine::Event& ev) {
+        auto it1 = ev.payload.find("A");
+        auto it2 = ev.payload.find("B");
+        if (it1 != ev.payload.end() && it2 != ev.payload.end()) {
+            std::string objA = std::get<std::string>(it1->second);
+            std::string objB = std::get<std::string>(it2->second);
+            SDL_Log("[EVENT] Collision between %s and %s at time %.3f", 
+                    objA.c_str(), objB.c_str(), ev.timestamp);
+        }
+    });
+
+    eventManager.registerListener(Engine::EventType::Death, [&](const Engine::Event& ev) {
+        auto it = ev.payload.find("entity");
+        if (it != ev.payload.end()) {
+            std::string entity = std::get<std::string>(it->second);
+            SDL_Log("[EVENT] Death of %s at time %.3f", entity.c_str(), ev.timestamp);
+        }
+    });
+
+    eventManager.registerListener(Engine::EventType::Spawn, [&](const Engine::Event& ev) {
+        auto itEnt = ev.payload.find("entity");
+        auto itX = ev.payload.find("x");
+        auto itY = ev.payload.find("y");
+        if (itEnt != ev.payload.end() && itX != ev.payload.end() && itY != ev.payload.end()) {
+            std::string entity = std::get<std::string>(itEnt->second);
+            float x = std::get<float>(itX->second);
+            float y = std::get<float>(itY->second);
+            SDL_Log("[EVENT] Spawn of %s at (%.1f, %.1f) at time %.3f", 
+                    entity.c_str(), x, y, ev.timestamp);
+        }
+    });
+
+    eventManager.registerListener(Engine::EventType::Input, [&](const Engine::Event& ev) {
+        auto itKey = ev.payload.find("key");
+        auto itPressed = ev.payload.find("pressed");
+        if (itKey != ev.payload.end() && itPressed != ev.payload.end()) {
+            std::string key = std::get<std::string>(itKey->second);
+            bool pressed = std::get<bool>(itPressed->second);
+
+            std::string actionSuffix;
+            auto itAction = ev.payload.find("action");
+            if (itAction != ev.payload.end() && std::holds_alternative<std::string>(itAction->second)) {
+                actionSuffix = " (" + std::get<std::string>(itAction->second) + ")";
+            }
+
+            SDL_Log("[EVENT] Input %s%s %s at time %.3f", 
+                    key.c_str(), actionSuffix.c_str(),
+                    pressed ? "pressed" : "released", ev.timestamp);
+        }
+    });
+
+    // Raise initial spawn event
+    Engine::Event initialSpawn = Engine::Events::Spawn("player", spawnPos.x, spawnPos.y, &gameTime);
+    eventManager.raiseEvent(initialSpawn);
+
     std::thread logicThread(logicLoop, std::ref(staticPlatforms));
 
     bool prevSpace = false, prevToggle = false;
     bool prevP = false, prev1 = false, prev2 = false, prev3 = false;
+    bool prevA = false, prevD = false;
 
     SDL_Event ev;
     while (running) {
@@ -322,19 +431,55 @@ int main(int, char**) {
         if (toggleNow && !prevToggle) {
             Scaling::setMode(Scaling::mode() == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel);
             SDL_Log("Scaling mode: %s", Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional");
+            
+            // MILESTONE 4: Raise Input Event
+            Engine::Event toggleEvent = Engine::Events::Input("T", true, &gameTime);
+            toggleEvent.payload["action"] = std::string("toggle_scale");
+            toggleEvent.payload["state"] = std::string(Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional");
+            eventManager.raiseEvent(toggleEvent);
         }
         prevToggle = toggleNow;
 
         bool pNow = Input::isKeyPressed(SDL_SCANCODE_P);
-        if (pNow && !prevP) { gameTime.togglePause(); SDL_Log("Timeline %s", gameTime.isPaused() ? "PAUSED" : "UNPAUSED"); }
+        if (pNow && !prevP) { 
+            gameTime.togglePause(); 
+            SDL_Log("Timeline %s", gameTime.isPaused() ? "PAUSED" : "UNPAUSED"); 
+            
+            // MILESTONE 4: Raise Input Event
+            Engine::Event pauseEvent = Engine::Events::Input("P", true, &gameTime);
+            pauseEvent.payload["action"] = std::string("pause_toggle");
+            pauseEvent.payload["state"] = std::string(gameTime.isPaused() ? "paused" : "running");
+            eventManager.raiseEvent(pauseEvent);
+        }
         prevP = pNow;
 
         bool k1Now = Input::isKeyPressed(SDL_SCANCODE_1);
         bool k2Now = Input::isKeyPressed(SDL_SCANCODE_2);
         bool k3Now = Input::isKeyPressed(SDL_SCANCODE_3);
-        if (k1Now && !prev1) { gameTime.setScale(0.5); SDL_Log("Speed set: 0.5x"); }
-        if (k2Now && !prev2) { gameTime.setScale(1.0); SDL_Log("Speed set: 1.0x"); }
-        if (k3Now && !prev3) { gameTime.setScale(2.0); SDL_Log("Speed set: 2.0x"); }
+        if (k1Now && !prev1) { 
+            gameTime.setScale(0.5); 
+            SDL_Log("Speed set: 0.5x"); 
+            Engine::Event slowEvent = Engine::Events::Input("1", true, &gameTime);
+            slowEvent.payload["action"] = std::string("time_scale");
+            slowEvent.payload["value"] = 0.5f;
+            eventManager.raiseEvent(slowEvent);
+        }
+        if (k2Now && !prev2) { 
+            gameTime.setScale(1.0); 
+            SDL_Log("Speed set: 1.0x"); 
+            Engine::Event normalEvent = Engine::Events::Input("2", true, &gameTime);
+            normalEvent.payload["action"] = std::string("time_scale");
+            normalEvent.payload["value"] = 1.0f;
+            eventManager.raiseEvent(normalEvent);
+        }
+        if (k3Now && !prev3) { 
+            gameTime.setScale(2.0); 
+            SDL_Log("Speed set: 2.0x"); 
+            Engine::Event fastEvent = Engine::Events::Input("3", true, &gameTime);
+            fastEvent.payload["action"] = std::string("time_scale");
+            fastEvent.payload["value"] = 2.0f;
+            eventManager.raiseEvent(fastEvent);
+        }
         prev1 = k1Now; prev2 = k2Now; prev3 = k3Now;
 
         bool spaceNow = Input::isKeyPressed(SDL_SCANCODE_SPACE);
@@ -344,11 +489,25 @@ int main(int, char**) {
         }
         prevSpace = spaceNow;
 
+        bool aNow = Input::isKeyPressed(SDL_SCANCODE_A);
+        bool dNow = Input::isKeyPressed(SDL_SCANCODE_D);
         {
             std::lock_guard<std::mutex> lock(moveMutex);
-            moveLeft = Input::isKeyPressed(SDL_SCANCODE_A);
-            moveRight = Input::isKeyPressed(SDL_SCANCODE_D);
+            moveLeft = aNow;
+            moveRight = dNow;
         }
+        if (aNow && !prevA) {
+            Engine::Event leftEvent = Engine::Events::Input("A", true, &gameTime);
+            leftEvent.payload["action"] = std::string("move_left");
+            eventManager.raiseEvent(leftEvent);
+        }
+        if (dNow && !prevD) {
+            Engine::Event rightEvent = Engine::Events::Input("D", true, &gameTime);
+            rightEvent.payload["action"] = std::string("move_right");
+            eventManager.raiseEvent(rightEvent);
+        }
+        prevA = aNow;
+        prevD = dNow;
 
         //RENDER
         SDL_SetRenderDrawColor(renderer, 100, 150, 255, 255);
@@ -387,7 +546,6 @@ int main(int, char**) {
                 SDL_RenderFillRect(renderer, &plat);
             }
         }
-
 
         SDL_SetRenderDrawColor(renderer, 20, 120, 50, 255);
         for (auto& p : snapshot.pipes) {

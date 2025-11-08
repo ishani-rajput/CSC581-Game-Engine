@@ -36,13 +36,51 @@ include CMakeFiles/rules.ninja
 
 cmake_ninja_workdir = C$:/courses/GameEngine/CSC481-581-M1/build/
 # =============================================================================
+# Object build statements for STATIC_LIBRARY target engine_events
+
+
+#############################################
+# Order-only phony target for engine_events
+
+build cmake_object_order_depends_target_engine_events: phony || .
+
+build CMakeFiles/engine_events.dir/src/event_manager.cpp.obj: CXX_COMPILER__engine_events_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/event_manager.cpp || cmake_object_order_depends_target_engine_events
+  DEP_FILE = CMakeFiles\engine_events.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\engine_events.dir
+  OBJECT_FILE_DIR = CMakeFiles\engine_events.dir\src
+
+build CMakeFiles/engine_events.dir/src/timeline.cpp.obj: CXX_COMPILER__engine_events_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/timeline.cpp || cmake_object_order_depends_target_engine_events
+  DEP_FILE = CMakeFiles\engine_events.dir\src\timeline.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\engine_events.dir
+  OBJECT_FILE_DIR = CMakeFiles\engine_events.dir\src
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target engine_events
+
+
+#############################################
+# Link the static library libengine_events.a
+
+build libengine_events.a: CXX_STATIC_LIBRARY_LINKER__engine_events_ CMakeFiles/engine_events.dir/src/event_manager.cpp.obj CMakeFiles/engine_events.dir/src/timeline.cpp.obj
+  OBJECT_DIR = CMakeFiles\engine_events.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = libengine_events.a
+  TARGET_PDB = engine_events.a.dbg
+
+# =============================================================================
 # Object build statements for EXECUTABLE target main
 
 
 #############################################
 # Order-only phony target for main
 
-build cmake_object_order_depends_target_main: phony || .
+build cmake_object_order_depends_target_main: phony || cmake_object_order_depends_target_engine_events
 
 build CMakeFiles/main.dir/src/main.cpp.obj: CXX_COMPILER__main_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/main.cpp || cmake_object_order_depends_target_main
   DEP_FILE = CMakeFiles\main.dir\src\main.cpp.obj.d
@@ -79,13 +117,6 @@ build CMakeFiles/main.dir/src/scaling.cpp.obj: CXX_COMPILER__main_unscanned_ C$:
   OBJECT_DIR = CMakeFiles\main.dir
   OBJECT_FILE_DIR = CMakeFiles\main.dir\src
 
-build CMakeFiles/main.dir/src/timeline.cpp.obj: CXX_COMPILER__main_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/timeline.cpp || cmake_object_order_depends_target_main
-  DEP_FILE = CMakeFiles\main.dir\src\timeline.cpp.obj.d
-  FLAGS = -std=gnu++17
-  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
-  OBJECT_DIR = CMakeFiles\main.dir
-  OBJECT_FILE_DIR = CMakeFiles\main.dir\src
-
 
 # =============================================================================
 # Link build statements for EXECUTABLE target main
@@ -94,8 +125,8 @@ build CMakeFiles/main.dir/src/timeline.cpp.obj: CXX_COMPILER__main_unscanned_ C$
 #############################################
 # Link the executable main.exe
 
-build main.exe: CXX_EXECUTABLE_LINKER__main_ CMakeFiles/main.dir/src/main.cpp.obj CMakeFiles/main.dir/src/entity.cpp.obj CMakeFiles/main.dir/src/input.cpp.obj CMakeFiles/main.dir/src/physics.cpp.obj CMakeFiles/main.dir/src/scaling.cpp.obj CMakeFiles/main.dir/src/timeline.cpp.obj | C$:/msys64/mingw64/lib/libSDL3_image.dll.a C$:/msys64/mingw64/lib/libSDL3.dll.a
-  LINK_LIBRARIES = C:/msys64/mingw64/lib/libSDL3_image.dll.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+build main.exe: CXX_EXECUTABLE_LINKER__main_ CMakeFiles/main.dir/src/main.cpp.obj CMakeFiles/main.dir/src/entity.cpp.obj CMakeFiles/main.dir/src/input.cpp.obj CMakeFiles/main.dir/src/physics.cpp.obj CMakeFiles/main.dir/src/scaling.cpp.obj | C$:/msys64/mingw64/lib/libSDL3_image.dll.a libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
+  LINK_LIBRARIES = C:/msys64/mingw64/lib/libSDL3_image.dll.a  libengine_events.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\main.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -110,7 +141,7 @@ build main.exe: CXX_EXECUTABLE_LINKER__main_ CMakeFiles/main.dir/src/main.cpp.ob
 #############################################
 # Order-only phony target for client
 
-build cmake_object_order_depends_target_client: phony || .
+build cmake_object_order_depends_target_client: phony || cmake_object_order_depends_target_engine_events
 
 build CMakeFiles/client.dir/src/client.cpp.obj: CXX_COMPILER__client_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/client.cpp || cmake_object_order_depends_target_client
   DEP_FILE = CMakeFiles\client.dir\src\client.cpp.obj.d
@@ -147,13 +178,6 @@ build CMakeFiles/client.dir/src/scaling.cpp.obj: CXX_COMPILER__client_unscanned_
   OBJECT_DIR = CMakeFiles\client.dir
   OBJECT_FILE_DIR = CMakeFiles\client.dir\src
 
-build CMakeFiles/client.dir/src/timeline.cpp.obj: CXX_COMPILER__client_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/timeline.cpp || cmake_object_order_depends_target_client
-  DEP_FILE = CMakeFiles\client.dir\src\timeline.cpp.obj.d
-  FLAGS = -std=gnu++17
-  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
-  OBJECT_DIR = CMakeFiles\client.dir
-  OBJECT_FILE_DIR = CMakeFiles\client.dir\src
-
 build CMakeFiles/client.dir/src/peer_manager.cpp.obj: CXX_COMPILER__client_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/peer_manager.cpp || cmake_object_order_depends_target_client
   DEP_FILE = CMakeFiles\client.dir\src\peer_manager.cpp.obj.d
   FLAGS = -std=gnu++17
@@ -169,8 +193,8 @@ build CMakeFiles/client.dir/src/peer_manager.cpp.obj: CXX_COMPILER__client_unsca
 #############################################
 # Link the executable client.exe
 
-build client.exe: CXX_EXECUTABLE_LINKER__client_ CMakeFiles/client.dir/src/client.cpp.obj CMakeFiles/client.dir/src/entity.cpp.obj CMakeFiles/client.dir/src/input.cpp.obj CMakeFiles/client.dir/src/physics.cpp.obj CMakeFiles/client.dir/src/scaling.cpp.obj CMakeFiles/client.dir/src/timeline.cpp.obj CMakeFiles/client.dir/src/peer_manager.cpp.obj | C$:/msys64/mingw64/lib/libSDL3_image.dll.a C$:/msys64/mingw64/lib/libzmq.dll.a C$:/msys64/mingw64/lib/libSDL3.dll.a
-  LINK_LIBRARIES = C:/msys64/mingw64/lib/libSDL3_image.dll.a  C:/msys64/mingw64/lib/libzmq.dll.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+build client.exe: CXX_EXECUTABLE_LINKER__client_ CMakeFiles/client.dir/src/client.cpp.obj CMakeFiles/client.dir/src/entity.cpp.obj CMakeFiles/client.dir/src/input.cpp.obj CMakeFiles/client.dir/src/physics.cpp.obj CMakeFiles/client.dir/src/scaling.cpp.obj CMakeFiles/client.dir/src/peer_manager.cpp.obj | C$:/msys64/mingw64/lib/libSDL3_image.dll.a C$:/msys64/mingw64/lib/libzmq.dll.a libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
+  LINK_LIBRARIES = C:/msys64/mingw64/lib/libSDL3_image.dll.a  C:/msys64/mingw64/lib/libzmq.dll.a  libengine_events.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\client.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -185,7 +209,7 @@ build client.exe: CXX_EXECUTABLE_LINKER__client_ CMakeFiles/client.dir/src/clien
 #############################################
 # Order-only phony target for server
 
-build cmake_object_order_depends_target_server: phony || .
+build cmake_object_order_depends_target_server: phony || cmake_object_order_depends_target_engine_events
 
 build CMakeFiles/server.dir/src/server.cpp.obj: CXX_COMPILER__server_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/server.cpp || cmake_object_order_depends_target_server
   DEP_FILE = CMakeFiles\server.dir\src\server.cpp.obj.d
@@ -209,8 +233,8 @@ build CMakeFiles/server.dir/src/network_server.cpp.obj: CXX_COMPILER__server_uns
 #############################################
 # Link the executable server.exe
 
-build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj CMakeFiles/server.dir/src/network_server.cpp.obj | C$:/msys64/mingw64/lib/libSDL3.dll.a C$:/msys64/mingw64/lib/libzmq.dll.a
-  LINK_LIBRARIES = C:/msys64/mingw64/lib/libSDL3.dll.a  C:/msys64/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj CMakeFiles/server.dir/src/network_server.cpp.obj | C$:/msys64/mingw64/lib/libzmq.dll.a libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
+  LINK_LIBRARIES = C:/msys64/mingw64/lib/libzmq.dll.a  libengine_events.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\server.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -286,6 +310,8 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 
 build client: phony client.exe
 
+build engine_events: phony libengine_events.a
+
 build main: phony main.exe
 
 build perf: phony perf.exe
@@ -300,7 +326,7 @@ build server: phony server.exe
 #############################################
 # Folder: C:/courses/GameEngine/CSC481-581-M1/build
 
-build all: phony main.exe client.exe server.exe perf.exe
+build all: phony libengine_events.a main.exe client.exe server.exe perf.exe
 
 # =============================================================================
 # Built-in targets

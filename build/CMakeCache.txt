@@ -263,6 +263,9 @@ ZMQ_LIB:FILEPATH=C:/msys64/mingw64/lib/libzmq.dll.a
 //The directory containing a CMake configuration file for ZeroMQ.
 ZeroMQ_DIR:PATH=ZeroMQ_DIR-NOTFOUND
 
+//Dependencies for the target
+engine_events_LIB_DEPENDS:STATIC=general;SDL3::SDL3;
+
 
 ########################
 # INTERNAL cache entries

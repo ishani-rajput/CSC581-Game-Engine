@@ -15,6 +15,20 @@ endif()
 include_directories(include)
 
 # ---------------------------
+# EVENT MANAGER (Milestone 4)
+# ---------------------------
+add_library(engine_events
+    ./src/event_manager.cpp
+    ./src/timeline.cpp        # <-- ADDED: event_manager depends on Timeline
+)
+target_include_directories(engine_events PUBLIC include)  # Changed to PUBLIC
+target_link_libraries(engine_events PUBLIC SDL3::SDL3)    # Changed to PUBLIC
+
+# ======================================================
+#  EXECUTABLES
+# ======================================================
+
+# ---------------------------
 # MAIN GAME (Milestone 1–2)
 # ---------------------------
 add_executable(main
@@ -23,13 +37,14 @@ add_executable(main
     ./src/input.cpp
     ./src/physics.cpp
     ./src/scaling.cpp
-    ./src/timeline.cpp
+    # ./src/timeline.cpp  <-- REMOVED: now in engine_events library
 )
 
 target_link_libraries(main
     PRIVATE
         SDL3::SDL3
         SDL3_image::SDL3_image
+        engine_events
 )
 
 # ---------------------------
@@ -41,14 +56,24 @@ add_executable(client
     ./src/input.cpp
     ./src/physics.cpp
     ./src/scaling.cpp
-    ./src/timeline.cpp
+    # ./src/timeline.cpp  <-- REMOVED: now in engine_events library
     ./src/peer_manager.cpp
 )
 
 if (ZeroMQ_FOUND)
-    target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image libzmq)
+    target_link_libraries(client PRIVATE
+        SDL3::SDL3
+        SDL3_image::SDL3_image
+        libzmq
+        engine_events
+    )
 else()
-    target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
+    target_link_libraries(client PRIVATE
+        SDL3::SDL3
+        SDL3_image::SDL3_image
+        ${ZMQ_LIB}
+        engine_events
+    )
 endif()
 
 # ---------------------------
@@ -60,9 +85,17 @@ add_executable(server
 )
 
 if (ZeroMQ_FOUND)
-    target_link_libraries(server PRIVATE SDL3::SDL3 libzmq)
+    target_link_libraries(server PRIVATE
+        SDL3::SDL3
+        libzmq
+        engine_events
+    )
 else()
-    target_link_libraries(server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
+    target_link_libraries(server PRIVATE
+        SDL3::SDL3
+        ${ZMQ_LIB}
+        engine_events
+    )
 endif()
 
 # ---------------------------
