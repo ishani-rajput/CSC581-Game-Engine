@@ -33,6 +33,35 @@ struct PipePair {
         : top{tx, ty, tw, th}, bottom{bx, by, bw, bh} {}
 };
 
+struct ClientReplayFrame {
+    double timestamp = 0.0;
+    SDL_FRect skully;
+    Body skBody;
+    float cameraX = 0.f;
+    SDL_FRect movingPlatform;
+    float movingPlatDir = 1.f;
+    std::vector<PipePair> pipes;
+    double localSpawnTimer = 0.0;
+    int nextPipeId = 0;
+    int currentFrame = 0;
+    double animationAccum = 0.0;
+};
+
+struct ClientReplayState {
+    SDL_FRect skully;
+    Body skBody;
+    float cameraX = 0.f;
+    SDL_FRect movingPlatform;
+    float movingPlatDir = 1.f;
+    std::vector<PipePair> pipes;
+    double localSpawnTimer = 0.0;
+    int nextPipeId = 0;
+    int currentFrame = 0;
+    double animationAccum = 0.0;
+    bool timelinePaused = false;
+    double timelineScale = 1.0;
+};
+
 static inline int numericIdFrom(const std::string& s) {
     int n = 0; bool any = false;
     for(char c : s) if(isdigit((unsigned char)c)) { any = true; n = n * 10 + (c - '0'); }
@@ -63,6 +92,13 @@ static Engine::Registry gRegistry;
 
 // MILESTONE 4: Global Event Manager
 static Engine::EventManager* gEventManager = nullptr;
+
+static std::vector<ClientReplayFrame> gClientReplayFrames;
+static size_t gClientReplayPlaybackIndex = 0;
+static double gClientReplayPlaybackElapsed = 0.0;
+static double gClientReplayRecordingStartTime = 0.0;
+static bool gClientReplayHasSavedState = false;
+static ClientReplayState gClientReplaySavedState;
 
 void initializeSpawnPoints() {
     auto& spawn1 = gRegistry.upsert("spawn_point_1");
@@ -294,6 +330,27 @@ int main(int argc, char** argv){
         }
     });
 
+    eventManager.registerListener(Engine::EventType::ReplayStart, [&](const Engine::Event&) {
+        eventManager.startRecording();
+        gClientReplayFrames.clear();
+        gClientReplayPlaybackIndex = 0;
+        gClientReplayPlaybackElapsed = 0.0;
+        gClientReplayRecordingStartTime = gameTime.time();
+        gClientReplayHasSavedState = false;
+    });
+    eventManager.registerListener(Engine::EventType::ReplayStop, [&](const Engine::Event&) {
+        eventManager.stopRecording();
+    });
+    eventManager.registerListener(Engine::EventType::ReplayPlay, [&](const Engine::Event&) {
+        if (gClientReplayFrames.empty()) {
+            SDL_Log("[REPLAY] No recorded frames to play back");
+            return;
+        }
+        gClientReplayPlaybackIndex = 0;
+        gClientReplayPlaybackElapsed = 0.0;
+        eventManager.playReplay();
+    });
+
     // Raise initial spawn event
     Engine::Event initialSpawn = Engine::Events::Spawn(
         CLIENT_ID, spawnPos.x, spawnPos.y, &gameTime
@@ -304,17 +361,53 @@ int main(int argc, char** argv){
     float cameraX = 0.f;
 
     bool running=true; SDL_Event ev;
+    bool replayActiveLast = false;
     bool prevSpace=false, prevToggle=false;
     bool prevP=false, prev1=false, prev2=false, prev3=false;
     bool prevAKey=false, prevDKey=false;
+    bool prevR=false, prevE=false, prevQ=false;
 
     while(running){
         while(SDL_PollEvent(&ev)){ if(ev.type==SDL_EVENT_QUIT) running=false; }
         Input::poll();
         if(Input::isKeyPressed(SDL_SCANCODE_ESCAPE)) running=false;
 
+        bool replayActive = gEventManager && gEventManager->isReplaying();
+        if (!replayActive && replayActiveLast && gClientReplayHasSavedState) {
+            skully = gClientReplaySavedState.skully;
+            skBody = gClientReplaySavedState.skBody;
+            cameraX = gClientReplaySavedState.cameraX;
+            movingPlatform = gClientReplaySavedState.movingPlatform;
+            movingPlatDir = gClientReplaySavedState.movingPlatDir;
+            pipes = gClientReplaySavedState.pipes;
+            localSpawnTimer = gClientReplaySavedState.localSpawnTimer;
+            nextPipeId = gClientReplaySavedState.nextPipeId;
+            currentFrame = gClientReplaySavedState.currentFrame;
+            animationAccum = gClientReplaySavedState.animationAccum;
+            gameTime.pause(gClientReplaySavedState.timelinePaused);
+            gameTime.setScale(gClientReplaySavedState.timelineScale);
+            gClientReplayHasSavedState = false;
+        }
+        if (replayActive && !replayActiveLast) {
+            gClientReplayPlaybackElapsed = 0.0;
+            gClientReplayPlaybackIndex = 0;
+            gClientReplaySavedState.skully = skully;
+            gClientReplaySavedState.skBody = skBody;
+            gClientReplaySavedState.cameraX = cameraX;
+            gClientReplaySavedState.movingPlatform = movingPlatform;
+            gClientReplaySavedState.movingPlatDir = movingPlatDir;
+            gClientReplaySavedState.pipes = pipes;
+            gClientReplaySavedState.localSpawnTimer = localSpawnTimer;
+            gClientReplaySavedState.nextPipeId = nextPipeId;
+            gClientReplaySavedState.currentFrame = currentFrame;
+            gClientReplaySavedState.animationAccum = animationAccum;
+            gClientReplaySavedState.timelinePaused = gameTime.isPaused();
+            gClientReplaySavedState.timelineScale = gameTime.scale();
+            gClientReplayHasSavedState = true;
+        }
+
         bool toggleNow=Input::isKeyPressed(SDL_SCANCODE_T);
-        if(toggleNow && !prevToggle){
+        if(!replayActive && toggleNow && !prevToggle){
             Scaling::setMode(Scaling::mode()==ScaleMode::Pixel? ScaleMode::Proportional: ScaleMode::Pixel);
             Engine::Event toggleEvent = Engine::Events::Input("T", true, &gameTime);
             toggleEvent.payload["action"] = std::string("toggle_scale");
@@ -324,7 +417,7 @@ int main(int argc, char** argv){
         prevToggle=toggleNow;
 
         bool pauseNow = Input::isKeyPressed(SDL_SCANCODE_P);
-        if (pauseNow && !prevP) { 
+        if (!replayActive && pauseNow && !prevP) { 
             gameTime.togglePause(); 
             // MILESTONE 4: Raise Input Event for Pause
             Engine::Event pauseEvent = Engine::Events::Input("P", true, &gameTime);
@@ -338,21 +431,21 @@ int main(int argc, char** argv){
         bool twoPress = Input::isKeyPressed(SDL_SCANCODE_2);
         bool threePress = Input::isKeyPressed(SDL_SCANCODE_3);
 
-        if (onePress && !prev1) {
+        if (!replayActive && onePress && !prev1) {
             gameTime.setScale(0.5);
             Engine::Event slowEvent = Engine::Events::Input("1", true, &gameTime);
             slowEvent.payload["action"] = std::string("time_scale");
             slowEvent.payload["value"] = 0.5f;
             eventManager.raiseEvent(slowEvent);
         }
-        if (twoPress && !prev2) {
+        if (!replayActive && twoPress && !prev2) {
             gameTime.setScale(1.0);
             Engine::Event normalEvent = Engine::Events::Input("2", true, &gameTime);
             normalEvent.payload["action"] = std::string("time_scale");
             normalEvent.payload["value"] = 1.0f;
             eventManager.raiseEvent(normalEvent);
         }
-        if (threePress && !prev3) {
+        if (!replayActive && threePress && !prev3) {
             gameTime.setScale(2.0);
             Engine::Event fastEvent = Engine::Events::Input("3", true, &gameTime);
             fastEvent.payload["action"] = std::string("time_scale");
@@ -364,7 +457,7 @@ int main(int argc, char** argv){
         double deltaSec=gameTime.tick();
 
         bool spaceNow=Input::isKeyPressed(SDL_SCANCODE_SPACE);
-        if(spaceNow && !prevSpace) {
+        if(!replayActive && spaceNow && !prevSpace) {
             skBody.vy=JUMP_VELOCITY;
             // MILESTONE 4: Raise Input Event for Jump
             Engine::Event jumpEvent = Engine::Events::Input("SPACE", true, &gameTime);
@@ -375,196 +468,259 @@ int main(int argc, char** argv){
 
         bool moveLeft = Input::isKeyPressed(SDL_SCANCODE_A);
         bool moveRight = Input::isKeyPressed(SDL_SCANCODE_D);
-        if (moveLeft && !prevAKey) {
+        if (!replayActive && moveLeft && !prevAKey) {
             Engine::Event leftEvent = Engine::Events::Input("A", true, &gameTime);
             leftEvent.payload["action"] = std::string("move_left");
             eventManager.raiseEvent(leftEvent);
         }
-        if (moveRight && !prevDKey) {
+        if (!replayActive && moveRight && !prevDKey) {
             Engine::Event rightEvent = Engine::Events::Input("D", true, &gameTime);
             rightEvent.payload["action"] = std::string("move_right");
             eventManager.raiseEvent(rightEvent);
         }
         prevAKey = moveLeft;
         prevDKey = moveRight;
-        if (moveLeft && !moveRight) skBody.vx = -MOVE_SPEED;
-        else if (moveRight && !moveLeft) skBody.vx = MOVE_SPEED;
-        else skBody.vx = 0.f;
+        if (!replayActive) {
+            if (moveLeft && !moveRight) skBody.vx = -MOVE_SPEED;
+            else if (moveRight && !moveLeft) skBody.vx = MOVE_SPEED;
+            else skBody.vx = 0.f;
+        }
 
-        if (!gameTime.isPaused()) {
-            Physics::step(static_cast<float>(deltaSec*1000.0), skully.x, skully.y, skBody);
+        bool rNow = Input::isKeyPressed(SDL_SCANCODE_R);
+        bool eNow = Input::isKeyPressed(SDL_SCANCODE_E);
+        bool qNow = Input::isKeyPressed(SDL_SCANCODE_Q);
+        if (rNow && !prevR) {
+            eventManager.raiseEvent(Engine::Events::ReplayStart(&gameTime));
+        }
+        if (eNow && !prevE) {
+            eventManager.raiseEvent(Engine::Events::ReplayStop(&gameTime));
+        }
+        if (qNow && !prevQ) {
+            eventManager.raiseEvent(Engine::Events::ReplayPlay(&gameTime));
+        }
+        prevR = rNow;
+        prevE = eNow;
+        prevQ = qNow;
 
-            const float CAMERA_FOLLOW_THRESHOLD = 1920.f * 0.3f;
-            const float CAMERA_BACK_THRESHOLD = 1920.f * 0.2f;
-
-            if (skully.x - cameraX > CAMERA_FOLLOW_THRESHOLD) {
-                cameraX = skully.x - CAMERA_FOLLOW_THRESHOLD;
+        if (replayActive) {
+            gClientReplayPlaybackElapsed += deltaSec;
+            eventManager.dispatchEvents();
+            while (gClientReplayPlaybackIndex < gClientReplayFrames.size() &&
+                   gClientReplayFrames[gClientReplayPlaybackIndex].timestamp <= gClientReplayPlaybackElapsed) {
+                const ClientReplayFrame& frame = gClientReplayFrames[gClientReplayPlaybackIndex];
+                skully = frame.skully;
+                skBody = frame.skBody;
+                cameraX = frame.cameraX;
+                movingPlatform = frame.movingPlatform;
+                movingPlatDir = frame.movingPlatDir;
+                pipes = frame.pipes;
+                localSpawnTimer = frame.localSpawnTimer;
+                nextPipeId = frame.nextPipeId;
+                currentFrame = frame.currentFrame;
+                animationAccum = frame.animationAccum;
+                gClientReplayPlaybackIndex++;
             }
-            if (skully.x - cameraX < CAMERA_BACK_THRESHOLD && cameraX > 0.f) {
-                cameraX = skully.x - CAMERA_BACK_THRESHOLD;
-                if (cameraX < 0.f) cameraX = 0.f;
-            }
+        } else {
 
-            movingPlatform.y += MOVING_PLAT_SPEED * movingPlatDir * deltaSec;
-            if (movingPlatform.y <= MOVING_PLAT_MIN_Y) {
-                movingPlatform.y = MOVING_PLAT_MIN_Y;
-                movingPlatDir = 1.f;
-            } else if (movingPlatform.y >= MOVING_PLAT_MAX_Y) {
-                movingPlatform.y = MOVING_PLAT_MAX_Y;
-                movingPlatDir = -1.f;
-            }
+            if (!gameTime.isPaused()) {
+                Physics::step(static_cast<float>(deltaSec*1000.0), skully.x, skully.y, skBody);
 
-            if(skully.y+skully.h>=ground.y){ skully.y=ground.y-skully.h; skBody.vy=0.f; }
-            if(aabbIntersect(skully, skullyPlatform) && skBody.vy > 0.f){ skully.y=skullyPlatform.y-skully.h; skBody.vy=0.f; }
-            if(aabbIntersect(skully, greyPlatform) && skBody.vy > 0.f){ skully.y=greyPlatform.y-skully.h; skBody.vy=0.f; }
-            if(aabbIntersect(skully, movingPlatform) && skBody.vy > 0.f){ skully.y=movingPlatform.y-skully.h; skBody.vy=0.f; }
-            if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
+                const float CAMERA_FOLLOW_THRESHOLD = 1920.f * 0.3f;
+                const float CAMERA_BACK_THRESHOLD = 1920.f * 0.2f;
 
-            if (checkDeathZones(skully)) {
-                // MILESTONE 4: Raise Death Event
-                Engine::Event deathEvent = Engine::Events::Death(CLIENT_ID, &gameTime);
-                eventManager.raiseEvent(deathEvent);
-                
-                respawnPlayer(skully, skBody, CLIENT_ID);
-            }
+                if (skully.x - cameraX > CAMERA_FOLLOW_THRESHOLD) {
+                    cameraX = skully.x - CAMERA_FOLLOW_THRESHOLD;
+                }
+                if (skully.x - cameraX < CAMERA_BACK_THRESHOLD && cameraX > 0.f) {
+                    cameraX = skully.x - CAMERA_BACK_THRESHOLD;
+                    if (cameraX < 0.f) cameraX = 0.f;
+                }
 
-            bool hit = false;
-            for(auto& p : pipes) {
-                if(aabbIntersect(skully, p.top) || aabbIntersect(skully, p.bottom)) {
-                    // MILESTONE 4: Raise Collision Event
-                    Engine::Event collisionEvent = Engine::Events::Collision(
-                        CLIENT_ID, "pipe", &gameTime
-                    );
-                    eventManager.raiseEvent(collisionEvent);
-                    
+                movingPlatform.y += MOVING_PLAT_SPEED * movingPlatDir * deltaSec;
+                if (movingPlatform.y <= MOVING_PLAT_MIN_Y) {
+                    movingPlatform.y = MOVING_PLAT_MIN_Y;
+                    movingPlatDir = 1.f;
+                } else if (movingPlatform.y >= MOVING_PLAT_MAX_Y) {
+                    movingPlatform.y = MOVING_PLAT_MAX_Y;
+                    movingPlatDir = -1.f;
+                }
+
+                if(skully.y+skully.h>=ground.y){ skully.y=ground.y-skully.h; skBody.vy=0.f; }
+                if(aabbIntersect(skully, skullyPlatform) && skBody.vy > 0.f){ skully.y=skullyPlatform.y-skully.h; skBody.vy=0.f; }
+                if(aabbIntersect(skully, greyPlatform) && skBody.vy > 0.f){ skully.y=greyPlatform.y-skully.h; skBody.vy=0.f; }
+                if(aabbIntersect(skully, movingPlatform) && skBody.vy > 0.f){ skully.y=movingPlatform.y-skully.h; skBody.vy=0.f; }
+                if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
+
+                if (checkDeathZones(skully)) {
                     // MILESTONE 4: Raise Death Event
                     Engine::Event deathEvent = Engine::Events::Death(CLIENT_ID, &gameTime);
                     eventManager.raiseEvent(deathEvent);
                     
-                    hit = true; 
-                    break;
+                    respawnPlayer(skully, skBody, CLIENT_ID);
+                }
+
+                bool hit = false;
+                for(auto& p : pipes) {
+                    if(aabbIntersect(skully, p.top) || aabbIntersect(skully, p.bottom)) {
+                        // MILESTONE 4: Raise Collision Event
+                        Engine::Event collisionEvent = Engine::Events::Collision(
+                            CLIENT_ID, "pipe", &gameTime
+                        );
+                        eventManager.raiseEvent(collisionEvent);
+                        
+                        // MILESTONE 4: Raise Death Event
+                        Engine::Event deathEvent = Engine::Events::Death(CLIENT_ID, &gameTime);
+                        eventManager.raiseEvent(deathEvent);
+                        
+                        hit = true; 
+                        break;
+                    }
+                }
+                if (hit) {
+                    pipes.clear();
+                    localSpawnTimer = 0.0;
+                    nextPipeId = 0;
+                    respawnPlayer(skully, skBody, CLIENT_ID);
                 }
             }
-            if (hit) {
-                pipes.clear();
-                localSpawnTimer = 0.0;
-                nextPipeId = 0;
-                respawnPlayer(skully, skBody, CLIENT_ID);
-            }
-        }
 
-        animationAccum += deltaSec;
-        while(animationAccum >= ANIM_FRAME_SEC) {
-            animationAccum -= ANIM_FRAME_SEC;
-            currentFrame = (currentFrame + 1) % FRAME_COUNT;
-        }
-
-        if (!gameTime.isPaused()) {
-            for(auto& p : pipes) {
-                p.top.x += PIPE_SPEED * deltaSec;
-                p.bottom.x += PIPE_SPEED * deltaSec;
+            animationAccum += deltaSec;
+            while(animationAccum >= ANIM_FRAME_SEC) {
+                animationAccum -= ANIM_FRAME_SEC;
+                currentFrame = (currentFrame + 1) % FRAME_COUNT;
             }
 
-            localSpawnTimer += deltaSec;
-            while(localSpawnTimer >= PIPE_SPAWN_EVERY) {
-                localSpawnTimer -= PIPE_SPAWN_EVERY;
+            if (!gameTime.isPaused()) {
+                for(auto& p : pipes) {
+                    p.top.x += PIPE_SPEED * deltaSec;
+                    p.bottom.x += PIPE_SPEED * deltaSec;
+                }
 
-                unsigned int seed = 12345 + nextPipeId * 7919;
-                float t = (float)((seed ^ (seed >> 16)) & 0xFFFF) / 65535.0f;
+                localSpawnTimer += deltaSec;
+                while(localSpawnTimer >= PIPE_SPAWN_EVERY) {
+                    localSpawnTimer -= PIPE_SPAWN_EVERY;
 
-                float minCenter = SCREEN_HEIGHT * 0.30f;
-                float maxCenter = SCREEN_HEIGHT * 0.70f;
-                float center = minCenter + t * (maxCenter - minCenter);
-                float topH = center - PIPE_GAP * 0.5f;
-                float bottomY = center + PIPE_GAP * 0.5f;
+                    unsigned int seed = 12345 + nextPipeId * 7919;
+                    float t = (float)((seed ^ (seed >> 16)) & 0xFFFF) / 65535.0f;
 
-                float spawnX = cameraX + SCREEN_WIDTH + PIPE_W;
-                pipes.emplace_back(
-                    spawnX, 0.f, PIPE_W, topH,
-                    spawnX, bottomY, PIPE_W, SCREEN_HEIGHT - bottomY - 120.f
-                );
-                nextPipeId++;
+                    float minCenter = SCREEN_HEIGHT * 0.30f;
+                    float maxCenter = SCREEN_HEIGHT * 0.70f;
+                    float center = minCenter + t * (maxCenter - minCenter);
+                    float topH = center - PIPE_GAP * 0.5f;
+                    float bottomY = center + PIPE_GAP * 0.5f;
+
+                    float spawnX = cameraX + SCREEN_WIDTH + PIPE_W;
+                    pipes.emplace_back(
+                        spawnX, 0.f, PIPE_W, topH,
+                        spawnX, bottomY, PIPE_W, SCREEN_HEIGHT - bottomY - 120.f
+                    );
+                    nextPipeId++;
+                }
+
+                pipes.erase(std::remove_if(pipes.begin(), pipes.end(),
+                    [](const PipePair& p){ return (p.top.x + p.top.w) < -50.f; }), pipes.end());
             }
 
-            pipes.erase(std::remove_if(pipes.begin(), pipes.end(),
-                [](const PipePair& p){ return (p.top.x + p.top.w) < -50.f; }), pipes.end());
+            if (gEventManager && gEventManager->isRecording()) {
+                double relativeTime = gameTime.time() - gClientReplayRecordingStartTime;
+                if (relativeTime < 0.0 || gClientReplayFrames.empty()) {
+                    relativeTime = 0.0;
+                }
+                ClientReplayFrame frame;
+                frame.timestamp = relativeTime;
+                frame.skully = skully;
+                frame.skBody = skBody;
+                frame.cameraX = cameraX;
+                frame.movingPlatform = movingPlatform;
+                frame.movingPlatDir = movingPlatDir;
+                frame.pipes = pipes;
+                frame.localSpawnTimer = localSpawnTimer;
+                frame.nextPipeId = nextPipeId;
+                frame.currentFrame = currentFrame;
+                frame.animationAccum = animationAccum;
+                gClientReplayFrames.push_back(frame);
+            }
         }
 
         // MILESTONE 4: Process Events
         eventManager.dispatchEvents();
 
-        auto& meGO = gRegistry.upsert(CLIENT_ID);
-        meGO.set<Engine::Vec2>("pos", {skully.x, skully.y});
-        meGO.set<bool>("paused", gameTime.isPaused());
-        meGO.set<float>("scale", gameTime.scale());
+        if (!replayActive) {
+            auto& meGO = gRegistry.upsert(CLIENT_ID);
+            meGO.set<Engine::Vec2>("pos", {skully.x, skully.y});
+            meGO.set<bool>("paused", gameTime.isPaused());
+            meGO.set<float>("scale", gameTime.scale());
 
-        if (strat == Engine::NetStrategy::FullState) {
-            peerManager.updateMyPlayerData(skully.x, skully.y, gameTime.isPaused(), gameTime.scale());
-        } else {
-            bool L = Input::isKeyPressed(SDL_SCANCODE_A);
-            bool R = Input::isKeyPressed(SDL_SCANCODE_D);
-            bool J = Input::isKeyPressed(SDL_SCANCODE_SPACE);
-            peerManager.sendInputDelta(L, R, J, 0.f, 0.f, SDL_GetTicks());
-        }
-
-        static auto lastCleanup = std::chrono::high_resolution_clock::now();
-        auto now = std::chrono::high_resolution_clock::now();
-        if (std::chrono::duration_cast<std::chrono::seconds>(now - lastCleanup).count() >= 1) {
-            peerManager.cleanupStalePeers();
-            lastCleanup = now;
-        }
-
-        auto peerData = peerManager.getPeerPlayerData();
-        std::unordered_map<std::string, RemotePlayer> oldOthers = others;
-        others.clear();
-
-        for (const auto& [peerId, playerData] : peerData) {
-            auto& go = gRegistry.upsert(peerId);
-            go.set<Engine::Vec2>("pos", {playerData.x, playerData.y});
-            go.set<bool>("paused", playerData.paused);
-            go.set<float>("scale", playerData.scale);
-
-            auto elapsed = std::chrono::high_resolution_clock::now() - playerData.lastUpdate;
-            if (elapsed > std::chrono::seconds(5)) continue;
-
-            RemotePlayer rp;
-            rp.rect = {playerData.x, playerData.y, characterSize, characterSize};
-            rp.paused = playerData.paused;
-            rp.scale = playerData.scale;
-
-            if (oldOthers.find(peerId) != oldOthers.end()) {
-                rp.currentFrame = oldOthers[peerId].currentFrame;
-                rp.animationAccum = oldOthers[peerId].animationAccum;
-                rp.lastAnimTime = oldOthers[peerId].lastAnimTime;
+            if (strat == Engine::NetStrategy::FullState) {
+                peerManager.updateMyPlayerData(skully.x, skully.y, gameTime.isPaused(), gameTime.scale());
+            } else {
+                bool L = Input::isKeyPressed(SDL_SCANCODE_A);
+                bool R = Input::isKeyPressed(SDL_SCANCODE_D);
+                bool J = Input::isKeyPressed(SDL_SCANCODE_SPACE);
+                peerManager.sendInputDelta(L, R, J, 0.f, 0.f, SDL_GetTicks());
             }
-            others[peerId] = rp;
-        }
 
-        char msg[256];
-        snprintf(msg, sizeof(msg), "ID %s X %.3f Y %.3f PAUSED %d SCALE %.3f",
-                CLIENT_ID.c_str(), skully.x, skully.y, gameTime.isPaused() ? 1 : 0, gameTime.scale());
-        peerManager.sendToServer(msg);
+            static auto lastCleanup = std::chrono::high_resolution_clock::now();
+            auto now = std::chrono::high_resolution_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - lastCleanup).count() >= 1) {
+                peerManager.cleanupStalePeers();
+                lastCleanup = now;
+            }
 
-        std::string serverResponse = peerManager.receiveFromServer();
-        if (!serverResponse.empty()) {
-            if (serverResponse.rfind("DISCONNECT", 0) == 0) {
-                char deadId[256];
-                if (sscanf(serverResponse.c_str(), "DISCONNECT %255s", deadId) == 1) {
-                    others.erase(deadId);
-                    gRegistry.erase(deadId);
-                    std::cout << "Peer " << deadId << " disconnected.\n";
+            auto peerData = peerManager.getPeerPlayerData();
+            std::unordered_map<std::string, RemotePlayer> oldOthers = others;
+            others.clear();
+
+            for (const auto& [peerId, playerData] : peerData) {
+                auto& go = gRegistry.upsert(peerId);
+                go.set<Engine::Vec2>("pos", {playerData.x, playerData.y});
+                go.set<bool>("paused", playerData.paused);
+                go.set<float>("scale", playerData.scale);
+
+                auto elapsed = std::chrono::high_resolution_clock::now() - playerData.lastUpdate;
+                if (elapsed > std::chrono::seconds(5)) continue;
+
+                RemotePlayer rp;
+                rp.rect = {playerData.x, playerData.y, characterSize, characterSize};
+                rp.paused = playerData.paused;
+                rp.scale = playerData.scale;
+
+                if (oldOthers.find(peerId) != oldOthers.end()) {
+                    rp.currentFrame = oldOthers[peerId].currentFrame;
+                    rp.animationAccum = oldOthers[peerId].animationAccum;
+                    rp.lastAnimTime = oldOthers[peerId].lastAnimTime;
                 }
+                others[peerId] = rp;
             }
-            // MILESTONE 4: Check for networked events
-            else if (serverResponse.rfind("EVENT:", 0) == 0) {
-                std::string eventData = serverResponse.substr(6); // Remove "EVENT:" prefix
-                eventManager.raiseEventFromNetwork(eventData);
-                SDL_Log("[NETWORK] Received event from network");
+
+            char msg[256];
+            snprintf(msg, sizeof(msg), "ID %s X %.3f Y %.3f PAUSED %d SCALE %.3f",
+                    CLIENT_ID.c_str(), skully.x, skully.y, gameTime.isPaused() ? 1 : 0, gameTime.scale());
+            peerManager.sendToServer(msg);
+
+            std::string serverResponse = peerManager.receiveFromServer();
+            if (!serverResponse.empty()) {
+                if (serverResponse.rfind("DISCONNECT", 0) == 0) {
+                    char deadId[256];
+                    if (sscanf(serverResponse.c_str(), "DISCONNECT %255s", deadId) == 1) {
+                        others.erase(deadId);
+                        gRegistry.erase(deadId);
+                        std::cout << "Peer " << deadId << " disconnected.\n";
+                    }
+                }
+                // MILESTONE 4: Check for networked events
+                else if (serverResponse.rfind("EVENT:", 0) == 0) {
+                    std::string eventData = serverResponse.substr(6); // Remove "EVENT:" prefix
+                    eventManager.raiseEventFromNetwork(eventData);
+                    SDL_Log("[NETWORK] Received event from network");
+                }
             }
         }
 
         SDL_SetRenderDrawColor(renderer,100,150,255,255);
         SDL_RenderClear(renderer);
+
+        replayActiveLast = replayActive;
 
         SDL_FRect groundWorld = applyCamera(ground, cameraX);
         SDL_FRect gDst=Scaling::compute(groundWorld,window);

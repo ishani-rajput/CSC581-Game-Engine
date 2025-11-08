@@ -46,6 +46,20 @@ std::mutex moveMutex;
 bool moveLeft = false;
 bool moveRight = false;
 
+struct ReplayFrame {
+    double timestamp;
+    GameState state;
+    std::vector<SDL_FRect> platforms;
+};
+
+std::vector<ReplayFrame> gReplayFrames;
+size_t gReplayPlaybackIndex = 0;
+double gReplayPlaybackElapsed = 0.0;
+double gReplayRecordingStartTime = 0.0;
+bool gReplayHasSavedState = false;
+GameState gReplaySavedState;
+std::vector<SDL_FRect> gReplaySavedPlatforms;
+
 // MILESTONE 4: Global Event Manager
 static Engine::EventManager* gEventManager = nullptr;
 
@@ -72,23 +86,23 @@ void initializeSpawnPoints() {
     auto& spawn1 = gRegistry.upsert("spawn_point_1");
     spawn1.set<Engine::Vec2>("pos", {100.f, 840.f});
     spawn1.set<bool>("active", true);
-    
+
     auto& spawn2 = gRegistry.upsert("spawn_point_2");
     spawn2.set<Engine::Vec2>("pos", {480.f, 840.f});
     spawn2.set<bool>("active", true);
-    
+
     auto& spawn3 = gRegistry.upsert("spawn_point_3");
     spawn3.set<Engine::Vec2>("pos", {1400.f, 840.f});
     spawn3.set<bool>("active", true);
-    
+
     auto& spawn4 = gRegistry.upsert("spawn_point_4");
     spawn4.set<Engine::Vec2>("pos", {870.f, 392.f}); 
     spawn4.set<bool>("active", true);
-    
+
     auto& spawn5 = gRegistry.upsert("spawn_point_5");
     spawn5.set<Engine::Vec2>("pos", {1620.f, 542.f}); 
     spawn5.set<bool>("active", true);
-    
+
     auto& spawn6 = gRegistry.upsert("spawn_point_6");
     spawn6.set<Engine::Vec2>("pos", {1100.f, 840.f});
     spawn6.set<bool>("active", true);
@@ -97,7 +111,7 @@ void initializeSpawnPoints() {
 Engine::Vec2 getSpawnPointPosition(int spawnId) {
     if (spawnId < 1) spawnId = 1;
     if (spawnId > 6) spawnId = ((spawnId - 1) % 6) + 1;
-    
+
     std::string spawnName = "spawn_point_" + std::to_string(spawnId);
     auto* spawn = gRegistry.get(spawnName);
     if (spawn) {
@@ -109,15 +123,15 @@ Engine::Vec2 getSpawnPointPosition(int spawnId) {
 void respawnPlayer(GameState& state) {
     int randomSpawn = 1 + (rand() % 6);
     Engine::Vec2 spawnPos = getSpawnPointPosition(randomSpawn);
-    
+
     state.skully.x = spawnPos.x;
     state.skully.y = spawnPos.y;
-    
+
     state.skBody.vx = 0.f;
     state.skBody.vy = 0.f;
-    
+
     SDL_Log("Player respawned at spawn point %d (%.1f, %.1f)", randomSpawn, spawnPos.x, spawnPos.y);
-    
+
     // MILESTONE 4: Raise Spawn Event
     if (gEventManager) {
         Engine::Event spawnEvent = Engine::Events::Spawn(
@@ -145,7 +159,7 @@ bool checkDeathZones(const SDL_FRect& player) {
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -157,7 +171,7 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
     const float PIPE_W = 140.f, PIPE_GAP = 280.f;
     const double PIPE_SPAWN_EVERY = 1.4;
     const double ANIM_FRAME_SEC = 0.100;
-    
+
     const float MOVING_PLAT_SPEED = 120.f;
     float movingPlatDir = 1.f;  
     const float MOVING_PLAT_MIN_Y = 400.f, MOVING_PLAT_MAX_Y = 700.f;
@@ -165,17 +179,61 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
     GameState local = logicState;
     double spawnTimer = 0.0;
     double animationAccum = 0.0;
+    bool replayActiveLast = false;
 
     while (running) {
         double dtSec = gameTime.tick();
         if (dtSec <= 0.0) { SDL_Delay(1); continue; }
+
+        bool replayActive = gEventManager && gEventManager->isReplaying();
+
+        if (replayActive && !replayActiveLast) {
+            gReplayPlaybackElapsed = 0.0;
+            gReplayPlaybackIndex = 0;
+            gReplayHasSavedState = true;
+            gReplaySavedState = local;
+            gReplaySavedPlatforms = staticPlatforms;
+        }
+
+        if (replayActive) {
+            gReplayPlaybackElapsed += dtSec;
+
+            if (gEventManager) {
+                gEventManager->dispatchEvents();
+            }
+
+            while (gReplayPlaybackIndex < gReplayFrames.size() &&
+                   gReplayFrames[gReplayPlaybackIndex].timestamp <= gReplayPlaybackElapsed) {
+                const ReplayFrame& frame = gReplayFrames[gReplayPlaybackIndex];
+                local = frame.state;
+                staticPlatforms = frame.platforms;
+                gReplayPlaybackIndex++;
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(stateMutex);
+                renderState = local;
+            }
+
+            SDL_Delay(1);
+            replayActiveLast = replayActive;
+            continue;
+        }
+
+        if (!replayActive && replayActiveLast) {
+            if (gReplayHasSavedState) {
+                local = gReplaySavedState;
+                staticPlatforms = gReplaySavedPlatforms;
+                gReplayHasSavedState = false;
+            }
+        }
 
         {
             std::unique_lock<std::mutex> lock(jumpMutex);
             if (jumpRequested) {
                 local.skBody.vy = JUMP_VELOCITY;
                 jumpRequested = false;
-                
+
                 // MILESTONE 4: Raise Input Event for Jump
                 if (gEventManager) {
                     Engine::Event jumpEvent = Engine::Events::Input("SPACE", true, &gameTime);
@@ -204,7 +262,7 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             local.cameraX = local.skully.x - CAMERA_BACK_THRESHOLD;
             if (local.cameraX < 0.f) local.cameraX = 0.f;
         }
-        
+
         staticPlatforms[3].y += MOVING_PLAT_SPEED * movingPlatDir * dtSec;
         if (staticPlatforms[3].y <= MOVING_PLAT_MIN_Y) {
             staticPlatforms[3].y = MOVING_PLAT_MIN_Y;
@@ -284,6 +342,14 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             local.currentFrame = (local.currentFrame + 1) % 6;
         }
 
+        if (gEventManager && gEventManager->isRecording()) {
+            double relativeTime = gameTime.time() - gReplayRecordingStartTime;
+            if (relativeTime < 0.0 || gReplayFrames.empty()) {
+                relativeTime = 0.0;
+            }
+            gReplayFrames.push_back({relativeTime, local, staticPlatforms});
+        }
+
         // MILESTONE 4: Process Events
         if (gEventManager) {
             gEventManager->dispatchEvents();
@@ -296,6 +362,7 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         }
 
         SDL_Delay(1);
+        replayActiveLast = replayActive;
     }
 }
 
@@ -303,9 +370,9 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
 int main(int, char**) {
     initializeSpawnPoints();
     initializeDeathZones();
-    
+
     srand(static_cast<unsigned int>(time(nullptr)));
-    
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("SDL init failed: %s", SDL_GetError());
         return 1;
@@ -409,6 +476,28 @@ int main(int, char**) {
         }
     });
 
+    // REPLAY SYSTEM: Register Replay Listeners
+    eventManager.registerListener(Engine::EventType::ReplayStart, [&](const Engine::Event&) {
+        eventManager.startRecording();
+        gReplayFrames.clear();
+        gReplayPlaybackIndex = 0;
+        gReplayPlaybackElapsed = 0.0;
+        gReplayRecordingStartTime = gameTime.time();
+        gReplayHasSavedState = false;
+    });
+    eventManager.registerListener(Engine::EventType::ReplayStop, [&](const Engine::Event&) {
+        eventManager.stopRecording();
+    });
+    eventManager.registerListener(Engine::EventType::ReplayPlay, [&](const Engine::Event&) {
+        if (gReplayFrames.empty()) {
+            SDL_Log("[REPLAY] No recorded frames to play back");
+            return;
+        }
+        gReplayPlaybackIndex = 0;
+        gReplayPlaybackElapsed = 0.0;
+        eventManager.playReplay();
+    });
+
     // Raise initial spawn event
     Engine::Event initialSpawn = Engine::Events::Spawn("player", spawnPos.x, spawnPos.y, &gameTime);
     eventManager.raiseEvent(initialSpawn);
@@ -418,6 +507,7 @@ int main(int, char**) {
     bool prevSpace = false, prevToggle = false;
     bool prevP = false, prev1 = false, prev2 = false, prev3 = false;
     bool prevA = false, prevD = false;
+    bool prevR = false, prevE = false, prevQ = false;
 
     SDL_Event ev;
     while (running) {
@@ -431,7 +521,7 @@ int main(int, char**) {
         if (toggleNow && !prevToggle) {
             Scaling::setMode(Scaling::mode() == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel);
             SDL_Log("Scaling mode: %s", Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional");
-            
+
             // MILESTONE 4: Raise Input Event
             Engine::Event toggleEvent = Engine::Events::Input("T", true, &gameTime);
             toggleEvent.payload["action"] = std::string("toggle_scale");
@@ -442,9 +532,9 @@ int main(int, char**) {
 
         bool pNow = Input::isKeyPressed(SDL_SCANCODE_P);
         if (pNow && !prevP) { 
-            gameTime.togglePause(); 
+            gameTime.togglePause();
             SDL_Log("Timeline %s", gameTime.isPaused() ? "PAUSED" : "UNPAUSED"); 
-            
+
             // MILESTONE 4: Raise Input Event
             Engine::Event pauseEvent = Engine::Events::Input("P", true, &gameTime);
             pauseEvent.payload["action"] = std::string("pause_toggle");
@@ -508,6 +598,18 @@ int main(int, char**) {
         }
         prevA = aNow;
         prevD = dNow;
+
+        // REPLAY SYSTEM: Record/Stop/Play using R/E/P
+        bool rNow = Input::isKeyPressed(SDL_SCANCODE_R);
+        bool eNow = Input::isKeyPressed(SDL_SCANCODE_E);
+        bool qNow = Input::isKeyPressed(SDL_SCANCODE_Q); // Q for quick play as alternate
+        if (rNow && !prevR)
+            eventManager.raiseEvent(Engine::Events::ReplayStart(&gameTime));
+        if (eNow && !prevE)
+            eventManager.raiseEvent(Engine::Events::ReplayStop(&gameTime));
+        if (qNow && !prevQ)
+            eventManager.raiseEvent(Engine::Events::ReplayPlay(&gameTime));
+        prevR = rNow; prevE = eNow; prevQ = qNow;
 
         //RENDER
         SDL_SetRenderDrawColor(renderer, 100, 150, 255, 255);
