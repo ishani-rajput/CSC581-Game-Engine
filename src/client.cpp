@@ -88,6 +88,18 @@ static SDL_Texture* tryLoadTexture(SDL_Renderer* r, const char* const* paths, in
     SDL_Log("Failed to load texture: %s", SDL_GetError()); return nullptr;
 }
 
+static void drawCircle(SDL_Renderer* renderer, int32_t centreX, int32_t centreY,
+                       int32_t radius, Uint8 r, Uint8 g, Uint8 b) {
+    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (dx*dx + dy*dy <= radius*radius) {
+                SDL_RenderPoint(renderer, centreX + dx, centreY + dy);
+            }
+        }
+    }
+}
+
 static Engine::Registry gRegistry;
 
 // MILESTONE 4: Global Event Manager
@@ -719,6 +731,17 @@ int main(int argc, char** argv){
 
         SDL_SetRenderDrawColor(renderer,100,150,255,255);
         SDL_RenderClear(renderer);
+
+        int winW = 0, winH = 0;
+        SDL_GetWindowSize(window, &winW, &winH);
+        int circleX = winW - 30;
+        int circleY = 30;
+        int circleRad = 8;
+        if (eventManager.isRecording()) {
+            drawCircle(renderer, circleX, circleY, circleRad, 255, 0, 0);
+        } else if (eventManager.isReplaying()) {
+            drawCircle(renderer, circleX, circleY, circleRad, 0, 255, 0);
+        }
 
         replayActiveLast = replayActive;
 
