@@ -145,6 +145,9 @@ static Rect gScrollLeft;
 
 static Engine::Registry gRegistry;
 
+bool flashOnDeath = false;
+float flashTimer  = 0.f;
+
 
 int main(int, char**) {
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
@@ -344,6 +347,10 @@ int main(int, char**) {
         std::cout << "[Event] Collision between " << a << " and " << b << "\n";
     });
 
+    eventManager.registerListener(Engine::EventType::Death, [&](const Engine::Event&){
+        flashOnDeath = true;
+        flashTimer   = 0.2f;  // flash for ~0.2 seconds
+    });
 
     eventManager.registerListener(Engine::EventType::ReplayStop,
         [&](const Engine::Event&){
@@ -473,6 +480,14 @@ int main(int, char**) {
         prevY = yNow;
 
         float dt = (float)myTime.tick();
+
+        if (flashOnDeath) {
+            flashTimer -= dt;
+            if (flashTimer <= 0.f) {
+                flashOnDeath = false;
+            }
+        }
+
 
         float desiredVx = 0.f;
         if (Input::isKeyPressed(SDL_SCANCODE_A)) desiredVx = -300.f;
@@ -828,6 +843,25 @@ int main(int, char**) {
 
         eventManager.dispatchEvents();
 
+         if (replayPlaying && !replayFrames.empty()) {
+            replayPlayTime += dt;
+
+            while (replayPlayIndex + 1 < replayFrames.size() &&
+                   replayFrames[replayPlayIndex + 1].t <= replayPlayTime) {
+                ++replayPlayIndex;
+            }
+
+            const ReplayFrame& fr = replayFrames[replayPlayIndex];
+            me.x   = fr.px;
+            me.y   = fr.py;
+            gCam.x = fr.camx;
+            clampCam();
+
+            if (replayPlayIndex + 1 >= replayFrames.size()) {
+                replayPlaying = false;
+            }
+        }
+
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         if (bgSky) SDL_RenderTexture(renderer, bgSky, nullptr, nullptr);
@@ -876,24 +910,6 @@ int main(int, char**) {
             m.sprite->update(); m.sprite->render(renderer, window);
         }
 
-        if (replayPlaying && !replayFrames.empty()) {
-            replayPlayTime += dt;
-
-            while (replayPlayIndex + 1 < replayFrames.size() &&
-                   replayFrames[replayPlayIndex + 1].t <= replayPlayTime) {
-                ++replayPlayIndex;
-            }
-
-            const ReplayFrame& fr = replayFrames[replayPlayIndex];
-            me.x   = fr.px;
-            me.y   = fr.py;
-            gCam.x = fr.camx;
-            clampCam();
-
-            if (replayPlayIndex + 1 >= replayFrames.size()) {
-                replayPlaying = false;
-            }
-        }
 
         graveE.setPosition(700.f - gCam.x, 700.f);
         ghostE.setPosition(ghostX - gCam.x, ghostY);
@@ -952,6 +968,13 @@ int main(int, char**) {
                 SDL_FRect r = { 50.f, 10.f, 30.f, 30.f };
                 SDL_RenderFillRect(renderer, &r);
             }
+        }
+
+        if (flashOnDeath) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 180);
+            SDL_FRect flash = {0, 0, (float)WINDOW_WIDTH, (float)WINDOW_HEIGHT};
+            SDL_RenderFillRect(renderer, &flash);
         }
 
         SDL_RenderPresent(renderer);
