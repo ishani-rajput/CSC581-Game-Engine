@@ -13,6 +13,7 @@
 #include "net_strategy.h"
 #include "registry.h"
 #include "object_model.h"
+#include "event_manager.h"
 
 #include <iostream>
 #include <sstream>
@@ -71,6 +72,11 @@ struct GhostState {
     bool onGround=true;
 };
 
+struct ReplayFrame {
+    float t;       
+    float px, py;  
+    float camx;    
+};
 
 struct Camera { float x = 0.f; };
 
@@ -194,6 +200,22 @@ int main(int, char**) {
     }
     zmq_setsockopt(rawPeerSub, ZMQ_SUBSCRIBE, "", 0);
 
+    void* eventPub = zmq_socket(ctx, ZMQ_PUB);
+    {
+        std::ostringstream ep; ep << "tcp://*:" << (8000 + myNum);
+        if (zmq_bind(eventPub, ep.str().c_str()) != 0) {
+            std::cerr << "Failed to bind eventPub on " << ep.str()
+                      << ": " << zmq_strerror(errno) << "\n";
+        }
+    }
+    void* eventSub = zmq_socket(ctx, ZMQ_SUB);
+    for (int i = 1; i <= 20; ++i) {
+        if (i == myNum) continue;
+        std::ostringstream ep; ep << "tcp://127.0.0.1:" << (8000 + i);
+        zmq_connect(eventSub, ep.str().c_str());
+    }
+    zmq_setsockopt(eventSub, ZMQ_SUBSCRIBE, "", 0);
+
     SDL_Texture* bgSky = IMG_LoadTexture(renderer, BG_SKY_ASSET);
     Entity groundE(renderer, PLATFORM_ASSET, 0, 950, 1920, 130, 1, 0);
     Entity graveE(renderer, GRAVE_ASSET, 700, 700, 256, 256, 1, 0);
@@ -278,11 +300,102 @@ int main(int, char**) {
         });
     }
 
+    Engine::EventManager eventManager(&myTime);
+
+    std::vector<ReplayFrame> replayFrames;
+    bool   replayRecording   = false;
+    bool   replayPlaying     = false;
+    float  replayRecordTime  = 0.f;
+    float  replayPlayTime    = 0.f;
+    size_t replayPlayIndex   = 0;
+
+    eventManager.registerListener(Engine::EventType::Collision,
+        [](const Engine::Event& e){
+            const std::string& a = std::get<std::string>(e.payload.at("A"));
+            const std::string& b = std::get<std::string>(e.payload.at("B"));
+            if (a == "Ground" || b == "Ground") return;
+            std::cout << "[EVENT] Collision at t=" << e.timestamp
+                      << " priority=" << e.priority << "\n";
+        });
+
+    eventManager.registerListener(Engine::EventType::Death,
+        [](const Engine::Event&){
+            std::cout << "[EVENT] Death\n";
+        });
+
+    eventManager.registerListener(Engine::EventType::Spawn,
+        [](const Engine::Event&){
+            std::cout << "[EVENT] Spawn\n";
+        });
+
+    eventManager.registerListener(Engine::EventType::Input,
+        [](const Engine::Event&){
+            std::cout << "[EVENT] Input\n";
+        });
+
+    eventManager.registerListener(Engine::EventType::Collision, [](const Engine::Event& e){
+        const std::string& a = std::get<std::string>(e.payload.at("A"));
+        const std::string& b = std::get<std::string>(e.payload.at("B"));
+
+        if (a == "Ground" || b == "Ground") {
+            return; 
+        }
+
+        std::cout << "[Event] Collision between " << a << " and " << b << "\n";
+    });
+
+
+    eventManager.registerListener(Engine::EventType::ReplayStop,
+        [&](const Engine::Event&){
+            std::cout << "[EVENT] ReplayStop\n";
+            replayRecording = false;         
+            eventManager.stopRecording();
+        });
+
+    eventManager.registerListener(Engine::EventType::ReplayStart,
+        [&](const Engine::Event&){
+            std::cout << "[EVENT] ReplayStart\n";
+            replayFrames.clear();             
+            replayRecording  = true;
+            replayPlaying    = false;
+            replayRecordTime = 0.f;
+            eventManager.startRecording();
+        });
+
+    eventManager.registerListener(Engine::EventType::ReplayPlay,
+        [&](const Engine::Event&){
+            std::cout << "[EVENT] ReplayPlay\n";
+            if (!replayFrames.empty()) {
+                replayPlaying    = true;      
+                replayRecording  = false;
+                replayPlayTime   = 0.f;
+                replayPlayIndex  = 0;
+                eventManager.playReplay();
+            }
+        });
+
+
+    auto sendEventNet = [&](const Engine::Event& e){
+        if (!eventPub) return;
+        std::string payload = e.serialize();
+        std::string message = "EV " + myId + " " + payload;
+        if (zmq_send(eventPub, message.c_str(), (int)message.size(), ZMQ_DONTWAIT) < 0) {
+            std::cerr << "Failed to send EV: " << zmq_strerror(errno) << "\n";
+        }
+    };
+
+    {
+        Engine::Event spawnEv = Engine::Events::Spawn(myId, me.x, me.y, &myTime);
+        eventManager.raiseEvent(spawnEv);
+        sendEventNet(spawnEv);
+    }
+
     bool paused = false, prevT = false, prevJump = false;
     bool running = true;
 
     bool showDebug = false;
     static bool prevF1 = false;
+    bool prevR = false, prevY = false;
 
     float ghostX = 1500.f, ghostY = 600.f; 
     SDL_Event ev;
@@ -339,6 +452,26 @@ int main(int, char**) {
         if (Input::isKeyPressed(SDL_SCANCODE_2)) myTime.setScale(1.0);
         if (Input::isKeyPressed(SDL_SCANCODE_3)) myTime.setScale(2.0);
 
+        bool rNow = Input::isKeyPressed(SDL_SCANCODE_R);
+        if (rNow && !prevR) {
+            if (!eventManager.isRecording()) {
+                Engine::Event e = Engine::Events::ReplayStart(&myTime);
+                eventManager.raiseEvent(e);
+            } else {
+                Engine::Event e = Engine::Events::ReplayStop(&myTime);
+                eventManager.raiseEvent(e
+                );
+            }
+        }
+        prevR = rNow;
+
+        bool yNow = Input::isKeyPressed(SDL_SCANCODE_Y);
+        if (yNow && !prevY) {
+            Engine::Event e = Engine::Events::ReplayPlay(&myTime);
+            eventManager.raiseEvent(e);
+        }
+        prevY = yNow;
+
         float dt = (float)myTime.tick();
 
         float desiredVx = 0.f;
@@ -351,6 +484,10 @@ int main(int, char**) {
 
         me.vx = desiredVx;
         if (wantJump) {
+            Engine::Event e = Engine::Events::Input("Jump", true, &myTime);
+            eventManager.raiseEvent(e);
+            sendEventNet(e);
+
             me.vy = -JumpImpulse;
             if (me.vy < MaxUpSpeed) me.vy = MaxUpSpeed;
         }
@@ -376,9 +513,28 @@ int main(int, char**) {
 
         me.onGround = false;
 
-        auto collideRect = [&](float rx,float ry,float rw,float rh, MovingPlat* moving){
+        auto collideRect = [&](float rx,float ry,float rw,float rh, MovingPlat* moving, bool isGround){
             float pw = PLAYER_W, ph = PLAYER_H;
             if (!AABB(me.x, me.y, pw, ph, rx, ry, rw, rh)) return;
+
+            {
+                std::string otherName;
+                if (moving) {
+                    otherName = "MovingPlatform";
+                } else if (isGround) {
+                    otherName = "Ground";
+                } else {
+                    otherName = "Platform";
+                }
+
+                Engine::Event collEv = Engine::Events::Collision(
+                    "Player",
+                    otherName,
+                    &myTime,
+                    1);
+                eventManager.raiseEvent(collEv);
+                sendEventNet(collEv);
+            }
 
             float prevY = me.y - me.vy * dt;
             float prevBottom = prevY + ph;
@@ -419,9 +575,9 @@ int main(int, char**) {
             }
         };
 
-        for (auto& s : gStatic) collideRect(s.wx, s.wy, s.ww, s.wh, nullptr);
-        for (auto& span : gSpans) collideRect(span.hitbox.x, span.hitbox.y, span.hitbox.w, span.hitbox.h, nullptr);
-        for (auto& m : gMoving) collideRect(m.wx, m.wy, m.ww, m.wh, &m);
+        for (auto& s : gStatic) collideRect(s.wx, s.wy, s.ww, s.wh, nullptr, true);
+        for (auto& span : gSpans) collideRect(span.hitbox.x, span.hitbox.y, span.hitbox.w, span.hitbox.h, nullptr, false);
+        for (auto& m : gMoving) collideRect(m.wx, m.wy, m.ww, m.wh, &m, false);
 
         if (me.onGround) {
             const float F = 1500.f;
@@ -442,20 +598,46 @@ int main(int, char**) {
 
         if (AABB(me.x,me.y,PLAYER_W,PLAYER_H,700,700,256,256) ||
             AABB(me.x,me.y,PLAYER_W,PLAYER_H,ghostX,ghostY,256,256)) {
+            {
+                Engine::Event deathEv = Engine::Events::Death(myId, &myTime);
+                eventManager.raiseEvent(deathEv);
+                sendEventNet(deathEv);
+
+                Engine::Event spawnEv = Engine::Events::Spawn(myId,
+                                                              gSpawns[0].x,
+                                                              gSpawns[0].y,
+                                                              &myTime);
+                eventManager.raiseEvent(spawnEv);
+                sendEventNet(spawnEv);
+            }
+
             gSpawnIndex = 0;
             me.x = gSpawns[gSpawnIndex].x;
             me.y = gSpawns[gSpawnIndex].y;
             me.vx = me.vy = 0;
-            snapCameraToPlayer(); // NEW
+            snapCameraToPlayer(); 
         }
 
         bool teleported = false;
         for (auto& dz : gDeathZones) {
             if (AABB(me.x, me.y, PLAYER_W,PLAYER_H, dz.x, dz.y, dz.w, dz.h)) {
+                {
+                    Engine::Event deathEv = Engine::Events::Death(myId, &myTime);
+                    eventManager.raiseEvent(deathEv);
+                    sendEventNet(deathEv);
+                }
+
                 gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
                 me.x = gSpawns[gSpawnIndex].x;
                 me.y = gSpawns[gSpawnIndex].y;
                 me.vx = me.vy = 0;
+
+                {
+                    Engine::Event spawnEv = Engine::Events::Spawn(myId, me.x, me.y, &myTime);
+                    eventManager.raiseEvent(spawnEv);
+                    sendEventNet(spawnEv);
+                }
+
                 teleported = true;
                 snapCameraToPlayer(); 
                 break;
@@ -465,10 +647,23 @@ int main(int, char**) {
             Rect dynamicPit = { gCam.x + 1400.f, (float)WINDOW_HEIGHT - 120.f, 200.f, 120.f };
             if (!(dynamicPit.x + dynamicPit.w <= 0.f || dynamicPit.x >= LEVEL_WIDTH)) {
                 if (AABB(me.x, me.y, PLAYER_W,PLAYER_H, dynamicPit.x, dynamicPit.y, dynamicPit.w, dynamicPit.h)) {
+                    {
+                        Engine::Event deathEv = Engine::Events::Death(myId, &myTime);
+                        eventManager.raiseEvent(deathEv);
+                        sendEventNet(deathEv);
+                    }
+
                     gSpawnIndex = (gSpawnIndex + 1) % (int)gSpawns.size();
                     me.x = gSpawns[gSpawnIndex].x;
                     me.y = gSpawns[gSpawnIndex].y;
                     me.vx = me.vy = 0;
+
+                    {
+                        Engine::Event spawnEv = Engine::Events::Spawn(myId, me.x, me.y, &myTime);
+                        eventManager.raiseEvent(spawnEv);
+                        sendEventNet(spawnEv);
+                    }
+
                     snapCameraToPlayer(); 
                 }
             }
@@ -576,6 +771,27 @@ int main(int, char**) {
         }
 
         {
+            for (int i = 0; i < 32; ++i) {
+                char eb[1024];
+                int n = zmq_recv(eventSub, eb, sizeof(eb) - 1, ZMQ_DONTWAIT);
+                if (n <= 0) break;
+                eb[n] = 0;
+                std::istringstream iss{std::string(eb)};
+                std::string tag; iss >> tag;
+                if (tag == "EV") {
+                    std::string fromId;
+                    iss >> fromId;
+                    std::string rest;
+                    std::getline(iss, rest);
+                    if (!rest.empty() && rest[0] == ' ') rest.erase(0, 1);
+                    if (!rest.empty()) {
+                        eventManager.raiseEventFromNetwork(rest);
+                    }
+                }
+            }
+        }
+
+        {
             auto now = std::chrono::steady_clock::now();
             static auto lastCullTick = now;
             if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCull).count() > 500) {
@@ -599,6 +815,18 @@ int main(int, char**) {
                 lastCull = now;
             }
         }
+
+        if (replayRecording) {
+            replayRecordTime += dt;
+            replayFrames.push_back(ReplayFrame{
+                replayRecordTime,
+                me.x,
+                me.y,
+                gCam.x
+            });
+        }
+
+        eventManager.dispatchEvents();
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
@@ -648,6 +876,25 @@ int main(int, char**) {
             m.sprite->update(); m.sprite->render(renderer, window);
         }
 
+        if (replayPlaying && !replayFrames.empty()) {
+            replayPlayTime += dt;
+
+            while (replayPlayIndex + 1 < replayFrames.size() &&
+                   replayFrames[replayPlayIndex + 1].t <= replayPlayTime) {
+                ++replayPlayIndex;
+            }
+
+            const ReplayFrame& fr = replayFrames[replayPlayIndex];
+            me.x   = fr.px;
+            me.y   = fr.py;
+            gCam.x = fr.camx;
+            clampCam();
+
+            if (replayPlayIndex + 1 >= replayFrames.size()) {
+                replayPlaying = false;
+            }
+        }
+
         graveE.setPosition(700.f - gCam.x, 700.f);
         ghostE.setPosition(ghostX - gCam.x, ghostY);
         graveE.update(); graveE.render(renderer, window);
@@ -693,6 +940,20 @@ int main(int, char**) {
             }
         }
 
+        if (replayRecording || replayPlaying) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            if (replayRecording) {
+                SDL_SetRenderDrawColor(renderer, 255, 0, 0, 160); 
+                SDL_FRect r = { 10.f, 10.f, 30.f, 30.f };
+                SDL_RenderFillRect(renderer, &r);
+            }
+            if (replayPlaying) {
+                SDL_SetRenderDrawColor(renderer, 0, 0, 255, 160); 
+                SDL_FRect r = { 50.f, 10.f, 30.f, 30.f };
+                SDL_RenderFillRect(renderer, &r);
+            }
+        }
+
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
     }
@@ -701,6 +962,8 @@ int main(int, char**) {
     for (auto& m : gMoving) if (m.sprite) delete m.sprite;
     if (bgSky) SDL_DestroyTexture(bgSky);
 
+    zmq_close(eventSub);
+    zmq_close(eventPub);
     zmq_close(rawPeerSub);
     zmq_close(ghostSub);
     zmq_ctx_term(ctx);
@@ -710,4 +973,3 @@ int main(int, char**) {
     SDL_Quit();
     return 0;
 }
-

@@ -13,7 +13,6 @@ void Timeline::anchorToRealTime() {
     m_parent = nullptr;
     m_prevCounter = SDL_GetPerformanceCounter();
     m_parentLastTime = 0.0;
-    // Don't reset game time - allows switching anchoring mid-game
 }
 
 void Timeline::anchorTo(Timeline* parent) {
@@ -23,8 +22,8 @@ void Timeline::anchorTo(Timeline* parent) {
     }
     
     m_parent = parent;
-    m_parentLastTime = parent->time(); // Track parent's current time
-    m_prevCounter = 0; // Not used when parent exists
+    m_parentLastTime = parent->time(); 
+    m_prevCounter = 0; 
 }
 
 void Timeline::reset() {
@@ -39,16 +38,14 @@ void Timeline::reset() {
 
 double Timeline::sampleDeltaUnscaled() {
     if (m_parent) {
-        // Get delta from parent timeline
         double parentCurrentTime = m_parent->time();
         double parentDelta = parentCurrentTime - m_parentLastTime;
         m_parentLastTime = parentCurrentTime;
         return parentDelta;
     } else {
-        // Sample real time directly
         if (m_prevCounter == 0) {
             m_prevCounter = SDL_GetPerformanceCounter();
-            return 0.0; // First call returns 0 delta
+            return 0.0; 
         }
         
         uint64_t now = SDL_GetPerformanceCounter();
@@ -59,14 +56,12 @@ double Timeline::sampleDeltaUnscaled() {
 }
 
 double Timeline::tick() {
-    // Initialize if needed
     if (!m_parent && m_prevCounter == 0) {
         anchorToRealTime();
-        return 0.0; // First tick returns 0
+        return 0.0; 
     }
     
     if (m_paused) {
-        // When paused, still need to update tracking but return 0
         if (m_parent) {
             m_parentLastTime = m_parent->time();
         } else {
@@ -79,11 +74,9 @@ double Timeline::tick() {
     double scaled = unscaled * m_scale;
 
     if (m_ticSeconds <= 0.0) {
-        // Variable step
         m_gameTime += scaled;
         return scaled;
     } else {
-        // Fixed step accumulation
         m_accum += scaled;
         double dtOut = 0.0;
         
@@ -93,7 +86,7 @@ double Timeline::tick() {
             m_gameTime += m_ticSeconds;
         }
         
-        return dtOut; // may be 0 if not enough accumulated
+        return dtOut; 
     }
 }
 

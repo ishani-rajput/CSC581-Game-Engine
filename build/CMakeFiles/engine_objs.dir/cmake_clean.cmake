@@ -1,6 +1,8 @@
 file(REMOVE_RECURSE
   "CMakeFiles/engine_objs.dir/src/entity.cpp.o"
   "CMakeFiles/engine_objs.dir/src/entity.cpp.o.d"
+  "CMakeFiles/engine_objs.dir/src/event_manager.cpp.o"
+  "CMakeFiles/engine_objs.dir/src/event_manager.cpp.o.d"
   "CMakeFiles/engine_objs.dir/src/input.cpp.o"
   "CMakeFiles/engine_objs.dir/src/input.cpp.o.d"
   "CMakeFiles/engine_objs.dir/src/network_server.cpp.o"

@@ -229,6 +229,30 @@ src/entity.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/entity.cpp.s
 .PHONY : src/entity.cpp.s
 
+src/event_manager.o: src/event_manager.cpp.o
+.PHONY : src/event_manager.o
+
+# target to build an object file
+src/event_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/event_manager.cpp.o
+.PHONY : src/event_manager.cpp.o
+
+src/event_manager.i: src/event_manager.cpp.i
+.PHONY : src/event_manager.i
+
+# target to preprocess a source file
+src/event_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/event_manager.cpp.i
+.PHONY : src/event_manager.cpp.i
+
+src/event_manager.s: src/event_manager.cpp.s
+.PHONY : src/event_manager.s
+
+# target to generate assembly for a file
+src/event_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/src/event_manager.cpp.s
+.PHONY : src/event_manager.cpp.s
+
 src/input.o: src/input.cpp.o
 .PHONY : src/input.o
 
@@ -488,6 +512,9 @@ help:
 	@echo "... src/entity.o"
 	@echo "... src/entity.i"
 	@echo "... src/entity.s"
+	@echo "... src/event_manager.o"
+	@echo "... src/event_manager.i"
+	@echo "... src/event_manager.s"
 	@echo "... src/input.o"
 	@echo "... src/input.i"
 	@echo "... src/input.s"

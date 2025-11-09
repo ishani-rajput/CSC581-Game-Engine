@@ -9,6 +9,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/entity.cpp" "CMakeFiles/engine_objs.dir/src/entity.cpp.o" "gcc" "CMakeFiles/engine_objs.dir/src/entity.cpp.o.d"
+  "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/event_manager.cpp" "CMakeFiles/engine_objs.dir/src/event_manager.cpp.o" "gcc" "CMakeFiles/engine_objs.dir/src/event_manager.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/input.cpp" "CMakeFiles/engine_objs.dir/src/input.cpp.o" "gcc" "CMakeFiles/engine_objs.dir/src/input.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/network_server.cpp" "CMakeFiles/engine_objs.dir/src/network_server.cpp.o" "gcc" "CMakeFiles/engine_objs.dir/src/network_server.cpp.o.d"
   "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/peer_manager.cpp" "CMakeFiles/engine_objs.dir/src/peer_manager.cpp.o" "gcc" "CMakeFiles/engine_objs.dir/src/peer_manager.cpp.o.d"

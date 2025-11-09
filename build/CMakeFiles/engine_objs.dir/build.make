@@ -184,6 +184,20 @@ CMakeFiles/engine_objs.dir/src/perf.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/engine_objs.dir/src/perf.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/perf.cpp" -o CMakeFiles/engine_objs.dir/src/perf.cpp.s
 
+CMakeFiles/engine_objs.dir/src/event_manager.cpp.o: CMakeFiles/engine_objs.dir/flags.make
+CMakeFiles/engine_objs.dir/src/event_manager.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/src/event_manager.cpp
+CMakeFiles/engine_objs.dir/src/event_manager.cpp.o: CMakeFiles/engine_objs.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/engine_objs.dir/src/event_manager.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/engine_objs.dir/src/event_manager.cpp.o -MF CMakeFiles/engine_objs.dir/src/event_manager.cpp.o.d -o CMakeFiles/engine_objs.dir/src/event_manager.cpp.o -c "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/event_manager.cpp"
+
+CMakeFiles/engine_objs.dir/src/event_manager.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/engine_objs.dir/src/event_manager.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/event_manager.cpp" > CMakeFiles/engine_objs.dir/src/event_manager.cpp.i
+
+CMakeFiles/engine_objs.dir/src/event_manager.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/engine_objs.dir/src/event_manager.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/src/event_manager.cpp" -o CMakeFiles/engine_objs.dir/src/event_manager.cpp.s
+
 # Object files for target engine_objs
 engine_objs_OBJECTS = \
 "CMakeFiles/engine_objs.dir/src/entity.cpp.o" \
@@ -193,7 +207,8 @@ engine_objs_OBJECTS = \
 "CMakeFiles/engine_objs.dir/src/timeline.cpp.o" \
 "CMakeFiles/engine_objs.dir/src/network_server.cpp.o" \
 "CMakeFiles/engine_objs.dir/src/peer_manager.cpp.o" \
-"CMakeFiles/engine_objs.dir/src/perf.cpp.o"
+"CMakeFiles/engine_objs.dir/src/perf.cpp.o" \
+"CMakeFiles/engine_objs.dir/src/event_manager.cpp.o"
 
 # External object files for target engine_objs
 engine_objs_EXTERNAL_OBJECTS =
@@ -206,9 +221,10 @@ libengine_objs.a: CMakeFiles/engine_objs.dir/src/timeline.cpp.o
 libengine_objs.a: CMakeFiles/engine_objs.dir/src/network_server.cpp.o
 libengine_objs.a: CMakeFiles/engine_objs.dir/src/peer_manager.cpp.o
 libengine_objs.a: CMakeFiles/engine_objs.dir/src/perf.cpp.o
+libengine_objs.a: CMakeFiles/engine_objs.dir/src/event_manager.cpp.o
 libengine_objs.a: CMakeFiles/engine_objs.dir/build.make
 libengine_objs.a: CMakeFiles/engine_objs.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX static library libengine_objs.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX static library libengine_objs.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/engine_objs.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/engine_objs.dir/link.txt --verbose=$(VERBOSE)
 
