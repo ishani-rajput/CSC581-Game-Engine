@@ -212,8 +212,9 @@ int main(int, char**) {
     const float rightY = 460.f;
     gSpans.push_back(makeSpan(renderer, rightX, rightY, rightW));
 
-    gMoving.push_back(MovingPlat{60.f,
-        MoveKind::HorizontalSine, 1500.f,(float)WINDOW_HEIGHT-420.f,
+    gMoving.push_back(MovingPlat{
+        1500.f, (float)WINDOW_HEIGHT-420.f, 260.f, 60.f,
+        MoveKind::HorizontalSine, 1500.f, (float)WINDOW_HEIGHT-420.f,
         180.f, 1.5f, 0.f,
         new Entity(renderer, PLATFORM_ASSET, 1500, WINDOW_HEIGHT-420, 260, 60, 1, 0)
     });
@@ -301,7 +302,7 @@ int main(int, char**) {
     const float JumpImpulse = 1100.f;
     const float MaxUpSpeed  = -1500.f;
 
-\    auto clampCam = [&](){
+    auto clampCam = [&](){
         float maxCam = std::max(0.f, LEVEL_WIDTH - (float)WINDOW_WIDTH);
         if (gCam.x < 0.f) gCam.x = 0.f;
         if (gCam.x > maxCam) gCam.x = maxCam;
