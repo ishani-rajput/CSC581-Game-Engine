@@ -8,8 +8,6 @@
 #include "timeline.h"
 #include "object_model.h"
 #include "registry.h"
-
-// MILESTONE 4: Event System
 #include "event_manager.h"
 
 #include <vector>
@@ -60,8 +58,10 @@ bool gReplayHasSavedState = false;
 GameState gReplaySavedState;
 std::vector<SDL_FRect> gReplaySavedPlatforms;
 
-// MILESTONE 4: Global Event Manager
-static Engine::EventManager* gEventManager = nullptr;
+//Global Event Manager
+static Engine::EventManager* globalEventManager = nullptr;
+
+static int deathCounter = 0;
 
 static float floatRand(float a, float b) {
     return a + (b - a) * (float)rand() / (float)RAND_MAX;
@@ -92,30 +92,30 @@ static void drawCircle(SDL_Renderer* renderer, int32_t centreX, int32_t centreY,
     }
 }
 
-static Engine::Registry gRegistry;
+static Engine::Registry globalRegistry;
 
 void initializeSpawnPoints() {
-    auto& spawn1 = gRegistry.upsert("spawn_point_1");
+    auto& spawn1 = globalRegistry.upsert("spawn_point_1");
     spawn1.set<Engine::Vec2>("pos", {100.f, 840.f});
     spawn1.set<bool>("active", true);
 
-    auto& spawn2 = gRegistry.upsert("spawn_point_2");
+    auto& spawn2 = globalRegistry.upsert("spawn_point_2");
     spawn2.set<Engine::Vec2>("pos", {480.f, 840.f});
     spawn2.set<bool>("active", true);
 
-    auto& spawn3 = gRegistry.upsert("spawn_point_3");
+    auto& spawn3 = globalRegistry.upsert("spawn_point_3");
     spawn3.set<Engine::Vec2>("pos", {1400.f, 840.f});
     spawn3.set<bool>("active", true);
 
-    auto& spawn4 = gRegistry.upsert("spawn_point_4");
+    auto& spawn4 = globalRegistry.upsert("spawn_point_4");
     spawn4.set<Engine::Vec2>("pos", {870.f, 392.f}); 
     spawn4.set<bool>("active", true);
 
-    auto& spawn5 = gRegistry.upsert("spawn_point_5");
+    auto& spawn5 = globalRegistry.upsert("spawn_point_5");
     spawn5.set<Engine::Vec2>("pos", {1620.f, 542.f}); 
     spawn5.set<bool>("active", true);
 
-    auto& spawn6 = gRegistry.upsert("spawn_point_6");
+    auto& spawn6 = globalRegistry.upsert("spawn_point_6");
     spawn6.set<Engine::Vec2>("pos", {1100.f, 840.f});
     spawn6.set<bool>("active", true);
 }
@@ -125,7 +125,7 @@ Engine::Vec2 getSpawnPointPosition(int spawnId) {
     if (spawnId > 6) spawnId = ((spawnId - 1) % 6) + 1;
 
     std::string spawnName = "spawn_point_" + std::to_string(spawnId);
-    auto* spawn = gRegistry.get(spawnName);
+    auto* spawn = globalRegistry.get(spawnName);
     if (spawn) {
         return spawn->get<Engine::Vec2>("pos", {480.f, 840.f});
     }
@@ -144,29 +144,28 @@ void respawnPlayer(GameState& state) {
 
     SDL_Log("Player respawned at spawn point %d (%.1f, %.1f)", randomSpawn, spawnPos.x, spawnPos.y);
 
-    // MILESTONE 4: Raise Spawn Event
-    if (gEventManager) {
+    if (globalEventManager) {
         Engine::Event spawnEvent = Engine::Events::Spawn(
             "player", spawnPos.x, spawnPos.y, &gameTime
         );
-        gEventManager->raiseEvent(spawnEvent);
+        globalEventManager->raiseEvent(spawnEvent);
     }
 }
 
 void initializeDeathZones() {
-    auto& dz = gRegistry.upsert("death_zone_left");
-    dz.set<Engine::Vec2>("pos", {-200.f, 0.f});
-    dz.set<Engine::Vec2>("size", {200.f, 1080.f});
-    dz.set<bool>("active", true);
+    auto& deathZone = globalRegistry.upsert("death_zone_left");
+    deathZone.set<Engine::Vec2>("pos", {-200.f, 0.f});
+    deathZone.set<Engine::Vec2>("size", {200.f, 1080.f});
+    deathZone.set<bool>("active", true);
 }
 
 bool checkDeathZones(const SDL_FRect& player) {
-    auto* dz = gRegistry.get("death_zone_left");
-    if (dz && dz->get<bool>("active", true)) {
-        Engine::Vec2 pos = dz->get<Engine::Vec2>("pos", {0.f, 0.f});
-        Engine::Vec2 size = dz->get<Engine::Vec2>("size", {0.f, 0.f});
-        SDL_FRect dzRect = {pos.x, pos.y, size.x, size.y};
-        if (aabbIntersect(player, dzRect)) {
+    auto* deathZone = globalRegistry.get("death_zone_left");
+    if (deathZone && deathZone->get<bool>("active", true)) {
+        Engine::Vec2 pos = deathZone->get<Engine::Vec2>("pos", {0.f, 0.f});
+        Engine::Vec2 size = deathZone->get<Engine::Vec2>("size", {0.f, 0.f});
+        SDL_FRect deathZoneRect = {pos.x, pos.y, size.x, size.y};
+        if (aabbIntersect(player, deathZoneRect)) {
             SDL_Log("Player entered death zone (left boundary)");
             return true;
         }
@@ -197,7 +196,7 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         double dtSec = gameTime.tick();
         if (dtSec <= 0.0) { SDL_Delay(1); continue; }
 
-        bool replayActive = gEventManager && gEventManager->isReplaying();
+        bool replayActive = globalEventManager && globalEventManager->isReplaying();
 
         if (replayActive && !replayActiveLast) {
             gReplayPlaybackElapsed = 0.0;
@@ -210,8 +209,8 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         if (replayActive) {
             gReplayPlaybackElapsed += dtSec;
 
-            if (gEventManager) {
-                gEventManager->dispatchEvents();
+            if (globalEventManager) {
+                globalEventManager->dispatchEvents();
             }
 
             while (gReplayPlaybackIndex < gReplayFrames.size() &&
@@ -246,11 +245,10 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
                 local.skBody.vy = JUMP_VELOCITY;
                 jumpRequested = false;
 
-                // MILESTONE 4: Raise Input Event for Jump
-                if (gEventManager) {
+                if (globalEventManager) {
                     Engine::Event jumpEvent = Engine::Events::Input("SPACE", true, &gameTime);
                     jumpEvent.payload["action"] = std::string("jump");
-                    gEventManager->raiseEvent(jumpEvent);
+                    globalEventManager->raiseEvent(jumpEvent);
                 }
             }
         }
@@ -293,10 +291,9 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         if (local.skully.y < 0.f) { local.skully.y = 0.f; local.skBody.vy = 0.f; }
 
         if (checkDeathZones(local.skully)) {
-            // MILESTONE 4: Raise Death Event
-            if (gEventManager) {
+            if (globalEventManager) {
                 Engine::Event deathEvent = Engine::Events::Death("player", &gameTime);
-                gEventManager->raiseEvent(deathEvent);
+                globalEventManager->raiseEvent(deathEvent);
             }
             respawnPlayer(local);
         }
@@ -323,18 +320,16 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
         bool hit = false;
         for (auto& p : local.pipes) {
             if (aabbIntersect(local.skully, p.top) || aabbIntersect(local.skully, p.bottom)) { 
-                // MILESTONE 4: Raise Collision Event
-                if (gEventManager) {
+                if (globalEventManager) {
                     Engine::Event collisionEvent = Engine::Events::Collision(
                         "player", "pipe", &gameTime
                     );
-                    gEventManager->raiseEvent(collisionEvent);
+                    globalEventManager->raiseEvent(collisionEvent);
                 }
                 
-                // MILESTONE 4: Raise Death Event
-                if (gEventManager) {
+                if (globalEventManager) {
                     Engine::Event deathEvent = Engine::Events::Death("player", &gameTime);
-                    gEventManager->raiseEvent(deathEvent);
+                    globalEventManager->raiseEvent(deathEvent);
                 }
                 
                 hit = true; 
@@ -354,7 +349,7 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             local.currentFrame = (local.currentFrame + 1) % 6;
         }
 
-        if (gEventManager && gEventManager->isRecording()) {
+        if (globalEventManager && globalEventManager->isRecording()) {
             double relativeTime = gameTime.time() - gReplayRecordingStartTime;
             if (relativeTime < 0.0 || gReplayFrames.empty()) {
                 relativeTime = 0.0;
@@ -362,9 +357,8 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             gReplayFrames.push_back({relativeTime, local, staticPlatforms});
         }
 
-        // MILESTONE 4: Process Events
-        if (gEventManager) {
-            gEventManager->dispatchEvents();
+        if (globalEventManager) {
+            globalEventManager->dispatchEvents();
         }
 
         // Publish new state
@@ -432,11 +426,9 @@ int main(int, char**) {
     gameTime.anchorToRealTime();
     gameTime.setScale(1.0);
 
-    // MILESTONE 4: Initialize Event Manager
     Engine::EventManager eventManager(&gameTime);
-    gEventManager = &eventManager;
+    globalEventManager = &eventManager;
 
-    // MILESTONE 4: Register Event Listeners
     eventManager.registerListener(Engine::EventType::Collision, [&](const Engine::Event& ev) {
         auto it1 = ev.payload.find("A");
         auto it2 = ev.payload.find("B");
@@ -453,6 +445,9 @@ int main(int, char**) {
         if (it != ev.payload.end()) {
             std::string entity = std::get<std::string>(it->second);
             SDL_Log("[EVENT] Death of %s at time %.3f", entity.c_str(), ev.timestamp);
+            if (!eventManager.isReplaying()) {
+                deathCounter++;
+            }
         }
     });
 
@@ -488,7 +483,6 @@ int main(int, char**) {
         }
     });
 
-    // REPLAY SYSTEM: Register Replay Listeners
     eventManager.registerListener(Engine::EventType::ReplayStart, [&](const Engine::Event&) {
         eventManager.startRecording();
         gReplayFrames.clear();
@@ -510,7 +504,6 @@ int main(int, char**) {
         eventManager.playReplay();
     });
 
-    // Raise initial spawn event
     Engine::Event initialSpawn = Engine::Events::Spawn("player", spawnPos.x, spawnPos.y, &gameTime);
     eventManager.raiseEvent(initialSpawn);
 
@@ -534,7 +527,6 @@ int main(int, char**) {
             Scaling::setMode(Scaling::mode() == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel);
             SDL_Log("Scaling mode: %s", Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional");
 
-            // MILESTONE 4: Raise Input Event
             Engine::Event toggleEvent = Engine::Events::Input("T", true, &gameTime);
             toggleEvent.payload["action"] = std::string("toggle_scale");
             toggleEvent.payload["state"] = std::string(Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional");
@@ -547,7 +539,6 @@ int main(int, char**) {
             gameTime.togglePause();
             SDL_Log("Timeline %s", gameTime.isPaused() ? "PAUSED" : "UNPAUSED"); 
 
-            // MILESTONE 4: Raise Input Event
             Engine::Event pauseEvent = Engine::Events::Input("P", true, &gameTime);
             pauseEvent.payload["action"] = std::string("pause_toggle");
             pauseEvent.payload["state"] = std::string(gameTime.isPaused() ? "paused" : "running");
@@ -611,10 +602,9 @@ int main(int, char**) {
         prevA = aNow;
         prevD = dNow;
 
-        // REPLAY SYSTEM: Record/Stop/Play using R/E/P
         bool rNow = Input::isKeyPressed(SDL_SCANCODE_R);
         bool eNow = Input::isKeyPressed(SDL_SCANCODE_E);
-        bool qNow = Input::isKeyPressed(SDL_SCANCODE_Q); // Q for quick play as alternate
+        bool qNow = Input::isKeyPressed(SDL_SCANCODE_Q); 
         if (rNow && !prevR)
             eventManager.raiseEvent(Engine::Events::ReplayStart(&gameTime));
         if (eNow && !prevE)
@@ -637,6 +627,12 @@ int main(int, char**) {
         } else if (eventManager.isReplaying()) {
             drawCircle(renderer, circleX, circleY, circleRad, 0, 255, 0);
         }
+
+        // Render death counter in top-left corner
+        char deathText[64];
+        snprintf(deathText, sizeof(deathText), "Deaths: %d", deathCounter);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDebugText(renderer, 10, 10, deathText);
 
         GameState snapshot;
         {

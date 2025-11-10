@@ -13,7 +13,6 @@
 #include "object_model.h"
 #include "registry.h"
 
-// MILESTONE 4: Event System
 #include "event_manager.h"
 
 #include <string>
@@ -60,6 +59,7 @@ struct ClientReplayState {
     double animationAccum = 0.0;
     bool timelinePaused = false;
     double timelineScale = 1.0;
+    int saveddeathCounter = 0;
 };
 
 static inline int numericIdFrom(const std::string& s) {
@@ -100,10 +100,10 @@ static void drawCircle(SDL_Renderer* renderer, int32_t centreX, int32_t centreY,
     }
 }
 
-static Engine::Registry gRegistry;
+static Engine::Registry globalRegistry;
+static Engine::EventManager* globalEventManager = nullptr;
 
-// MILESTONE 4: Global Event Manager
-static Engine::EventManager* gEventManager = nullptr;
+static int deathCounter = 0;
 
 static std::vector<ClientReplayFrame> gClientReplayFrames;
 static size_t gClientReplayPlaybackIndex = 0;
@@ -113,27 +113,27 @@ static bool gClientReplayHasSavedState = false;
 static ClientReplayState gClientReplaySavedState;
 
 void initializeSpawnPoints() {
-    auto& spawn1 = gRegistry.upsert("spawn_point_1");
+    auto& spawn1 = globalRegistry.upsert("spawn_point_1");
     spawn1.set<Engine::Vec2>("pos", {100.f, 840.f});
     spawn1.set<bool>("active", true);
 
-    auto& spawn2 = gRegistry.upsert("spawn_point_2");
+    auto& spawn2 = globalRegistry.upsert("spawn_point_2");
     spawn2.set<Engine::Vec2>("pos", {480.f, 840.f});
     spawn2.set<bool>("active", true);
 
-    auto& spawn3 = gRegistry.upsert("spawn_point_3");
+    auto& spawn3 = globalRegistry.upsert("spawn_point_3");
     spawn3.set<Engine::Vec2>("pos", {1400.f, 840.f});
     spawn3.set<bool>("active", true);
 
-    auto& spawn4 = gRegistry.upsert("spawn_point_4");
+    auto& spawn4 = globalRegistry.upsert("spawn_point_4");
     spawn4.set<Engine::Vec2>("pos", {870.f, 392.f});
     spawn4.set<bool>("active", true);
 
-    auto& spawn5 = gRegistry.upsert("spawn_point_5");
+    auto& spawn5 = globalRegistry.upsert("spawn_point_5");
     spawn5.set<Engine::Vec2>("pos", {1620.f, 542.f});
     spawn5.set<bool>("active", true);
 
-    auto& spawn6 = gRegistry.upsert("spawn_point_6");
+    auto& spawn6 = globalRegistry.upsert("spawn_point_6");
     spawn6.set<Engine::Vec2>("pos", {1100.f, 840.f});
     spawn6.set<bool>("active", true);
 }
@@ -143,7 +143,7 @@ Engine::Vec2 getSpawnPointPosition(int spawnId) {
     if (spawnId > 6) spawnId = ((spawnId - 1) % 6) + 1;
 
     std::string spawnName = "spawn_point_" + std::to_string(spawnId);
-    auto* spawn = gRegistry.get(spawnName);
+    auto* spawn = globalRegistry.get(spawnName);
     if (spawn) {
         return spawn->get<Engine::Vec2>("pos", {480.f, 840.f});
     }
@@ -162,24 +162,23 @@ void respawnPlayer(SDL_FRect& skully, Body& skBody, const std::string& clientId)
 
     SDL_Log("Player respawned at spawn point %d (%.1f, %.1f)", randomSpawn, spawnPos.x, spawnPos.y);
     
-    // MILESTONE 4: Raise Spawn Event
-    if (gEventManager) {
+    if (globalEventManager) {
         Engine::Event spawnEvent = Engine::Events::Spawn(
-            clientId, spawnPos.x, spawnPos.y, gEventManager->getTimeline()
+            clientId, spawnPos.x, spawnPos.y, globalEventManager->getTimeline()
         );
-        gEventManager->raiseEvent(spawnEvent);
+        globalEventManager->raiseEvent(spawnEvent);
     }
 }
 
 void initializeDeathZones() {
-    auto& dz = gRegistry.upsert("death_zone_left");
+    auto& dz = globalRegistry.upsert("death_zone_left");
     dz.set<Engine::Vec2>("pos", {-200.f, 0.f});
     dz.set<Engine::Vec2>("size", {200.f, 1080.f});
     dz.set<bool>("active", true);
 }
 
 bool checkDeathZones(const SDL_FRect& player) {
-    auto* dz = gRegistry.get("death_zone_left");
+    auto* dz = globalRegistry.get("death_zone_left");
     if (dz && dz->get<bool>("active", true)) {
         Engine::Vec2 pos = dz->get<Engine::Vec2>("pos", {0.f, 0.f});
         Engine::Vec2 size = dz->get<Engine::Vec2>("size", {0.f, 0.f});
@@ -286,11 +285,9 @@ int main(int argc, char** argv){
     gameTime.anchorToRealTime();
     gameTime.setScale(1.0);
 
-    // MILESTONE 4: Initialize Event Manager
     Engine::EventManager eventManager(&gameTime);
-    gEventManager = &eventManager;
+    globalEventManager = &eventManager;
 
-    // MILESTONE 4: Register Event Listeners
     eventManager.registerListener(Engine::EventType::Collision, [&](const Engine::Event& ev) {
         auto it1 = ev.payload.find("A");
         auto it2 = ev.payload.find("B");
@@ -307,6 +304,9 @@ int main(int argc, char** argv){
         if (it != ev.payload.end()) {
             std::string entity = std::get<std::string>(it->second);
             SDL_Log("[EVENT] Death of %s at time %.3f", entity.c_str(), ev.timestamp);
+            if (!eventManager.isReplaying()) {
+                deathCounter++;
+            }
         }
     });
 
@@ -363,7 +363,6 @@ int main(int argc, char** argv){
         eventManager.playReplay();
     });
 
-    // Raise initial spawn event
     Engine::Event initialSpawn = Engine::Events::Spawn(
         CLIENT_ID, spawnPos.x, spawnPos.y, &gameTime
     );
@@ -384,7 +383,7 @@ int main(int argc, char** argv){
         Input::poll();
         if(Input::isKeyPressed(SDL_SCANCODE_ESCAPE)) running=false;
 
-        bool replayActive = gEventManager && gEventManager->isReplaying();
+        bool replayActive = globalEventManager && globalEventManager->isReplaying();
         if (!replayActive && replayActiveLast && gClientReplayHasSavedState) {
             skully = gClientReplaySavedState.skully;
             skBody = gClientReplaySavedState.skBody;
@@ -398,6 +397,7 @@ int main(int argc, char** argv){
             animationAccum = gClientReplaySavedState.animationAccum;
             gameTime.pause(gClientReplaySavedState.timelinePaused);
             gameTime.setScale(gClientReplaySavedState.timelineScale);
+            deathCounter = gClientReplaySavedState.saveddeathCounter;
             gClientReplayHasSavedState = false;
         }
         if (replayActive && !replayActiveLast) {
@@ -415,6 +415,7 @@ int main(int argc, char** argv){
             gClientReplaySavedState.animationAccum = animationAccum;
             gClientReplaySavedState.timelinePaused = gameTime.isPaused();
             gClientReplaySavedState.timelineScale = gameTime.scale();
+            gClientReplaySavedState.saveddeathCounter = deathCounter;
             gClientReplayHasSavedState = true;
         }
 
@@ -431,7 +432,6 @@ int main(int argc, char** argv){
         bool pauseNow = Input::isKeyPressed(SDL_SCANCODE_P);
         if (!replayActive && pauseNow && !prevP) { 
             gameTime.togglePause(); 
-            // MILESTONE 4: Raise Input Event for Pause
             Engine::Event pauseEvent = Engine::Events::Input("P", true, &gameTime);
             pauseEvent.payload["action"] = std::string("pause_toggle");
             pauseEvent.payload["state"] = std::string(gameTime.isPaused() ? "paused" : "running");
@@ -471,7 +471,6 @@ int main(int argc, char** argv){
         bool spaceNow=Input::isKeyPressed(SDL_SCANCODE_SPACE);
         if(!replayActive && spaceNow && !prevSpace) {
             skBody.vy=JUMP_VELOCITY;
-            // MILESTONE 4: Raise Input Event for Jump
             Engine::Event jumpEvent = Engine::Events::Input("SPACE", true, &gameTime);
             jumpEvent.payload["action"] = std::string("jump");
             eventManager.raiseEvent(jumpEvent);
@@ -564,7 +563,6 @@ int main(int argc, char** argv){
                 if(skully.y<0.f){ skully.y=0.f; skBody.vy=0.f; }
 
                 if (checkDeathZones(skully)) {
-                    // MILESTONE 4: Raise Death Event
                     Engine::Event deathEvent = Engine::Events::Death(CLIENT_ID, &gameTime);
                     eventManager.raiseEvent(deathEvent);
                     
@@ -574,13 +572,11 @@ int main(int argc, char** argv){
                 bool hit = false;
                 for(auto& p : pipes) {
                     if(aabbIntersect(skully, p.top) || aabbIntersect(skully, p.bottom)) {
-                        // MILESTONE 4: Raise Collision Event
                         Engine::Event collisionEvent = Engine::Events::Collision(
                             CLIENT_ID, "pipe", &gameTime
                         );
                         eventManager.raiseEvent(collisionEvent);
                         
-                        // MILESTONE 4: Raise Death Event
                         Engine::Event deathEvent = Engine::Events::Death(CLIENT_ID, &gameTime);
                         eventManager.raiseEvent(deathEvent);
                         
@@ -633,7 +629,7 @@ int main(int argc, char** argv){
                     [](const PipePair& p){ return (p.top.x + p.top.w) < -50.f; }), pipes.end());
             }
 
-            if (gEventManager && gEventManager->isRecording()) {
+            if (globalEventManager && globalEventManager->isRecording()) {
                 double relativeTime = gameTime.time() - gClientReplayRecordingStartTime;
                 if (relativeTime < 0.0 || gClientReplayFrames.empty()) {
                     relativeTime = 0.0;
@@ -654,11 +650,10 @@ int main(int argc, char** argv){
             }
         }
 
-        // MILESTONE 4: Process Events
         eventManager.dispatchEvents();
 
         if (!replayActive) {
-            auto& meGO = gRegistry.upsert(CLIENT_ID);
+            auto& meGO = globalRegistry.upsert(CLIENT_ID);
             meGO.set<Engine::Vec2>("pos", {skully.x, skully.y});
             meGO.set<bool>("paused", gameTime.isPaused());
             meGO.set<float>("scale", gameTime.scale());
@@ -684,7 +679,7 @@ int main(int argc, char** argv){
             others.clear();
 
             for (const auto& [peerId, playerData] : peerData) {
-                auto& go = gRegistry.upsert(peerId);
+                auto& go = globalRegistry.upsert(peerId);
                 go.set<Engine::Vec2>("pos", {playerData.x, playerData.y});
                 go.set<bool>("paused", playerData.paused);
                 go.set<float>("scale", playerData.scale);
@@ -716,13 +711,12 @@ int main(int argc, char** argv){
                     char deadId[256];
                     if (sscanf(serverResponse.c_str(), "DISCONNECT %255s", deadId) == 1) {
                         others.erase(deadId);
-                        gRegistry.erase(deadId);
+                        globalRegistry.erase(deadId);
                         std::cout << "Peer " << deadId << " disconnected.\n";
                     }
                 }
-                // MILESTONE 4: Check for networked events
                 else if (serverResponse.rfind("EVENT:", 0) == 0) {
-                    std::string eventData = serverResponse.substr(6); // Remove "EVENT:" prefix
+                    std::string eventData = serverResponse.substr(6); 
                     eventManager.raiseEventFromNetwork(eventData);
                     SDL_Log("[NETWORK] Received event from network");
                 }
@@ -742,6 +736,11 @@ int main(int argc, char** argv){
         } else if (eventManager.isReplaying()) {
             drawCircle(renderer, circleX, circleY, circleRad, 0, 255, 0);
         }
+
+        char deathText[64];
+        snprintf(deathText, sizeof(deathText), "Deaths: %d", deathCounter);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDebugText(renderer, 10, 10, deathText);
 
         replayActiveLast = replayActive;
 
