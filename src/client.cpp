@@ -11,6 +11,8 @@
 #include <cstdio>
 #include <cstring>
 #include <random>
+#include <chrono>
+#include <cmath>
 #include "entity.h"
 #include "input.h"
 #include "scaling.h"
@@ -19,6 +21,7 @@
 #include "timeline.h"
 #include "object_model.h"
 #include "registry.h"
+#include "event_manager.h"
 
 const int DESIGN_WIDTH  = 1720;
 const int DESIGN_HEIGHT = 1080;
@@ -27,7 +30,6 @@ const int WORLD_WIDTH = 3440;
 const float PLAYER_SPEED   = 300.f;
 const float JUMP_VELOCITY  = -750.f;
 
-// REQUIREMENT 2: 5 unique platform combinations (position + size + texture)
 const float leftWidth = 180.f;
 const float leftHeight = 300.f;
 
@@ -43,7 +45,6 @@ const float bridgeHeight = 54.f;
 const float finalWidth = 240.f;
 const float finalHeight = 380.f;
 
-// Platform positions in WORLD SPACE
 const float leftX = 0.f;
 const float leftY = DESIGN_HEIGHT - leftHeight - 70.f;
 const float middleX = DESIGN_WIDTH / 2.f - middleWidth / 2.f - 200.f;
@@ -56,7 +57,26 @@ const float bridge1Y = platform3TopY + 100.f;
 const float finalX = DESIGN_WIDTH - finalWidth;
 const float finalY = DESIGN_HEIGHT - finalHeight;
 
-// PART 1A: Remote player entities
+// ===== SPIKE DETECTIVE: Death Analytics Structures =====
+struct DeathAnalytics {
+    float speed;
+    float timeAlive;
+    std::string causeOfDeath;
+    Engine::Vec2 deathLocation;
+    std::vector<std::string> inputHistory;
+    std::vector<Engine::Vec2> lastPositions;
+    double deathTime;
+};
+
+struct DeathMarker {
+    Engine::Vec2 position;
+    std::string playerId;
+    std::string cause;
+    float alpha;
+    double timestamp;
+};
+// ===== END SPIKE DETECTIVE STRUCTURES =====
+
 struct RemotePlayerEntity {
     Entity* entity = nullptr;
 };
@@ -109,7 +129,7 @@ int main(int, char**) {
     srand(time(nullptr));
     
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("Feeling Spikey",
+    SDL_Window* window = SDL_CreateWindow("Spike Detective - Death Analysis",
                                           DESIGN_WIDTH, DESIGN_HEIGHT, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     Scaling::setMode(ScaleMode::Proportional);
@@ -125,8 +145,29 @@ int main(int, char**) {
         return 1;
     }
     std::string clientId = generateClientId();
-    SDL_Log("[Part 1B] Client ID: %s", clientId.c_str());
+    SDL_Log("[SPIKE DETECTIVE] Client ID: %s", clientId.c_str());
 
+    // EVENT MANAGER SETUP
+    Engine::EventManager eventManager(&gameTimeline);
+    
+    // ===== SPIKE DETECTIVE: Analytics Variables =====
+    DeathAnalytics currentRun;
+    std::vector<DeathAnalytics> deathHistory;
+    std::vector<DeathMarker> networkDeathMarkers;
+    std::mutex deathMarkersMutex;
+    
+    double spawnTime = 0.0;
+    bool showingDeathAnalytics = false;
+    int analyticsDisplayTimer = 0;
+    DeathAnalytics lastDeath;
+    
+    std::vector<std::string> recentInputs;
+    const int MAX_INPUT_HISTORY = 10;
+    
+    std::vector<Engine::Vec2> positionTrail;
+    const int MAX_TRAIL_LENGTH = 180;
+    // ===== END SPIKE DETECTIVE VARIABLES =====
+    
     Entity groundBottom(renderer, "../assets/ground_bottom.png", 0, 0, 64, 64, 1, 0);
     Entity groundTop(renderer, "../assets/ground.png", 0, 0, 64, 64, 1, 0);
     Entity platformTex(renderer, "../assets/platform.png", 0, 0, 384, 128, 1, 0);
@@ -159,7 +200,7 @@ int main(int, char**) {
     std::vector<std::string> spawnIds = {"spawn_left", "spawn_middle", "spawn_platform3"};
     SDL_Log("[Req 4] Created 3 spawn points");
 
-    std::string currentSpawnId = "spawn_left";  // Start at first spawn
+    std::string currentSpawnId = "spawn_left";
 
     SDL_Log("[Req 5] Creating death zones...");
     auto& dz1 = gameObjectRegistry.upsert("death_zone_gap1");
@@ -194,7 +235,7 @@ int main(int, char**) {
 
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastHeardFrom;
     std::mutex lastHeardMutex;
-    static constexpr int CLIENT_TIMEOUT_SECONDS = 3;  // 3 seconds without message = disconnect
+    static constexpr int CLIENT_TIMEOUT_SECONDS = 3;
 
     ServerState serverState;
     serverState.horizontalPlatform = {leftX + leftWidth + 20.f, DESIGN_HEIGHT - middleHeight - 150.f, 144.f, 72.f};
@@ -216,11 +257,138 @@ int main(int, char**) {
     std::string statusMessage = "";
     int statusMessageTimer = 0;
 
+    // ===== SPIKE DETECTIVE: Enhanced Event Listeners =====
+    eventManager.registerListener(Engine::EventType::Collision, [&](const Engine::Event& e) {
+        std::string objA = std::get<std::string>(e.payload.at("A"));
+        std::string objB = std::get<std::string>(e.payload.at("B"));
+        SDL_Log("[EVENT] Collision: %s <-> %s at time %.3f", 
+                objA.c_str(), objB.c_str(), e.timestamp);
+        statusMessage = "Collision: " + objA + " & " + objB;
+        statusMessageTimer = 60;
+    });
+
+    eventManager.registerListener(Engine::EventType::Death, [&](const Engine::Event& e) {
+        std::string who = std::get<std::string>(e.payload.at("entity"));
+        SDL_Log("[EVENT] Death: %s at time %.3f", who.c_str(), e.timestamp);
+        
+        // Calculate analytics
+        currentRun.timeAlive = gameTimeline.time() - spawnTime;
+        currentRun.speed = sqrt(playerBody.vx * playerBody.vx + playerBody.vy * playerBody.vy);
+        currentRun.deathLocation = {localPlayerState.x, localPlayerState.y};
+        currentRun.inputHistory = recentInputs;
+        currentRun.lastPositions = positionTrail;
+        currentRun.deathTime = e.timestamp;
+        
+        // Determine cause of death
+        if (who.find("spike") != std::string::npos) {
+            currentRun.causeOfDeath = "Spikes";
+        } else if (who.find("fall") != std::string::npos) {
+            currentRun.causeOfDeath = "Fell off map";
+        } else if (who.find("zone") != std::string::npos) {
+            currentRun.causeOfDeath = "Death zone";
+        } else {
+            currentRun.causeOfDeath = "Unknown";
+        }
+        
+        // Save to history
+        deathHistory.push_back(currentRun);
+        lastDeath = currentRun;
+        
+        // Show analytics
+        showingDeathAnalytics = true;
+        analyticsDisplayTimer = 300;
+        
+        SDL_Log("[SPIKE DETECTIVE] Death #%d - Cause: %s, Time Alive: %.1fs, Speed: %.1f", 
+                (int)deathHistory.size(), currentRun.causeOfDeath.c_str(), 
+                currentRun.timeAlive, currentRun.speed);
+        
+        // Stop recording and auto-replay
+        if (eventManager.isRecording()) {
+            eventManager.stopRecording();
+            statusMessage = "Analyzing death... Replay in 2s";
+            statusMessageTimer = 120;
+            
+            std::thread([&eventManager]() {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                eventManager.playReplay();
+            }).detach();
+        }
+        
+        // Respawn at current checkpoint
+        const auto* spawn = gameObjectRegistry.get(currentSpawnId);
+        if (spawn) {
+            auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
+            std::lock_guard<std::mutex> lock(localPlayerState.mutex);
+            localPlayerState.x = spawnPos.x;
+            localPlayerState.y = spawnPos.y;
+            localPlayerState.vx = 0.f;
+            localPlayerState.vy = 0.f;
+            playerBody.vx = 0.f;
+            playerBody.vy = 0.f;
+        }
+    });
+
+    eventManager.registerListener(Engine::EventType::Spawn, [&](const Engine::Event& e) {
+        std::string who = std::get<std::string>(e.payload.at("entity"));
+        float x = std::get<float>(e.payload.at("x"));
+        float y = std::get<float>(e.payload.at("y"));
+        SDL_Log("[EVENT] Spawn: %s at (%.1f, %.1f) time %.3f", 
+                who.c_str(), x, y, e.timestamp);
+        statusMessage = "Spawned: " + who;
+        statusMessageTimer = 60;
+        
+        // Reset analytics for new life
+        if (who == "player" || who == clientId) {
+            currentRun = DeathAnalytics();
+            currentRun.deathTime = 0;
+            spawnTime = gameTimeline.time();
+            recentInputs.clear();
+            positionTrail.clear();
+            showingDeathAnalytics = false;
+        }
+    });
+
+    eventManager.registerListener(Engine::EventType::Input, [&](const Engine::Event& e) {
+        std::string key = std::get<std::string>(e.payload.at("key"));
+        bool pressed = std::get<bool>(e.payload.at("pressed"));
+        SDL_Log("[EVENT] Input: %s %s at time %.3f", 
+                key.c_str(), pressed ? "pressed" : "released", e.timestamp);
+        
+        // Track input history
+        if (pressed) {
+            recentInputs.push_back(key);
+            if (recentInputs.size() > MAX_INPUT_HISTORY) {
+                recentInputs.erase(recentInputs.begin());
+            }
+        }
+    });
+
+    eventManager.registerListener(Engine::EventType::ReplayStart, [&](const Engine::Event& e) {
+        SDL_Log("[EVENT] Replay recording started at time %.3f", e.timestamp);
+        statusMessage = "RECORDING STARTED";
+        statusMessageTimer = 120;
+    });
+
+    eventManager.registerListener(Engine::EventType::ReplayStop, [&](const Engine::Event& e) {
+        SDL_Log("[EVENT] Replay recording stopped at time %.3f", e.timestamp);
+        statusMessage = "RECORDING STOPPED";
+        statusMessageTimer = 120;
+    });
+
+    eventManager.registerListener(Engine::EventType::ReplayPlay, [&](const Engine::Event& e) {
+        SDL_Log("[EVENT] Replay playback started at time %.3f", e.timestamp);
+        statusMessage = "REPLAYING...";
+        statusMessageTimer = 180;
+    });
+
+    SDL_Log("[SPIKE DETECTIVE] Event system initialized");
+    // ===== END SPIKE DETECTIVE EVENT LISTENERS =====
+
     std::thread networkThread([&]() {
         float networkTimer = 0.0f;
         auto lastTick = SDL_GetTicks();
         
-        SDL_Log("[Part 1B] Network thread started");
+        SDL_Log("[Network] Thread started");
         
         while (running) {
             auto now = SDL_GetTicks();
@@ -255,7 +423,40 @@ int main(int, char**) {
 
                     const char* line = std::strtok(rx, "\n");
                     while (line) {
-                        if (strncmp(line, "HP ", 3) == 0) {
+                        // ===== SPIKE DETECTIVE: Death Marker Handling =====
+                        if (strncmp(line, "DEATH_MARKER ", 13) == 0) {
+                            std::string eventData(line + 13);
+                            try {
+                                Engine::Event deathEv = Engine::Event::deserialize(eventData);
+                                
+                                std::string deadPlayer = std::get<std::string>(deathEv.payload.at("entity"));
+                                if (deadPlayer != clientId && deadPlayer != "player") {
+                                    float mx = std::get<float>(deathEv.payload.at("x"));
+                                    float my = std::get<float>(deathEv.payload.at("y"));
+                                    std::string cause = std::get<std::string>(deathEv.payload.at("cause"));
+                                    
+                                    std::lock_guard<std::mutex> lock(deathMarkersMutex);
+                                    DeathMarker marker;
+                                    marker.position = {mx, my};
+                                    marker.playerId = deadPlayer;
+                                    marker.cause = cause;
+                                    marker.alpha = 1.0f;
+                                    marker.timestamp = gameTimeline.time();
+                                    networkDeathMarkers.push_back(marker);
+                                    
+                                    SDL_Log("[DEATH MARKER] %s died at (%.1f, %.1f) - %s", 
+                                            deadPlayer.c_str(), mx, my, cause.c_str());
+                                }
+                            } catch (const std::exception& ex) {
+                                SDL_Log("Failed to parse death marker: %s", ex.what());
+                            }
+                        }
+                        // ===== END DEATH MARKER HANDLING =====
+                        else if (strncmp(line, "EVENT ", 6) == 0) {
+                            std::string eventData(line + 6);
+                            eventManager.raiseEventFromNetwork(eventData);
+                        }
+                        else if (strncmp(line, "HP ", 3) == 0) {
                             float x, y, w, h; int dir;
                             if (sscanf(line, "HP %f %f %f %f %d", &x, &y, &w, &h, &dir) == 5) {
                                 std::lock_guard<std::mutex> lock(serverState.mutex);
@@ -327,14 +528,14 @@ int main(int, char**) {
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
-        SDL_Log("[Part 1B] Network thread stopped");
+        SDL_Log("[Network] Thread stopped");
     });
 
     std::thread timeoutThread([&]() {
         SDL_Log("[DISCONNECT MONITOR] Timeout detection thread started");
         
         while (running) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));  // Check every 500ms
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             auto now = std::chrono::steady_clock::now();
             std::vector<std::string> timedOutPlayers;
@@ -375,6 +576,11 @@ int main(int, char**) {
 
     float prevHorizX = serverState.horizontalPlatform.x;
     float prevVertY = serverState.verticalPlatform.y;
+    
+    // Initial spawn event
+    auto initialSpawn = Engine::Events::Spawn("player", localPlayerState.x, localPlayerState.y, &gameTimeline, 1);
+    eventManager.raiseEvent(initialSpawn);
+    spawnTime = gameTimeline.time();
 
     while (running) {
         SDL_Event e;
@@ -409,7 +615,10 @@ int main(int, char**) {
                     case SDL_SCANCODE_R:
                         if (gameWon) {
                             gameWon = false;
-                            currentSpawnId = "spawn_left";  // Reset to first checkpoint
+                            currentSpawnId = "spawn_left";
+                            auto spawnEv = Engine::Events::Spawn("player", leftX + 80.f, leftY - playerH, &gameTimeline, 1);
+                            eventManager.raiseEvent(spawnEv);
+                            
                             std::lock_guard<std::mutex> lock(localPlayerState.mutex);
                             localPlayerState.x = leftX + 80.f;
                             localPlayerState.y = leftY - playerH;
@@ -428,6 +637,41 @@ int main(int, char**) {
                         }
                         statusMessageTimer = 120;
                         break;
+                    case SDL_SCANCODE_F1:
+                        eventManager.startRecording();
+                        eventManager.raiseEvent(Engine::Events::ReplayStart(&gameTimeline));
+                        break;
+                    case SDL_SCANCODE_F2:
+                        eventManager.stopRecording();
+                        eventManager.raiseEvent(Engine::Events::ReplayStop(&gameTimeline));
+                        break;
+                    case SDL_SCANCODE_F3:
+                        eventManager.playReplay();
+                        eventManager.raiseEvent(Engine::Events::ReplayPlay(&gameTimeline));
+                        break;
+                    // ===== SPIKE DETECTIVE: Manual Analytics Controls =====
+                    case SDL_SCANCODE_F4:
+                        if (!showingDeathAnalytics && !deathHistory.empty()) {
+                            showingDeathAnalytics = true;
+                            analyticsDisplayTimer = 300;
+                            lastDeath = deathHistory.back();
+                            statusMessage = "Showing last death analysis";
+                            statusMessageTimer = 60;
+                        } else {
+                            showingDeathAnalytics = false;
+                            statusMessage = "Analytics hidden";
+                            statusMessageTimer = 60;
+                        }
+                        break;
+                    case SDL_SCANCODE_F5:
+                        if (!eventManager.isRecording() && !eventManager.isReplaying()) {
+                            eventManager.startRecording();
+                            eventManager.raiseEvent(Engine::Events::ReplayStart(&gameTimeline));
+                            statusMessage = "Auto-recording enabled";
+                            statusMessageTimer = 120;
+                        }
+                        break;
+                    // ===== END SPIKE DETECTIVE CONTROLS =====
                 }
             }
         }
@@ -435,6 +679,9 @@ int main(int, char**) {
         double dt = gameTimeline.tick();
         if (dt > 0.05) dt = 0.05;
         Input::poll();
+
+        // Dispatch events every frame
+        eventManager.dispatchEvents();
 
         float px, py;
         bool wasGrounded;
@@ -448,14 +695,47 @@ int main(int, char**) {
         float prevPX = px, prevPY = py;
         playerBody.vx = 0.f;
 
-        if (Input::isKeyPressed(SDL_SCANCODE_A)) playerBody.vx = -PLAYER_SPEED;
-        if (Input::isKeyPressed(SDL_SCANCODE_D)) playerBody.vx = PLAYER_SPEED;
+        // Generate input events
+        if (Input::isKeyPressed(SDL_SCANCODE_A)) {
+            auto inputEv = Engine::Events::Input("A", true, &gameTimeline, 4);
+            eventManager.raiseEvent(inputEv);
+            playerBody.vx = -PLAYER_SPEED;
+        }
+        if (Input::isKeyPressed(SDL_SCANCODE_D)) {
+            auto inputEv = Engine::Events::Input("D", true, &gameTimeline, 4);
+            eventManager.raiseEvent(inputEv);
+            playerBody.vx = PLAYER_SPEED;
+        }
         if ((Input::isKeyPressed(SDL_SCANCODE_W) || Input::isKeyPressed(SDL_SCANCODE_SPACE)) && wasGrounded) {
+            auto inputEv = Engine::Events::Input("JUMP", true, &gameTimeline, 4);
+            eventManager.raiseEvent(inputEv);
             playerBody.vy = JUMP_VELOCITY;
         }
 
         Physics::step(dt * 1000, px, py, playerBody);
         clampPlayerPosition(px, py, playerW, playerH);
+
+        // ===== SPIKE DETECTIVE: Track Position Trail =====
+        positionTrail.push_back({px, py});
+        if (positionTrail.size() > MAX_TRAIL_LENGTH) {
+            positionTrail.erase(positionTrail.begin());
+        }
+        
+        // Update death markers fade
+        {
+            std::lock_guard<std::mutex> lock(deathMarkersMutex);
+            for (auto it = networkDeathMarkers.begin(); it != networkDeathMarkers.end();) {
+                double age = gameTimeline.time() - it->timestamp;
+                it->alpha = 1.0f - (age / 10.0f);
+                
+                if (age > 10.0) {
+                    it = networkDeathMarkers.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+        // ===== END POSITION TRAIL TRACKING =====
 
         SDL_FRect playerRect {px, py, playerW, playerH};
         bool grounded = false;
@@ -524,7 +804,6 @@ int main(int, char**) {
         }
         prevVertY = verticalPlat.y;
 
-        // Check if player crosses spawn points (checkpoints)
         playerRect = {px, py, playerW, playerH};
         {
             std::lock_guard<std::mutex> lock(gameObjectMutex);
@@ -533,7 +812,6 @@ int main(int, char**) {
                 if (!spawn) continue;
                 
                 auto spawnPos = spawn->get<Engine::Vec2>("pos", {0, 0});
-                // Create checkpoint trigger area (wider than spawn point)
                 SDL_FRect checkpointRect = {spawnPos.x - 50.f, spawnPos.y - 50.f, 100.f, 100.f};
                 
                 if (checkCollision(playerRect, checkpointRect)) {
@@ -547,71 +825,68 @@ int main(int, char**) {
             }
         }
 
+        // ===== SPIKE DETECTIVE: Enhanced Spike Collisions with Death Markers =====
         for (float x = leftX + leftWidth; x < middleX; x += 220.f) {
             SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
             if (checkCollision(playerRect, spikeRect)) {
-                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                if (spawn) {
-                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                    px = spawnPos.x;
-                    py = spawnPos.y;
-                } else {
-                    px = leftX + 80.f;
-                    py = leftY - playerH;
-                }
-                playerBody.vx = playerBody.vy = 0;
-                statusMessage = "OUCH! Respawned at " + currentSpawnId;
-                statusMessageTimer = 120;
+                auto collEv = Engine::Events::Collision("player", "spike_gap1", &gameTimeline, 1);
+                eventManager.raiseEvent(collEv);
+                
+                auto deathEv = Engine::Events::Death("player_spike_gap1", &gameTimeline, 1);
+                deathEv.payload["x"] = px;
+                deathEv.payload["y"] = py;
+                deathEv.payload["cause"] = std::string("Spikes");
+                eventManager.raiseEvent(deathEv);
+                
+                std::string deathMsg = "DEATH_MARKER " + deathEv.serialize();
+                zmq_send(sock, deathMsg.c_str(), deathMsg.length(), ZMQ_DONTWAIT);
+                break;
             }
         }
         for (float x = middleX + middleWidth; x < platform3X; x += 220.f) {
             SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
             if (checkCollision(playerRect, spikeRect)) {
-                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                if (spawn) {
-                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                    px = spawnPos.x;
-                    py = spawnPos.y;
-                } else {
-                    px = leftX + 80.f;
-                    py = leftY - playerH;
-                }
-                playerBody.vx = playerBody.vy = 0;
-                statusMessage = "OUCH! Respawned at " + currentSpawnId;
-                statusMessageTimer = 120;
+                auto collEv = Engine::Events::Collision("player", "spike_gap2", &gameTimeline, 1);
+                eventManager.raiseEvent(collEv);
+                
+                auto deathEv = Engine::Events::Death("player_spike_gap2", &gameTimeline, 1);
+                deathEv.payload["x"] = px;
+                deathEv.payload["y"] = py;
+                deathEv.payload["cause"] = std::string("Spikes");
+                eventManager.raiseEvent(deathEv);
+                
+                std::string deathMsg = "DEATH_MARKER " + deathEv.serialize();
+                zmq_send(sock, deathMsg.c_str(), deathMsg.length(), ZMQ_DONTWAIT);
+                break;
             }
         }
         for (float x = platform3X + platform3Width; x < finalX; x += 220.f) {
             SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
             if (checkCollision(playerRect, spikeRect)) {
-                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                if (spawn) {
-                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                    px = spawnPos.x;
-                    py = spawnPos.y;
-                } else {
-                    px = leftX + 80.f;
-                    py = leftY - playerH;
-                }
-                playerBody.vx = playerBody.vy = 0;
-                statusMessage = "OUCH! Respawned at " + currentSpawnId;
-                statusMessageTimer = 120;
+                auto collEv = Engine::Events::Collision("player", "spike_gap3", &gameTimeline, 1);
+                eventManager.raiseEvent(collEv);
+                
+                auto deathEv = Engine::Events::Death("player_spike_gap3", &gameTimeline, 1);
+                deathEv.payload["x"] = px;
+                deathEv.payload["y"] = py;
+                deathEv.payload["cause"] = std::string("Spikes");
+                eventManager.raiseEvent(deathEv);
+                
+                std::string deathMsg = "DEATH_MARKER " + deathEv.serialize();
+                zmq_send(sock, deathMsg.c_str(), deathMsg.length(), ZMQ_DONTWAIT);
+                break;
             }
         }
 
         if (py > DESIGN_HEIGHT + 100) {
-            const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-            if (spawn) {
-                auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                px = spawnPos.x;
-                py = spawnPos.y;
-            } else {
-                px = leftX + 80.f;
-                py = leftY - playerH;
-            }
-            playerBody.vx = playerBody.vy = 0;
-            statusMessage = "Fell! Respawned at " + currentSpawnId;
-            statusMessageTimer = 120;
+            auto deathEv = Engine::Events::Death("player_fall", &gameTimeline, 1);
+            deathEv.payload["x"] = px;
+            deathEv.payload["y"] = py;
+            deathEv.payload["cause"] = std::string("Fell off map");
+            eventManager.raiseEvent(deathEv);
+            
+            std::string deathMsg = "DEATH_MARKER " + deathEv.serialize();
+            zmq_send(sock, deathMsg.c_str(), deathMsg.length(), ZMQ_DONTWAIT);
         }
 
         {
@@ -625,21 +900,19 @@ int main(int, char**) {
                 SDL_FRect zoneRect = {zonePos.x, zonePos.y, zoneSize.x, zoneSize.y};
                 
                 if (checkCollision(playerRect, zoneRect)) {
-                    // Respawn at current checkpoint
-                    const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                    if (spawn) {
-                        auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                        px = spawnPos.x;
-                        py = spawnPos.y;
-                        playerBody.vx = 0.f;
-                        playerBody.vy = 0.f;
-                        statusMessage = "Death! Respawned at " + currentSpawnId;
-                        statusMessageTimer = 120;
-                    }
+                    auto deathEv = Engine::Events::Death("player_zone", &gameTimeline, 1);
+                    deathEv.payload["x"] = px;
+                    deathEv.payload["y"] = py;
+                    deathEv.payload["cause"] = std::string("Death zone");
+                    eventManager.raiseEvent(deathEv);
+                    
+                    std::string deathMsg = "DEATH_MARKER " + deathEv.serialize();
+                    zmq_send(sock, deathMsg.c_str(), deathMsg.length(), ZMQ_DONTWAIT);
                     break;
                 }
             }
         }
+        // ===== END SPIKE DETECTIVE COLLISIONS =====
 
         float targetCameraX = px - DESIGN_WIDTH / 2.f;
         if (targetCameraX < 0) targetCameraX = 0;
@@ -725,6 +998,105 @@ int main(int, char**) {
         platformTex.setSize(verticalPlat.w, verticalPlat.h);
         platformTex.render(renderer, window);
 
+        // ===== SPIKE DETECTIVE: Render Death Markers =====
+        {
+            std::lock_guard<std::mutex> lock(deathMarkersMutex);
+            for (const auto& marker : networkDeathMarkers) {
+                float markerX = marker.position.x - cameraX;
+                float markerY = marker.position.y;
+                
+                // Draw red X to mark death location
+                SDL_SetRenderDrawColor(renderer, 255, 0, 0, (uint8_t)(marker.alpha * 255));
+                for (int i = -1; i <= 1; i++) {
+                    SDL_RenderLine(renderer, markerX - 15 + i, markerY - 15, markerX + 15 + i, markerY + 15);
+                    SDL_RenderLine(renderer, markerX - 15 + i, markerY + 15, markerX + 15 + i, markerY - 15);
+                }
+                
+                // Draw warning text
+                if (marker.alpha > 0.5f) {
+                    std::string warningText = "WARNING: " + marker.cause;
+                    renderSimpleText(renderer, warningText, markerX - 60, markerY - 35, 
+                                    255, (uint8_t)(100 + marker.alpha * 155), 0);
+                }
+            }
+        }
+        // ===== SPIKE DETECTIVE: Replay Overlay =====
+if (eventManager.isReplaying()) {
+    // Darken screen slightly
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 50, 80);
+    SDL_FRect overlay = {0, 0, (float)DESIGN_WIDTH, (float)DESIGN_HEIGHT};
+    SDL_RenderFillRect(renderer, &overlay);
+    
+    // Big "REPLAYING" banner
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 220);
+    SDL_FRect replayBanner = {DESIGN_WIDTH / 2 - 250, 30, 500, 80};
+    SDL_RenderFillRect(renderer, &replayBanner);
+    
+    // Border
+    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+    for (int i = 0; i < 3; i++) {
+        SDL_FRect border = {replayBanner.x - i, replayBanner.y - i, replayBanner.w + i*2, replayBanner.h + i*2};
+        SDL_RenderRect(renderer, &border);
+    }
+    
+    // Text
+    renderSimpleText(renderer, ">>> REPLAYING YOUR DEATH <<<", 
+                    DESIGN_WIDTH / 2 - 140, 55, 255, 255, 0);
+    renderSimpleText(renderer, "Watch the cyan trail closely!", 
+                    DESIGN_WIDTH / 2 - 120, 80, 255, 255, 255);
+    
+    // Draw THICK cyan trail showing your path
+    if (!positionTrail.empty()) {
+        // Multiple passes for thickness
+        for (int thickness = -5; thickness <= 5; thickness++) {
+            SDL_SetRenderDrawColor(renderer, 0, 255, 255, 150);
+            for (size_t i = 1; i < positionTrail.size(); i++) {
+                float x1 = positionTrail[i-1].x - cameraX;
+                float y1 = positionTrail[i-1].y + thickness;
+                float x2 = positionTrail[i].x - cameraX;
+                float y2 = positionTrail[i].y + thickness;
+                
+                SDL_RenderLine(renderer, x1, y1, x2, y2);
+            }
+        }
+        
+        // Draw bright yellow dots along the trail
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+        for (size_t i = 0; i < positionTrail.size(); i += 5) {
+            float x = positionTrail[i].x - cameraX;
+            float y = positionTrail[i].y;
+            SDL_FRect dot = {x - 5, y - 5, 10, 10};
+            SDL_RenderFillRect(renderer, &dot);
+        }
+        
+        // Draw START marker
+        if (positionTrail.size() > 0) {
+            float startX = positionTrail[0].x - cameraX;
+            float startY = positionTrail[0].y;
+            SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+            SDL_FRect startMarker = {startX - 10, startY - 10, 20, 20};
+            SDL_RenderFillRect(renderer, &startMarker);
+            renderSimpleText(renderer, "START", startX - 20, startY - 30, 0, 255, 0);
+        }
+        
+        // Draw DEATH marker
+        if (positionTrail.size() > 0) {
+            float endX = positionTrail[positionTrail.size()-1].x - cameraX;
+            float endY = positionTrail[positionTrail.size()-1].y;
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            
+            // Draw X for death
+            for (int i = -2; i <= 2; i++) {
+                SDL_RenderLine(renderer, endX - 15, endY - 15 + i, endX + 15, endY + 15 + i);
+                SDL_RenderLine(renderer, endX - 15, endY + 15 + i, endX + 15, endY - 15 + i);
+            }
+            renderSimpleText(renderer, "DEATH", endX - 20, endY - 35, 255, 0, 0);
+        }
+    }
+}
+// ===== END REPLAY OVERLAY =====
+
         localPlayer.setPosition(px - cameraX, py);
         localPlayer.setSize(playerW, playerH);
         localPlayer.render(renderer, window);
@@ -746,15 +1118,84 @@ int main(int, char**) {
             }
         }
 
+        // ===== SPIKE DETECTIVE: Death Analytics Overlay =====
+        if (showingDeathAnalytics && analyticsDisplayTimer > 0) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
+            SDL_FRect analyticsBox = {DESIGN_WIDTH / 2 - 300, 200, 600, 400};
+            SDL_RenderFillRect(renderer, &analyticsBox);
+            
+            SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
+            SDL_RenderRect(renderer, &analyticsBox);
+            
+            renderSimpleText(renderer, "=== DEATH ANALYSIS ===", 
+                            DESIGN_WIDTH / 2 - 100, 220, 255, 50, 50);
+            
+            float startY = 260;
+            float lineHeight = 25;
+            
+            renderSimpleText(renderer, "Cause of Death: " + lastDeath.causeOfDeath, 
+                            DESIGN_WIDTH / 2 - 280, startY, 255, 255, 255);
+            startY += lineHeight;
+            
+            char timeStr[64];
+            snprintf(timeStr, sizeof(timeStr), "Time Alive: %.1fs", lastDeath.timeAlive);
+            renderSimpleText(renderer, timeStr, 
+                            DESIGN_WIDTH / 2 - 280, startY, 255, 255, 255);
+            startY += lineHeight;
+            
+            char speedStr[64];
+            snprintf(speedStr, sizeof(speedStr), "Speed at Death: %.0f px/s", lastDeath.speed);
+            renderSimpleText(renderer, speedStr, 
+                            DESIGN_WIDTH / 2 - 280, startY, 255, 255, 255);
+            startY += lineHeight;
+            
+            char locStr[64];
+            snprintf(locStr, sizeof(locStr), "Location: (%.0f, %.0f)", 
+                    lastDeath.deathLocation.x, lastDeath.deathLocation.y);
+            renderSimpleText(renderer, locStr, 
+                            DESIGN_WIDTH / 2 - 280, startY, 255, 255, 255);
+            startY += lineHeight;
+            
+            char deathsStr[64];
+            snprintf(deathsStr, sizeof(deathsStr), "Total Deaths: %d", (int)deathHistory.size());
+            renderSimpleText(renderer, deathsStr, 
+                            DESIGN_WIDTH / 2 - 280, startY, 255, 255, 0);
+            startY += lineHeight + 10;
+            
+            renderSimpleText(renderer, "Last Inputs:", 
+                            DESIGN_WIDTH / 2 - 280, startY, 200, 200, 255);
+            startY += lineHeight;
+            
+            int inputsToShow = std::min(5, (int)lastDeath.inputHistory.size());
+            for (int i = inputsToShow - 1; i >= 0; i--) {
+                char inputStr[64];
+                snprintf(inputStr, sizeof(inputStr), "  %d. %s", 
+                        inputsToShow - i, 
+                        lastDeath.inputHistory[lastDeath.inputHistory.size() - 1 - i].c_str());
+                renderSimpleText(renderer, inputStr, 
+                                DESIGN_WIDTH / 2 - 260, startY, 150, 200, 255);
+                startY += lineHeight;
+            }
+            
+            startY += 10;
+            
+            analyticsDisplayTimer--;
+        }
+        // ===== END DEATH ANALYTICS OVERLAY =====
+
         // UI
         renderSimpleText(renderer, "A/D: Move  W/Space: Jump", 20, 20, 255, 255, 255);
         renderSimpleText(renderer, "P: Pause  1/2/3: Speed  R: Restart  S: Scaling", 20, 40, 255, 255, 255);
-        renderSimpleText(renderer, "[Part 1A] GameObject Registry", 20, 60, 0, 255, 255);
+        renderSimpleText(renderer, "F1: Record  F2: Stop  F3: Replay  F4: Analytics  F5: Auto-Record", 20, 60, 255, 200, 100);
+        renderSimpleText(renderer, "[SPIKE DETECTIVE] Death Analysis System", 20, 80, 255, 100, 100);
 
-        std::string cameraText = "Camera: " + std::to_string(int(cameraX));
+        char cameraText[32];
+        snprintf(cameraText, sizeof(cameraText), "Camera: %d", (int)cameraX);
         renderSimpleText(renderer, cameraText, DESIGN_WIDTH - 180, 20, 100, 200, 255);
 
-        std::string speedText = "Speed: " + std::to_string(int(gameTimeline.scale() * 100)) + "%";
+        char speedText[32];
+        snprintf(speedText, sizeof(speedText), "Speed: %d%%", (int)(gameTimeline.scale() * 100));
         renderSimpleText(renderer, speedText, DESIGN_WIDTH - 200, 40, 0, 255, 0);
 
         if (gameTimeline.isPaused()) {
@@ -766,11 +1207,26 @@ int main(int, char**) {
             std::lock_guard<std::mutex> lock(remotePlayersMutex);
             remotePlayers = remotePlayersRegistry.size();
         }
-        std::string playerCountText = "Remote Players: " + std::to_string(remotePlayers);
+        char playerCountText[64];
+        snprintf(playerCountText, sizeof(playerCountText), "Remote Players: %d", remotePlayers);
         renderSimpleText(renderer, playerCountText, DESIGN_WIDTH - 250, 80, 255, 255, 0);
 
+        std::string eventStatus = "Events: ";
+        if (eventManager.isRecording()) eventStatus += "RECORDING";
+        else if (eventManager.isReplaying()) eventStatus += "REPLAYING";
+        else {
+            char pendingStr[32];
+            snprintf(pendingStr, sizeof(pendingStr), "Ready (%d pending)", (int)eventManager.pendingCount());
+            eventStatus += pendingStr;
+        }
+        renderSimpleText(renderer, eventStatus, DESIGN_WIDTH - 400, 100, 100, 255, 100);
+        
+        char deathCountText[64];
+        snprintf(deathCountText, sizeof(deathCountText), "Deaths: %d", (int)deathHistory.size());
+        renderSimpleText(renderer, deathCountText, DESIGN_WIDTH - 200, 120, 255, 100, 100);
+
         if (statusMessageTimer > 0) {
-            renderSimpleText(renderer, statusMessage, DESIGN_WIDTH / 2 - 150, 100, 255, 255, 0);
+            renderSimpleText(renderer, statusMessage, DESIGN_WIDTH / 2 - 150, 150, 255, 255, 0);
             statusMessageTimer--;
         }
 
@@ -793,7 +1249,6 @@ int main(int, char**) {
         SDL_Delay(16);
     }
 
-    // Cleanup
     running = false;
     networkThread.join();
     timeoutThread.join();
@@ -807,7 +1262,6 @@ int main(int, char**) {
     }
     
     lastHeardFrom.clear();
-    
     gameObjectRegistry.clear();
     zmq_close(sock); 
     zmq_ctx_destroy(ctx);

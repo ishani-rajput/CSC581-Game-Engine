@@ -86,6 +86,13 @@ build CMakeFiles/main.dir/src/timeline.cpp.obj: CXX_COMPILER__main_unscanned_ C$
   OBJECT_DIR = CMakeFiles\main.dir
   OBJECT_FILE_DIR = CMakeFiles\main.dir\src
 
+build CMakeFiles/main.dir/src/event_manager.cpp.obj: CXX_COMPILER__main_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_main
+  DEP_FILE = CMakeFiles\main.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\main.dir
+  OBJECT_FILE_DIR = CMakeFiles\main.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target main
@@ -94,7 +101,7 @@ build CMakeFiles/main.dir/src/timeline.cpp.obj: CXX_COMPILER__main_unscanned_ C$
 #############################################
 # Link the executable main.exe
 
-build main.exe: CXX_EXECUTABLE_LINKER__main_ CMakeFiles/main.dir/src/main.cpp.obj CMakeFiles/main.dir/src/entity.cpp.obj CMakeFiles/main.dir/src/input.cpp.obj CMakeFiles/main.dir/src/physics.cpp.obj CMakeFiles/main.dir/src/scaling.cpp.obj CMakeFiles/main.dir/src/timeline.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
+build main.exe: CXX_EXECUTABLE_LINKER__main_ CMakeFiles/main.dir/src/main.cpp.obj CMakeFiles/main.dir/src/entity.cpp.obj CMakeFiles/main.dir/src/input.cpp.obj CMakeFiles/main.dir/src/physics.cpp.obj CMakeFiles/main.dir/src/scaling.cpp.obj CMakeFiles/main.dir/src/timeline.cpp.obj CMakeFiles/main.dir/src/event_manager.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
   LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3_image.dll.a  C:/msys2/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\main.dir
   POST_BUILD = cd .
@@ -154,6 +161,13 @@ build CMakeFiles/client.dir/src/timeline.cpp.obj: CXX_COMPILER__client_unscanned
   OBJECT_DIR = CMakeFiles\client.dir
   OBJECT_FILE_DIR = CMakeFiles\client.dir\src
 
+build CMakeFiles/client.dir/src/event_manager.cpp.obj: CXX_COMPILER__client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_client
+  DEP_FILE = CMakeFiles\client.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\client.dir
+  OBJECT_FILE_DIR = CMakeFiles\client.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target client
@@ -162,7 +176,7 @@ build CMakeFiles/client.dir/src/timeline.cpp.obj: CXX_COMPILER__client_unscanned
 #############################################
 # Link the executable client.exe
 
-build client.exe: CXX_EXECUTABLE_LINKER__client_ CMakeFiles/client.dir/src/client.cpp.obj CMakeFiles/client.dir/src/entity.cpp.obj CMakeFiles/client.dir/src/input.cpp.obj CMakeFiles/client.dir/src/physics.cpp.obj CMakeFiles/client.dir/src/scaling.cpp.obj CMakeFiles/client.dir/src/timeline.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
+build client.exe: CXX_EXECUTABLE_LINKER__client_ CMakeFiles/client.dir/src/client.cpp.obj CMakeFiles/client.dir/src/entity.cpp.obj CMakeFiles/client.dir/src/input.cpp.obj CMakeFiles/client.dir/src/physics.cpp.obj CMakeFiles/client.dir/src/scaling.cpp.obj CMakeFiles/client.dir/src/timeline.cpp.obj CMakeFiles/client.dir/src/event_manager.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
   LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3_image.dll.a  C:/msys2/mingw64/lib/libzmq.dll.a  C:/msys2/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\client.dir
   POST_BUILD = cd .
@@ -194,6 +208,20 @@ build CMakeFiles/server.dir/src/network_server.cpp.obj: CXX_COMPILER__server_uns
   OBJECT_DIR = CMakeFiles\server.dir
   OBJECT_FILE_DIR = CMakeFiles\server.dir\src
 
+build CMakeFiles/server.dir/src/event_manager.cpp.obj: CXX_COMPILER__server_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_server
+  DEP_FILE = CMakeFiles\server.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\server.dir
+  OBJECT_FILE_DIR = CMakeFiles\server.dir\src
+
+build CMakeFiles/server.dir/src/timeline.cpp.obj: CXX_COMPILER__server_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/timeline.cpp || cmake_object_order_depends_target_server
+  DEP_FILE = CMakeFiles\server.dir\src\timeline.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\server.dir
+  OBJECT_FILE_DIR = CMakeFiles\server.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target server
@@ -202,8 +230,8 @@ build CMakeFiles/server.dir/src/network_server.cpp.obj: CXX_COMPILER__server_uns
 #############################################
 # Link the executable server.exe
 
-build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj CMakeFiles/server.dir/src/network_server.cpp.obj | C$:/msys2/mingw64/lib/libzmq.dll.a
-  LINK_LIBRARIES = C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+build server.exe: CXX_EXECUTABLE_LINKER__server_ CMakeFiles/server.dir/src/server.cpp.obj CMakeFiles/server.dir/src/network_server.cpp.obj CMakeFiles/server.dir/src/event_manager.cpp.obj CMakeFiles/server.dir/src/timeline.cpp.obj | C$:/msys2/mingw64/lib/libSDL3.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3.dll.a  C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\server.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -234,6 +262,20 @@ build CMakeFiles/perf_main.dir/src/perf.cpp.obj: CXX_COMPILER__perf_main_unscann
   OBJECT_DIR = CMakeFiles\perf_main.dir
   OBJECT_FILE_DIR = CMakeFiles\perf_main.dir\src
 
+build CMakeFiles/perf_main.dir/src/event_manager.cpp.obj: CXX_COMPILER__perf_main_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_perf_main
+  DEP_FILE = CMakeFiles\perf_main.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\perf_main.dir
+  OBJECT_FILE_DIR = CMakeFiles\perf_main.dir\src
+
+build CMakeFiles/perf_main.dir/src/timeline.cpp.obj: CXX_COMPILER__perf_main_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/timeline.cpp || cmake_object_order_depends_target_perf_main
+  DEP_FILE = CMakeFiles\perf_main.dir\src\timeline.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\perf_main.dir
+  OBJECT_FILE_DIR = CMakeFiles\perf_main.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target perf_main
@@ -242,8 +284,8 @@ build CMakeFiles/perf_main.dir/src/perf.cpp.obj: CXX_COMPILER__perf_main_unscann
 #############################################
 # Link the executable perf_main.exe
 
-build perf_main.exe: CXX_EXECUTABLE_LINKER__perf_main_ CMakeFiles/perf_main.dir/src/perf_main.cpp.obj CMakeFiles/perf_main.dir/src/perf.cpp.obj | C$:/msys2/mingw64/lib/libzmq.dll.a
-  LINK_LIBRARIES = C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+build perf_main.exe: CXX_EXECUTABLE_LINKER__perf_main_ CMakeFiles/perf_main.dir/src/perf_main.cpp.obj CMakeFiles/perf_main.dir/src/perf.cpp.obj CMakeFiles/perf_main.dir/src/event_manager.cpp.obj CMakeFiles/perf_main.dir/src/timeline.cpp.obj | C$:/msys2/mingw64/lib/libSDL3.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3.dll.a  C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\perf_main.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -267,6 +309,20 @@ build CMakeFiles/hybrid_server.dir/src/hybrid_server.cpp.obj: CXX_COMPILER__hybr
   OBJECT_DIR = CMakeFiles\hybrid_server.dir
   OBJECT_FILE_DIR = CMakeFiles\hybrid_server.dir\src
 
+build CMakeFiles/hybrid_server.dir/src/event_manager.cpp.obj: CXX_COMPILER__hybrid_server_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_hybrid_server
+  DEP_FILE = CMakeFiles\hybrid_server.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_server.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_server.dir\src
+
+build CMakeFiles/hybrid_server.dir/src/timeline.cpp.obj: CXX_COMPILER__hybrid_server_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/timeline.cpp || cmake_object_order_depends_target_hybrid_server
+  DEP_FILE = CMakeFiles\hybrid_server.dir\src\timeline.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_server.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_server.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target hybrid_server
@@ -275,8 +331,8 @@ build CMakeFiles/hybrid_server.dir/src/hybrid_server.cpp.obj: CXX_COMPILER__hybr
 #############################################
 # Link the executable hybrid_server.exe
 
-build hybrid_server.exe: CXX_EXECUTABLE_LINKER__hybrid_server_ CMakeFiles/hybrid_server.dir/src/hybrid_server.cpp.obj | C$:/msys2/mingw64/lib/libzmq.dll.a
-  LINK_LIBRARIES = C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+build hybrid_server.exe: CXX_EXECUTABLE_LINKER__hybrid_server_ CMakeFiles/hybrid_server.dir/src/hybrid_server.cpp.obj CMakeFiles/hybrid_server.dir/src/event_manager.cpp.obj CMakeFiles/hybrid_server.dir/src/timeline.cpp.obj | C$:/msys2/mingw64/lib/libSDL3.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3.dll.a  C:/msys2/mingw64/lib/libzmq.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\hybrid_server.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -342,6 +398,13 @@ build CMakeFiles/hybrid_client.dir/src/timeline.cpp.obj: CXX_COMPILER__hybrid_cl
   OBJECT_DIR = CMakeFiles\hybrid_client.dir
   OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
 
+build CMakeFiles/hybrid_client.dir/src/event_manager.cpp.obj: CXX_COMPILER__hybrid_client_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_hybrid_client
+  DEP_FILE = CMakeFiles\hybrid_client.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\hybrid_client.dir
+  OBJECT_FILE_DIR = CMakeFiles\hybrid_client.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target hybrid_client
@@ -350,7 +413,7 @@ build CMakeFiles/hybrid_client.dir/src/timeline.cpp.obj: CXX_COMPILER__hybrid_cl
 #############################################
 # Link the executable hybrid_client.exe
 
-build hybrid_client.exe: CXX_EXECUTABLE_LINKER__hybrid_client_ CMakeFiles/hybrid_client.dir/src/hybrid_client.cpp.obj CMakeFiles/hybrid_client.dir/src/peer_manager.cpp.obj CMakeFiles/hybrid_client.dir/src/entity.cpp.obj CMakeFiles/hybrid_client.dir/src/input.cpp.obj CMakeFiles/hybrid_client.dir/src/physics.cpp.obj CMakeFiles/hybrid_client.dir/src/scaling.cpp.obj CMakeFiles/hybrid_client.dir/src/timeline.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
+build hybrid_client.exe: CXX_EXECUTABLE_LINKER__hybrid_client_ CMakeFiles/hybrid_client.dir/src/hybrid_client.cpp.obj CMakeFiles/hybrid_client.dir/src/peer_manager.cpp.obj CMakeFiles/hybrid_client.dir/src/entity.cpp.obj CMakeFiles/hybrid_client.dir/src/input.cpp.obj CMakeFiles/hybrid_client.dir/src/physics.cpp.obj CMakeFiles/hybrid_client.dir/src/scaling.cpp.obj CMakeFiles/hybrid_client.dir/src/timeline.cpp.obj CMakeFiles/hybrid_client.dir/src/event_manager.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libzmq.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
   LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3_image.dll.a  C:/msys2/mingw64/lib/libzmq.dll.a  C:/msys2/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\hybrid_client.dir
   POST_BUILD = cd .

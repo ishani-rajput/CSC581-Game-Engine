@@ -1,6 +1,8 @@
 #include "network_server.h"
 #include "object_model.h"
 #include "registry.h"
+#include "event_manager.h"
+#include "timeline.h"
 #include <iostream>
 #include <cstdio>
 #include <chrono>
@@ -18,6 +20,8 @@ struct Platform {
 class SpikeyServer : public Engine::NetworkServer {
 private:
     Engine::Registry registry;
+    Timeline serverTimeline;  // Timeline is not in Engine namespace
+    Engine::EventManager eventManager;
     
     Platform horizontalPlatform;
     Platform verticalPlatform;
@@ -40,9 +44,42 @@ private:
     static constexpr int CLIENT_TIMEOUT_SECONDS = 3;
     std::thread timeoutThread;
     std::atomic<bool> timeoutRunning{false};
+    
+    // Store events to broadcast
+    std::vector<std::string> eventsToBroadcast;
+    std::mutex eventBroadcastMutex;
 
 public:
-    SpikeyServer() {
+    SpikeyServer() : eventManager(&serverTimeline) {
+        serverTimeline.anchorToRealTime();
+        
+        // Register server-side event listeners
+        eventManager.registerListener(Engine::EventType::Death, [this](const Engine::Event& e) {
+            std::string who = std::get<std::string>(e.payload.at("entity"));
+            std::cout << "[SERVER EVENT] Death: " << who << " at time " << e.timestamp << std::endl;
+        });
+        
+        eventManager.registerListener(Engine::EventType::Collision, [this](const Engine::Event& e) {
+            std::string objA = std::get<std::string>(e.payload.at("A"));
+            std::string objB = std::get<std::string>(e.payload.at("B"));
+            std::cout << "[SERVER EVENT] Collision: " << objA << " <-> " << objB << std::endl;
+        });
+        
+        eventManager.registerListener(Engine::EventType::Input, [this](const Engine::Event& e) {
+            std::string key = std::get<std::string>(e.payload.at("key"));
+            bool pressed = std::get<bool>(e.payload.at("pressed"));
+            std::cout << "[SERVER EVENT] Input: " << key << " " << (pressed ? "pressed" : "released") << std::endl;
+        });
+        
+        eventManager.registerListener(Engine::EventType::Spawn, [this](const Engine::Event& e) {
+            std::string who = std::get<std::string>(e.payload.at("entity"));
+            float x = std::get<float>(e.payload.at("x"));
+            float y = std::get<float>(e.payload.at("y"));
+            std::cout << "[SERVER EVENT] Spawn: " << who << " at (" << x << ", " << y << ")" << std::endl;
+        });
+        
+        std::cout << "[SERVER] Event system initialized" << std::endl;
+        
         horizontalPlatform = {
             leftX + platformWidth + 20.f,
             DESIGN_HEIGHT - platformHeight - 150.f,
@@ -77,6 +114,17 @@ public:
 
 protected:
     void handleClientMessage(const std::string& clientId, const std::string& message) override {
+        // Check if this is an event message
+        if (message.find("EVENT ") == 0) {
+            std::string eventData = message.substr(6);
+            eventManager.raiseEventFromNetwork(eventData);
+            
+            // Store event to broadcast in the world state
+            std::lock_guard<std::mutex> lock(eventBroadcastMutex);
+            eventsToBroadcast.push_back(eventData);
+            return;
+        }
+        
         char id[256];
         float x = 0, y = 0;
         
@@ -93,6 +141,12 @@ protected:
     }
     
     std::string generateWorldState() override {
+        // Tick the server timeline
+        serverTimeline.tick();
+        
+        // Dispatch events
+        eventManager.dispatchEvents();
+        
         auto now = std::chrono::steady_clock::now();
         float currentTime = std::chrono::duration<float>(now - startTime).count();
         float deltaTime = std::chrono::duration<float>(now - lastUpdate).count();
@@ -161,6 +215,16 @@ protected:
         offset += snprintf(buffer + offset, sizeof(buffer) - offset,
                           "B1 %d\n", bridge1Visible ? 1 : 0);
         
+        // Add events to broadcast
+        {
+            std::lock_guard<std::mutex> lock(eventBroadcastMutex);
+            for (const auto& eventData : eventsToBroadcast) {
+                offset += snprintf(buffer + offset, sizeof(buffer) - offset,
+                                  "EVENT %s\n", eventData.c_str());
+            }
+            eventsToBroadcast.clear();
+        }
+        
         return std::string(buffer, offset);
     }
     
@@ -175,6 +239,14 @@ protected:
         float timeSinceStart = std::chrono::duration<float>(now - startTime).count();
         playerObj.set<float>("spawn_time", timeSinceStart);
         playerObj.set<float>("last_update", timeSinceStart);
+        
+        // Generate spawn event
+        auto spawnEv = Engine::Events::Spawn(clientId, leftX + 80.f, leftY - 256.f, &serverTimeline, 1);
+        eventManager.raiseEvent(spawnEv);
+        
+        // Add to broadcast queue
+        std::lock_guard<std::mutex> lock(eventBroadcastMutex);
+        eventsToBroadcast.push_back(spawnEv.serialize());
     }
     
     void onClientDisconnected(const std::string& clientId) override {
@@ -235,6 +307,7 @@ int main() {
     SpikeyServer server;
     server.startServer(5555);
     
+    std::cout << "Spikey Server running with Event System..." << std::endl;
     std::cout << "Press Enter to stop..." << std::endl;
     std::cin.get();
     

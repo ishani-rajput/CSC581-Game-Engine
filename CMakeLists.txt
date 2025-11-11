@@ -14,31 +14,31 @@ endif()
 
 include_directories(include)
 
+# Shared engine components
+set(ENGINE_COMMON
+    ./src/entity.cpp
+    ./src/input.cpp
+    ./src/physics.cpp
+    ./src/scaling.cpp
+    ./src/timeline.cpp
+    ./src/event_manager.cpp
+)
+
 # Single-player main (no networking)
 add_executable(main
     ./src/main.cpp
-    ./src/entity.cpp
-    ./src/input.cpp
-    ./src/physics.cpp
-    ./src/scaling.cpp
-    ./src/timeline.cpp
+    ${ENGINE_COMMON}
 )
 
 target_link_libraries(main
-    PRIVATE
-        SDL3::SDL3
-        SDL3_image::SDL3_image
+    PRIVATE SDL3::SDL3 SDL3_image::SDL3_image
 )
 
-# Part 1 Compliant: Multiplayer client (uses Registry + GameObject)
+# Multiplayer client
 add_executable(client
     ./src/client.cpp
-    ./src/entity.cpp
-    ./src/input.cpp
-    ./src/physics.cpp
-    ./src/scaling.cpp
-    ./src/timeline.cpp
-    # Part 1A: GameObject model is header-only (object_model.h, registry.h)
+    ${ENGINE_COMMON}
+    # object_model.h, registry.h are header-only
 )
 
 if (ZeroMQ_FOUND)
@@ -47,51 +47,52 @@ else()
     target_link_libraries(client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
 endif()
 
-# Part 1 Compliant: Server (uses NetworkServer + Registry + GameObject)
+# Multiplayer server
 add_executable(server
     ./src/server.cpp
     ./src/network_server.cpp
-    # Part 1A: GameObject model is header-only (object_model.h, registry.h)
+    ./src/event_manager.cpp
+    ./src/timeline.cpp
 )
 
 if (ZeroMQ_FOUND)
-    target_link_libraries(server PRIVATE libzmq)
+    target_link_libraries(server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 else()
-    target_link_libraries(server PRIVATE ${ZMQ_LIB})
+    target_link_libraries(server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 endif()
 
-# Part 1C: Performance testing executable
+# Performance testing
 add_executable(perf_main
     ./src/perf_main.cpp
     ./src/perf.cpp
+    ./src/event_manager.cpp
+    ./src/timeline.cpp
 )
 
 if (ZeroMQ_FOUND)
-    target_link_libraries(perf_main PRIVATE libzmq)
+    target_link_libraries(perf_main PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 else()
-    target_link_libraries(perf_main PRIVATE ${ZMQ_LIB})
+    target_link_libraries(perf_main PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 endif()
 
-# Section 5 server (keep as-is)
+# Section 5 server
 add_executable(hybrid_server
     ./src/hybrid_server.cpp
+    ./src/event_manager.cpp
+    ./src/timeline.cpp
 )
 
 if (ZeroMQ_FOUND)
-    target_link_libraries(hybrid_server PRIVATE libzmq)
+    target_link_libraries(hybrid_server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 else()
-    target_link_libraries(hybrid_server PRIVATE ${ZMQ_LIB})
+    target_link_libraries(hybrid_server PRIVATE SDL3::SDL3 ${ZMQ_LIB})
 endif()
 
-# Section 5 client (keep as-is)
+# Section 5 client
 add_executable(hybrid_client
     ./src/hybrid_client.cpp
     ./src/peer_manager.cpp
-    ./src/entity.cpp
-    ./src/input.cpp
-    ./src/physics.cpp
-    ./src/scaling.cpp
-    ./src/timeline.cpp
+    ${ENGINE_COMMON}
 )
 
 if (ZeroMQ_FOUND)
