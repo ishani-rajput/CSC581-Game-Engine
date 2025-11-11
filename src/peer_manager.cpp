@@ -9,6 +9,7 @@ PeerManager::PeerManager(const std::string& myId) : id(myId) {
     pub = zmq_socket(ctx, ZMQ_PUB);
     sub = zmq_socket(ctx, ZMQ_SUB);
     
+    // Subscribe to all messages
     zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0);
 }
 
@@ -72,7 +73,6 @@ void PeerManager::processPeerMessages() {
                 std::lock_guard<std::mutex> lk(peerMutex);
                 auto& peer = peers[pid];
                 peer.lastUpdate = std::chrono::high_resolution_clock::now();
-
             }
         }
     }
@@ -101,7 +101,6 @@ std::string PeerManager::receiveFromServer() {
     return "";
 }
 
-
 void PeerManager::cleanupStalePeers() {
     auto now = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lk(peerMutex);
@@ -129,4 +128,29 @@ void PeerManager::sendInputDelta(bool left, bool right, bool jump,
         std::cerr << "Failed to send INPUT: " << zmq_strerror(errno) << "\n";
     }
     processPeerMessages(); 
+}
+
+void PeerManager::publishToPeers(const std::string& msg) {
+    if (!pub) return;
+    if (zmq_send(pub, msg.c_str(), (int)msg.size(), ZMQ_DONTWAIT) == -1) {
+        if (errno != EAGAIN) {
+            std::cerr << "[PeerManager] Failed to publishToPeers: "
+                      << zmq_strerror(errno) << std::endl;
+        }
+    }
+}
+
+std::vector<std::string> PeerManager::drainPeerMessages() {
+    std::vector<std::string> messages;
+    if (!sub) return messages;
+
+    char buf[4096];
+    int n;
+    while (true) {
+        n = zmq_recv(sub, buf, sizeof(buf) - 1, ZMQ_DONTWAIT);
+        if (n <= 0) break;
+        buf[n] = '\0';
+        messages.emplace_back(buf);
+    }
+    return messages;
 }

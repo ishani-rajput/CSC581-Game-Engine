@@ -8,6 +8,7 @@
 #include <chrono>
 #include <atomic>
 #include <mutex>
+#include <cmath>
 #include "entity.h"
 #include "input.h"
 #include "scaling.h"
@@ -83,6 +84,27 @@ static std::string generateClientId() {
     return "client_" + std::to_string(dis(gen));
 }
 
+// ===== SPIKE DETECTIVE: Death Analytics Structures =====
+namespace Analytics {
+struct DeathAnalytics {
+    float speed = 0.f;
+    float timeAlive = 0.f;
+    std::string causeOfDeath;
+    Engine::Vec2 deathLocation{0.f,0.f};
+    std::vector<std::string> inputHistory;
+    std::vector<Engine::Vec2> lastPositions;
+    double deathTime = 0.0;
+};
+struct DeathMarker {
+    Engine::Vec2 position{0.f,0.f};
+    std::string playerId;
+    std::string cause;
+    float alpha = 1.0f;
+    double timestamp = 0.0;
+};
+} // namespace Analytics
+// ===== END SPIKE DETECTIVE STRUCTURES =====
+
 int main(int, char**) {
     srand(time(nullptr));
     
@@ -111,10 +133,40 @@ int main(int, char**) {
     std::uniform_int_distribution<> portDis(6000, 6999);
     int myPubPort = portDis(gen);
     std::string myPubEndpoint = "tcp://*:" + std::to_string(myPubPort);
-    std::string myPubAddress = "tcp://localhost:" + std::to_string(myPubPort);
+    std::string myPubAddress  = "tcp://localhost:" + std::to_string(myPubPort);
 
     SDL_Log("[HYBRID P2P] Client ID: %s", clientId.c_str());
     SDL_Log("[HYBRID P2P] My PUB endpoint: %s", myPubAddress.c_str());
+
+    // ===== SPIKE DETECTIVE: Analytics State =====
+    Analytics::DeathAnalytics currentRun;
+    std::vector<Analytics::DeathAnalytics> deathHistory;
+    std::vector<Analytics::DeathMarker> networkDeathMarkers;
+    std::mutex deathMarkersMutex;
+
+    double spawnTime = 0.0;
+    bool showingDeathAnalytics = false;
+    int  analyticsDisplayTimer = 0;
+    Analytics::DeathAnalytics lastDeath;
+
+    std::vector<std::string> recentInputs;
+    const int MAX_INPUT_HISTORY = 10;
+
+    std::vector<Engine::Vec2> positionTrail;
+    const int MAX_TRAIL_LENGTH = 180;
+    // ===== END ANALYTICS STATE =====
+
+    // Helper: publish serialized events / death markers to peers (P2P)
+    auto sendEventP2P = [&](const Engine::Event& ev) {
+        // Prefix "EV " → peers call raiseEventFromNetwork(rest)
+        std::string msg = "EV " + ev.serialize();
+        peerManager.publishToPeers(msg); // <-- ensure PeerManager exposes this
+    };
+    auto sendDeathMarkerP2P = [&](const Engine::Event& deathEv) {
+        // Prefix "DM " → peers draw fading red X
+        std::string msg = "DM " + deathEv.serialize();
+        peerManager.publishToPeers(msg);
+    };
 
     // REGISTER EVENT LISTENERS
     eventManager.registerListener(Engine::EventType::Collision, [&](const Engine::Event& e) {
@@ -129,12 +181,43 @@ int main(int, char**) {
     eventManager.registerListener(Engine::EventType::Death, [&](const Engine::Event& e) {
         std::string who = std::get<std::string>(e.payload.at("entity"));
         SDL_Log("[EVENT] Death: %s at time %.3f", who.c_str(), e.timestamp);
-        
+
+        // Compute death analytics
+        currentRun.timeAlive = gameTimeline.time() - spawnTime;
+        // vx/vy recorded from latest physics step below (approx via trail if needed)
+        // Here we just approximate from last two trail points:
+        if (positionTrail.size() >= 2) {
+            auto a = positionTrail[positionTrail.size()-2];
+            auto b = positionTrail[positionTrail.size()-1];
+            float dx = b.x - a.x, dy = b.y - a.y;
+            currentRun.speed = std::sqrt(dx*dx + dy*dy) * 60.0f; // px/frame → px/s approx
+            currentRun.deathLocation = b;
+        }
+        currentRun.inputHistory = recentInputs;
+        currentRun.lastPositions = positionTrail;
+        currentRun.deathTime = e.timestamp;
+
+        // Cause of death (prefer payload["cause"] if present)
+        if (e.payload.count("cause")) currentRun.causeOfDeath = std::get<std::string>(e.payload.at("cause"));
+        else if (who.find("spike") != std::string::npos) currentRun.causeOfDeath = "Spikes";
+        else if (who.find("fall")  != std::string::npos) currentRun.causeOfDeath = "Fell off map";
+        else if (who.find("zone")  != std::string::npos) currentRun.causeOfDeath = "Death zone";
+        else currentRun.causeOfDeath = "Unknown";
+
+        deathHistory.push_back(currentRun);
+        lastDeath = currentRun;
+        showingDeathAnalytics = true;
+        analyticsDisplayTimer = 300;
+
+        SDL_Log("[SPIKE DETECTIVE] Death #%d - Cause: %s, Time Alive: %.1fs, Speed: %.1f", 
+                (int)deathHistory.size(), currentRun.causeOfDeath.c_str(), 
+                currentRun.timeAlive, currentRun.speed);
+
+        // Auto stop + delayed replay
         if (eventManager.isRecording()) {
             eventManager.stopRecording();
-            statusMessage = "Recording stopped - replaying in 2s...";
+            statusMessage = "Analyzing death... Replay in 2s";
             statusMessageTimer = 120;
-            
             std::thread([&eventManager]() {
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 eventManager.playReplay();
@@ -150,6 +233,16 @@ int main(int, char**) {
                 who.c_str(), x, y, e.timestamp);
         statusMessage = "Spawned: " + who;
         statusMessageTimer = 60;
+
+        // Reset analytics for new life (this peer only)
+        if (who == clientId) {
+            currentRun = Analytics::DeathAnalytics();
+            currentRun.deathTime = 0;
+            spawnTime = gameTimeline.time();
+            recentInputs.clear();
+            positionTrail.clear();
+            showingDeathAnalytics = false;
+        }
     });
 
     eventManager.registerListener(Engine::EventType::Input, [&](const Engine::Event& e) {
@@ -157,6 +250,13 @@ int main(int, char**) {
         bool pressed = std::get<bool>(e.payload.at("pressed"));
         SDL_Log("[EVENT] Input: %s %s at time %.3f", 
                 key.c_str(), pressed ? "pressed" : "released", e.timestamp);
+
+        if (pressed) {
+            recentInputs.push_back(key);
+            if ((int)recentInputs.size() > MAX_INPUT_HISTORY) {
+                recentInputs.erase(recentInputs.begin());
+            }
+        }
     });
 
     eventManager.registerListener(Engine::EventType::ReplayStart, [&](const Engine::Event& e) {
@@ -181,7 +281,7 @@ int main(int, char**) {
 
     // Setup hybrid networking
     peerManager.connectToServer("tcp://localhost:5556");  // Different port for hybrid server
-    peerManager.startPeerListener(myPubEndpoint);
+    peerManager.startPeerListener(myPubEndpoint);         // start PUB/SUB for peers
 
     // Register with server
     std::string regMsg = "REGISTER_PEER " + clientId + " " + myPubAddress;
@@ -285,9 +385,10 @@ int main(int, char**) {
     float peerTimer = 0.0f;
     float cleanupTimer = 0.0f;
 
-    // Generate initial spawn event
+    // Generate initial spawn event for THIS peer
     auto spawnEv = Engine::Events::Spawn(clientId, px, py, &gameTimeline, 1);
     eventManager.raiseEvent(spawnEv);
+    spawnTime = gameTimeline.time();
 
     while (running) {
         SDL_Event e;
@@ -352,6 +453,20 @@ int main(int, char**) {
                     case SDL_SCANCODE_F3:
                         eventManager.playReplay();
                         eventManager.raiseEvent(Engine::Events::ReplayPlay(&gameTimeline));
+                        break;
+                    // Optional: toggle analytics overlay manually
+                    case SDL_SCANCODE_F4:
+                        if (!showingDeathAnalytics && !deathHistory.empty()) {
+                            showingDeathAnalytics = true;
+                            analyticsDisplayTimer = 300;
+                            lastDeath = deathHistory.back();
+                            statusMessage = "Showing last death analysis";
+                            statusMessageTimer = 60;
+                        } else {
+                            showingDeathAnalytics = false;
+                            statusMessage = "Analytics hidden";
+                            statusMessageTimer = 60;
+                        }
                         break;
                 }
             }
@@ -425,6 +540,41 @@ int main(int, char**) {
             serverTimer = 0.0f;
         }
 
+        // P2P: handle messages from peers (events + death markers)
+        {
+            auto peerMsgs = peerManager.drainPeerMessages(); // <-- ensure PeerManager exposes this
+            for (const auto& msg : peerMsgs) {
+                if (msg.rfind("EV ", 0) == 0) {
+                    // peer serialized event
+                    std::string data = msg.substr(3);
+                    eventManager.raiseEventFromNetwork(data);
+                } else if (msg.rfind("DM ", 0) == 0 || msg.rfind("DEATH_MARKER ", 0) == 0) {
+                    // peer death marker
+                    std::string data = (msg.rfind("DM ",0)==0) ? msg.substr(3) : msg.substr(13);
+                    try {
+                        Engine::Event deathEv = Engine::Event::deserialize(data);
+                        // Build/fade marker if not from self
+                        std::string deadPlayer = std::get<std::string>(deathEv.payload.at("entity"));
+                        if (deadPlayer != clientId) {
+                            float mx = std::get<float>(deathEv.payload.at("x"));
+                            float my = std::get<float>(deathEv.payload.at("y"));
+                            std::string cause = std::get<std::string>(deathEv.payload.at("cause"));
+                            std::lock_guard<std::mutex> lock(deathMarkersMutex);
+                            Analytics::DeathMarker marker;
+                            marker.position = {mx, my};
+                            marker.playerId = deadPlayer;
+                            marker.cause = cause;
+                            marker.alpha = 1.0f;
+                            marker.timestamp = gameTimeline.time();
+                            networkDeathMarkers.push_back(marker);
+                            SDL_Log("[P2P MARKER] %s died at (%.1f, %.1f) - %s", 
+                                    deadPlayer.c_str(), mx, my, cause.c_str());
+                        }
+                    } catch (...) {}
+                }
+            }
+        }
+
         // Broadcast player position to peers (P2P, more frequent)
         if (peerTimer >= 1.0f / 60.0f) {
             peerManager.updateMyPlayerData(px, py, gameTimeline.isPaused(), gameTimeline.scale());
@@ -461,6 +611,23 @@ int main(int, char**) {
         Physics::step(dt * 1000, px, py, playerBody);
         clampPlayerPosition(px, py, playerW, playerH);
 
+        // ===== SPIKE DETECTIVE: Track Position Trail =====
+        positionTrail.push_back({px, py});
+        if ((int)positionTrail.size() > MAX_TRAIL_LENGTH) {
+            positionTrail.erase(positionTrail.begin());
+        }
+        // fade death markers
+        {
+            std::lock_guard<std::mutex> lock(deathMarkersMutex);
+            for (auto it = networkDeathMarkers.begin(); it != networkDeathMarkers.end(); ) {
+                double age = gameTimeline.time() - it->timestamp;
+                it->alpha = 1.0f - (float)(age / 10.0);
+                if (age > 10.0) it = networkDeathMarkers.erase(it);
+                else ++it;
+            }
+        }
+        // ===== END POSITION TRAIL TRACKING =====
+
         SDL_FRect playerRect {px, py, playerW, playerH};
         grounded = false;
 
@@ -492,16 +659,24 @@ int main(int, char**) {
         }
 
         // Server-controlled moving platforms
-        SDL_FRect mpRect {horizontalPlatform.x, horizontalPlatform.y, horizontalPlatform.w, horizontalPlatform.h};
-        if (checkCollision(playerRect, mpRect)) {
-            if (playerBody.vy >= 0 && prevPY + playerH <= horizontalPlatform.y + 20) {
-                py = horizontalPlatform.y - playerH;
-                playerBody.vy = 0;
-                float platDX = horizontalPlatform.x - prevHorizX;
-                px += platDX;
-                grounded = true;
-            }
+        // --- Horizontal moving platform (corrected) ---
+SDL_FRect mpRect {horizontalPlatform.x, horizontalPlatform.y, horizontalPlatform.w, horizontalPlatform.h};
+if (checkCollision(playerRect, mpRect)) {
+    if (playerBody.vy >= 0 && prevPY + playerH <= horizontalPlatform.y + 20) {
+        // Landed on the moving platform
+        py = horizontalPlatform.y - playerH;
+        playerBody.vy = 0;
+        grounded = true;
+
+        // Compute server-based displacement (platform movement since last frame)
+        float platDX = horizontalPlatform.x - prevHorizX;
+
+        // Move player along with platform ONLY while grounded
+        if (std::fabs(platDX) > 0.01f) {
+            px += platDX;
         }
+    }
+}
 
         SDL_FRect vpRect {verticalPlatform.x, verticalPlatform.y, verticalPlatform.w, verticalPlatform.h};
         if (checkCollision(playerRect, vpRect)) {
@@ -514,6 +689,8 @@ int main(int, char**) {
             }
         }
 
+        prevHorizX = horizontalPlatform.x;
+
         // Check spawn points (checkpoints)
         playerRect = {px, py, playerW, playerH};
         {
@@ -521,10 +698,8 @@ int main(int, char**) {
             for (const auto& spawnId : spawnIds) {
                 const auto* spawn = gameObjectRegistry.get(spawnId);
                 if (!spawn) continue;
-                
                 auto spawnPos = spawn->get<Engine::Vec2>("pos", {0, 0});
                 SDL_FRect checkpointRect = {spawnPos.x - 50.f, spawnPos.y - 50.f, 100.f, 100.f};
-                
                 if (checkCollision(playerRect, checkpointRect)) {
                     if (currentSpawnId != spawnId) {
                         currentSpawnId = spawnId;
@@ -535,76 +710,46 @@ int main(int, char**) {
             }
         }
 
-        // Spike collisions with events
-        for (float x = leftX + leftWidth; x < middleX; x += 220.f) {
-            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
-            if (checkCollision(playerRect, spikeRect)) {
-                auto collEv = Engine::Events::Collision(clientId, "spike_gap1", &gameTimeline, 1);
+        // ===== SPIKE DETECTIVE: Spike collisions + Death events + P2P markers =====
+        auto handleDeath = [&](const char* causeTag, const char* collideTag = nullptr) {
+            if (collideTag) {
+                auto collEv = Engine::Events::Collision(clientId, collideTag, &gameTimeline, 1);
                 eventManager.raiseEvent(collEv);
-                
-                auto deathEv = Engine::Events::Death(clientId, &gameTimeline, 1);
-                eventManager.raiseEvent(deathEv);
-                
-                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                if (spawn) {
-                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                    px = spawnPos.x;
-                    py = spawnPos.y;
-                }
-                playerBody.vx = playerBody.vy = 0;
-                break;
+                sendEventP2P(collEv);
             }
-        }
-        for (float x = middleX + middleWidth; x < platform3X; x += 220.f) {
-            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
-            if (checkCollision(playerRect, spikeRect)) {
-                auto collEv = Engine::Events::Collision(clientId, "spike_gap2", &gameTimeline, 1);
-                eventManager.raiseEvent(collEv);
-                
-                auto deathEv = Engine::Events::Death(clientId, &gameTimeline, 1);
-                eventManager.raiseEvent(deathEv);
-                
-                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                if (spawn) {
-                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                    px = spawnPos.x;
-                    py = spawnPos.y;
-                }
-                playerBody.vx = playerBody.vy = 0;
-                break;
-            }
-        }
-        for (float x = platform3X + platform3Width; x < finalX; x += 220.f) {
-            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
-            if (checkCollision(playerRect, spikeRect)) {
-                auto collEv = Engine::Events::Collision(clientId, "spike_gap3", &gameTimeline, 1);
-                eventManager.raiseEvent(collEv);
-                
-                auto deathEv = Engine::Events::Death(clientId, &gameTimeline, 1);
-                eventManager.raiseEvent(deathEv);
-                
-                const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                if (spawn) {
-                    auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                    px = spawnPos.x;
-                    py = spawnPos.y;
-                }
-                playerBody.vx = playerBody.vy = 0;
-                break;
-            }
-        }
-
-        if (py > DESIGN_HEIGHT + 100) {
-            auto deathEv = Engine::Events::Death(clientId + "_fall", &gameTimeline, 1);
+            auto deathEv = Engine::Events::Death(clientId, &gameTimeline, 1);
+            deathEv.payload["x"] = px;
+            deathEv.payload["y"] = py;
+            deathEv.payload["cause"] = std::string(causeTag);
             eventManager.raiseEvent(deathEv);
-            
+            sendEventP2P(deathEv);
+            sendDeathMarkerP2P(deathEv);
+
+            // Respawn to checkpoint
             const auto* spawn = gameObjectRegistry.get(currentSpawnId);
             if (spawn) {
                 auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
                 px = spawnPos.x;
                 py = spawnPos.y;
             }
-            playerBody.vx = playerBody.vy = 0;
+            playerBody.vx = playerBody.vy = 0.f;
+        };
+
+        for (float x = leftX + leftWidth; x < middleX; x += 220.f) {
+            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
+            if (checkCollision(playerRect, spikeRect)) { handleDeath("Spikes", "spike_gap1"); break; }
+        }
+        for (float x = middleX + middleWidth; x < platform3X; x += 220.f) {
+            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
+            if (checkCollision(playerRect, spikeRect)) { handleDeath("Spikes", "spike_gap2"); break; }
+        }
+        for (float x = platform3X + platform3Width; x < finalX; x += 220.f) {
+            SDL_FRect spikeRect{ x, DESIGN_HEIGHT - 280.f, 220.f, 280.f };
+            if (checkCollision(playerRect, spikeRect)) { handleDeath("Spikes", "spike_gap3"); break; }
+        }
+
+        if (py > DESIGN_HEIGHT + 100) {
+            handleDeath("Fell off map", nullptr);
         }
 
         {
@@ -612,27 +757,16 @@ int main(int, char**) {
             for (const auto& id : deathZoneIds) {
                 const auto* zone = gameObjectRegistry.get(id);
                 if (!zone) continue;
-                
-                auto zonePos = zone->get<Engine::Vec2>("pos", {0, 0});
+                auto zonePos  = zone->get<Engine::Vec2>("pos", {0, 0});
                 auto zoneSize = zone->get<Engine::Vec2>("size", {0, 0});
                 SDL_FRect zoneRect = {zonePos.x, zonePos.y, zoneSize.x, zoneSize.y};
-                
                 if (checkCollision(playerRect, zoneRect)) {
-                    auto deathEv = Engine::Events::Death(clientId + "_zone", &gameTimeline, 1);
-                    eventManager.raiseEvent(deathEv);
-                    
-                    const auto* spawn = gameObjectRegistry.get(currentSpawnId);
-                    if (spawn) {
-                        auto spawnPos = spawn->get<Engine::Vec2>("pos", {leftX + 80.f, leftY - playerH});
-                        px = spawnPos.x;
-                        py = spawnPos.y;
-                        playerBody.vx = 0.f;
-                        playerBody.vy = 0.f;
-                    }
+                    handleDeath("Death zone", "death_zone");
                     break;
                 }
             }
         }
+        // ===== END SPIKE DETECTIVE COLLISIONS =====
 
         // Camera
         float targetCameraX = px - DESIGN_WIDTH / 2.f;
@@ -652,15 +786,11 @@ int main(int, char**) {
                                                               0, 0, frameWidth, frameHeight, frameCount, 150);
                 }
             }
-
-            // Remove disconnected peers
             for (auto it = remoteEntities.begin(); it != remoteEntities.end();) {
                 if (peerPlayers.find(it->first) == peerPlayers.end()) {
                     delete it->second.entity;
                     it = remoteEntities.erase(it);
-                } else {
-                    ++it;
-                }
+                } else ++it;
             }
         }
 
@@ -669,7 +799,6 @@ int main(int, char**) {
         SDL_RenderClear(renderer);
 
         float spikeW = 220.f, spikeH = 280.f, spikeY = DESIGN_HEIGHT - spikeH;
-        
         for (float x = leftX + leftWidth; x < middleX; x += spikeW) {
             spikeTex.setPosition(x - cameraX, spikeY);
             spikeTex.setSize(spikeW, spikeH);
@@ -734,6 +863,84 @@ int main(int, char**) {
         platformTex.setSize(verticalPlatform.w, verticalPlatform.h);
         platformTex.render(renderer, window);
 
+        // ===== SPIKE DETECTIVE: Render Death Markers (from peers) =====
+        {
+            std::lock_guard<std::mutex> lock(deathMarkersMutex);
+            for (const auto& marker : networkDeathMarkers) {
+                float mx = marker.position.x - cameraX;
+                float my = marker.position.y;
+
+                SDL_SetRenderDrawColor(renderer, 255, 0, 0, (uint8_t)(marker.alpha * 255));
+                for (int i = -1; i <= 1; ++i) {
+                    SDL_RenderLine(renderer, mx - 15 + i, my - 15, mx + 15 + i, my + 15);
+                    SDL_RenderLine(renderer, mx - 15 + i, my + 15, mx + 15 + i, my - 15);
+                }
+                if (marker.alpha > 0.5f) {
+                    std::string warn = "WARNING: " + marker.cause;
+                    renderSimpleText(renderer, warn, mx - 60, my - 35, 255, (uint8_t)(100 + marker.alpha * 155), 0);
+                }
+            }
+        }
+        // ===== SPIKE DETECTIVE: Replay Overlay =====
+        if (eventManager.isReplaying()) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 50, 80);
+            SDL_FRect overlay = {0, 0, (float)DESIGN_WIDTH, (float)DESIGN_HEIGHT};
+            SDL_RenderFillRect(renderer, &overlay);
+
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 220);
+            SDL_FRect replayBanner = {DESIGN_WIDTH / 2 - 250, 30, 500, 80};
+            SDL_RenderFillRect(renderer, &replayBanner);
+
+            SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+            for (int i = 0; i < 3; i++) {
+                SDL_FRect border = {replayBanner.x - i, replayBanner.y - i, replayBanner.w + i*2, replayBanner.h + i*2};
+                SDL_RenderRect(renderer, &border);
+            }
+
+            renderSimpleText(renderer, ">>> REPLAYING YOUR DEATH <<<", DESIGN_WIDTH / 2 - 140, 55, 255, 255, 0);
+            renderSimpleText(renderer, "Watch the cyan trail closely!", DESIGN_WIDTH / 2 - 120, 80, 255, 255, 255);
+
+            // thick cyan trail + dots + start/death markers
+            if (!positionTrail.empty()) {
+                for (int t = -5; t <= 5; ++t) {
+                    SDL_SetRenderDrawColor(renderer, 0, 255, 255, 150);
+                    for (size_t i = 1; i < positionTrail.size(); ++i) {
+                        float x1 = positionTrail[i-1].x - cameraX;
+                        float y1 = positionTrail[i-1].y + t;
+                        float x2 = positionTrail[i].x - cameraX;
+                        float y2 = positionTrail[i].y + t;
+                        SDL_RenderLine(renderer, x1, y1, x2, y2);
+                    }
+                }
+                SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+                for (size_t i = 0; i < positionTrail.size(); i += 5) {
+                    float x = positionTrail[i].x - cameraX;
+                    float y = positionTrail[i].y;
+                    SDL_FRect dot = {x - 5, y - 5, 10, 10};
+                    SDL_RenderFillRect(renderer, &dot);
+                }
+                if (!positionTrail.empty()) {
+                    float sx = positionTrail.front().x - cameraX;
+                    float sy = positionTrail.front().y;
+                    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+                    SDL_FRect sdot = {sx - 10, sy - 10, 20, 20};
+                    SDL_RenderFillRect(renderer, &sdot);
+                    renderSimpleText(renderer, "START", sx - 20, sy - 30, 0, 255, 0);
+                }
+                if (!positionTrail.empty()) {
+                    float ex = positionTrail.back().x - cameraX;
+                    float ey = positionTrail.back().y;
+                    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+                    for (int i = -2; i <= 2; i++) {
+                        SDL_RenderLine(renderer, ex - 15, ey - 15 + i, ex + 15, ey + 15 + i);
+                        SDL_RenderLine(renderer, ex - 15, ey + 15 + i, ex + 15, ey - 15 + i);
+                    }
+                    renderSimpleText(renderer, "DEATH", ex - 20, ey - 35, 255, 0, 0);
+                }
+            }
+        }
+
         localPlayer.setPosition(px - cameraX, py);
         localPlayer.setSize(playerW, playerH);
         localPlayer.render(renderer, window);
@@ -751,10 +958,49 @@ int main(int, char**) {
             }
         }
 
+        // ===== SPIKE DETECTIVE: Death Analytics Overlay =====
+        if (showingDeathAnalytics && analyticsDisplayTimer > 0) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
+            SDL_FRect analyticsBox = {DESIGN_WIDTH / 2 - 300, 200, 600, 400};
+            SDL_RenderFillRect(renderer, &analyticsBox);
+            SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
+            SDL_RenderRect(renderer, &analyticsBox);
+
+            renderSimpleText(renderer, "=== DEATH ANALYSIS ===", DESIGN_WIDTH / 2 - 100, 220, 255, 50, 50);
+
+            float y = 260, lh = 25;
+            renderSimpleText(renderer, "Cause of Death: " + lastDeath.causeOfDeath, DESIGN_WIDTH / 2 - 280, y); y += lh;
+
+            char buf[64];
+            snprintf(buf, sizeof(buf), "Time Alive: %.1fs", lastDeath.timeAlive);
+            renderSimpleText(renderer, buf, DESIGN_WIDTH / 2 - 280, y); y += lh;
+
+            snprintf(buf, sizeof(buf), "Speed at Death: %.0f px/s", lastDeath.speed);
+            renderSimpleText(renderer, buf, DESIGN_WIDTH / 2 - 280, y); y += lh;
+
+            snprintf(buf, sizeof(buf), "Location: (%.0f, %.0f)", lastDeath.deathLocation.x, lastDeath.deathLocation.y);
+            renderSimpleText(renderer, buf, DESIGN_WIDTH / 2 - 280, y); y += lh;
+
+            snprintf(buf, sizeof(buf), "Total Deaths: %d", (int)deathHistory.size());
+            renderSimpleText(renderer, buf, DESIGN_WIDTH / 2 - 280, y); y += lh + 10;
+
+            renderSimpleText(renderer, "Last Inputs:", DESIGN_WIDTH / 2 - 280, y, 200, 200, 255); y += lh;
+            int inputsToShow = std::min(5, (int)lastDeath.inputHistory.size());
+            for (int i = inputsToShow - 1; i >= 0; --i) {
+                char li[64];
+                snprintf(li, sizeof(li), "  %d. %s", inputsToShow - i, lastDeath.inputHistory[lastDeath.inputHistory.size() - 1 - i].c_str());
+                renderSimpleText(renderer, li, DESIGN_WIDTH / 2 - 260, y, 150, 200, 255);
+                y += lh;
+            }
+
+            analyticsDisplayTimer--;
+        }
+
         // UI
         renderSimpleText(renderer, "A/D: Move  W/Space: Jump", 20, 20, 255, 255, 255);
         renderSimpleText(renderer, "P: Pause  1/2/3: Speed  R: Restart  S: Scaling", 20, 40, 255, 255, 255);
-        renderSimpleText(renderer, "F1: Start Recording  F2: Stop  F3: Play Replay", 20, 60, 255, 200, 100);
+        renderSimpleText(renderer, "F1: Record  F2: Stop  F3: Replay  F4: Analytics", 20, 60, 255, 200, 100);
         renderSimpleText(renderer, "[HYBRID P2P] Server=Platforms, P2P=Players+Events", 20, 80, 0, 255, 255);
 
         std::string cameraText = "Camera: " + std::to_string(int(cameraX));
@@ -767,7 +1013,7 @@ int main(int, char**) {
             renderSimpleText(renderer, "PAUSED", DESIGN_WIDTH - 200, 60, 255, 0, 0);
         }
 
-        int peerCount = peerPlayers.size();
+        int peerCount = (int)peerPlayers.size();
         std::string peerCountText = "Peers: " + std::to_string(peerCount);
         renderSimpleText(renderer, peerCountText, DESIGN_WIDTH - 250, 80, 255, 255, 0);
 
