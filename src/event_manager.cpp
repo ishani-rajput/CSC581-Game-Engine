@@ -6,9 +6,6 @@
 
 namespace Engine {
 
-//----------------------------------------------
-// Event Serialization (for networking)
-//----------------------------------------------
 std::string Event::serialize() const {
     std::ostringstream oss;
     oss << static_cast<int>(type) << "|" 
@@ -57,16 +54,10 @@ Event Event::deserialize(const std::string& data) {
     return ev;
 }
 
-//----------------------------------------------
-// Constructor
-//----------------------------------------------
 EventManager::EventManager(Timeline* tl) : timeline(tl) {}
 
 Timeline* EventManager::getTimeline() const { return timeline; }
 
-//----------------------------------------------
-// Registration
-//----------------------------------------------
 void EventManager::registerListener(EventType type, Listener callback) {
     std::lock_guard<std::mutex> lock(mtx);
     listeners[type].push_back(std::move(callback));
@@ -77,14 +68,10 @@ void EventManager::unregisterListener(EventType type) {
     listeners.erase(type);
 }
 
-//----------------------------------------------
-// Raising
-//----------------------------------------------
 void EventManager::raiseEvent(const Event& ev) {
     std::lock_guard<std::mutex> lock(mtx);
     queue.push(ev);
 
-    // Record if replaying is active
     if (recording && ev.type != EventType::ReplayStart &&
         ev.type != EventType::ReplayStop && ev.type != EventType::ReplayPlay) {
         replayBuffer.push_back(ev);
@@ -100,9 +87,6 @@ void EventManager::raiseEventFromNetwork(const std::string& serialized) {
     }
 }
 
-//----------------------------------------------
-// Handling (dispatch + replay support)
-//----------------------------------------------
 void EventManager::dispatchEvents() {
     using Task = std::pair<Event, std::vector<Listener>>;
     std::vector<Task> tasks;
@@ -111,7 +95,6 @@ void EventManager::dispatchEvents() {
     {
         std::lock_guard<std::mutex> lock(mtx);
 
-        // normal events
         while (!queue.empty()) {
             Event ev = queue.top();
             queue.pop();
@@ -121,7 +104,6 @@ void EventManager::dispatchEvents() {
             }
         }
 
-        // replay playback
         if (replaying && timeline) {
             replayElapsed = timeline->time() - replayStartTime;
             while (replayPlaybackIndex < replayBuffer.size()) {
@@ -183,9 +165,6 @@ void EventManager::dispatchEvents(int maxCount) {
     }
 }
 
-//----------------------------------------------
-// Misc utilities
-//----------------------------------------------
 void EventManager::clearQueue() {
     std::lock_guard<std::mutex> lock(mtx);
     while (!queue.empty()) queue.pop();
@@ -196,9 +175,6 @@ size_t EventManager::pendingCount() const {
     return queue.size();
 }
 
-//----------------------------------------------
-// Replay control
-//----------------------------------------------
 void EventManager::startRecording() {
     std::lock_guard<std::mutex> lock(mtx);
     replayBuffer.clear();
@@ -229,9 +205,6 @@ void EventManager::playReplay() {
     std::cout << "[REPLAY] Playing replay with " << replayBuffer.size() << " events\n";
 }
 
-//----------------------------------------------
-// Factory Helpers
-//----------------------------------------------
 namespace Events {
 
 Event Collision(const std::string& objA, const std::string& objB,
@@ -265,7 +238,6 @@ Event Input(const std::string& key, bool pressed,
     return e;
 }
 
-// Replay controls
 Event ReplayStart(Timeline* tl) {
     Event e(EventType::ReplayStart, tl ? tl->time() : 0.0, 0);
     e.payload["state"] = std::string("start");
@@ -282,5 +254,5 @@ Event ReplayPlay(Timeline* tl) {
     return e;
 }
 
-} // namespace Events
-} // namespace Engine
+} 
+} 

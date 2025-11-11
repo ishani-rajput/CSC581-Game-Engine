@@ -10,9 +10,6 @@
 
 namespace Engine {
 
-//----------------------------------------------
-// 1. EVENT REPRESENTATION
-//----------------------------------------------
 enum class EventType {
     Collision,
     Death,
@@ -28,22 +25,18 @@ using EventValue = std::variant<int, float, bool, std::string>;
 
 struct Event {
     EventType type;
-    double timestamp;     // Taken from Timeline
-    int priority;         // Lower = higher priority
+    double timestamp;     
+    int priority;         
     std::unordered_map<std::string, EventValue> payload;
 
     Event(EventType t, double ts, int p)
         : type(t), timestamp(ts), priority(p) {}
     Event() : type(EventType::Custom), timestamp(0), priority(0) {}
 
-    // Serialization for networking (Part 1.2)
     std::string serialize() const;
     static Event deserialize(const std::string& data);
 };
 
-//----------------------------------------------
-// 2. EVENT MANAGER INTERFACE
-//----------------------------------------------
 class EventManager {
 public:
     using Listener = std::function<void(const Event&)>;
@@ -61,14 +54,11 @@ public:
 
     // Handling
     void dispatchEvents();
-    void dispatchEvents(int maxCount);  // Rate-limited dispatch
+    void dispatchEvents(int maxCount);  
 
     void clearQueue();
     size_t pendingCount() const;
 
-    //------------------------------------------
-    // Replay system controls (Part 1.3)
-    //------------------------------------------
     void startRecording();
     void stopRecording();
     void playReplay();
@@ -89,7 +79,6 @@ private:
     std::priority_queue<Event, std::vector<Event>, Compare> queue;
     mutable std::mutex mtx;
 
-    // Replay system state
     std::vector<Event> replayBuffer;
     bool recording = false;
     bool replaying = false;
@@ -99,9 +88,6 @@ private:
     size_t replayPlaybackIndex = 0;
 };
 
-//----------------------------------------------
-// 3. FACTORY HELPERS FOR REQUIRED EVENTS
-//----------------------------------------------
 namespace Events {
     Event Collision(const std::string& objA, const std::string& objB,
                     Timeline* tl, int priority = 1);
@@ -111,10 +97,9 @@ namespace Events {
     Event Input(const std::string& key, bool pressed,
                 Timeline* tl, int priority = 4);
 
-    // Replay control events (Part 1.3)
     Event ReplayStart(Timeline* tl);
     Event ReplayStop(Timeline* tl);
     Event ReplayPlay(Timeline* tl);
 }
 
-} // namespace Engine
+} 
