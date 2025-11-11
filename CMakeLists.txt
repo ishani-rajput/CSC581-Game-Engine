@@ -14,30 +14,21 @@ endif()
 
 include_directories(include)
 
-# ---------------------------
-# EVENT MANAGER (Milestone 4)
-# ---------------------------
 add_library(engine_events
     ./src/event_manager.cpp
-    ./src/timeline.cpp        # <-- ADDED: event_manager depends on Timeline
+    ./src/timeline.cpp        
 )
-target_include_directories(engine_events PUBLIC include)  # Changed to PUBLIC
-target_link_libraries(engine_events PUBLIC SDL3::SDL3)    # Changed to PUBLIC
+target_include_directories(engine_events PUBLIC include)  
+target_link_libraries(engine_events PUBLIC SDL3::SDL3)    
 
-# ======================================================
-#  EXECUTABLES
-# ======================================================
 
-# ---------------------------
-# MAIN GAME (Milestone 1–2)
-# ---------------------------
 add_executable(main
     ./src/main.cpp
     ./src/entity.cpp
     ./src/input.cpp
     ./src/physics.cpp
     ./src/scaling.cpp
-    # ./src/timeline.cpp  <-- REMOVED: now in engine_events library
+    # ./src/timeline.cpp  
 )
 
 target_link_libraries(main
@@ -47,16 +38,13 @@ target_link_libraries(main
         engine_events
 )
 
-# ---------------------------
-# CLIENT (Milestone 3)
-# ---------------------------
 add_executable(client
     ./src/client.cpp
     ./src/entity.cpp
     ./src/input.cpp
     ./src/physics.cpp
     ./src/scaling.cpp
-    # ./src/timeline.cpp  <-- REMOVED: now in engine_events library
+    # ./src/timeline.cpp  
     ./src/peer_manager.cpp
 )
 
@@ -76,9 +64,7 @@ else()
     )
 endif()
 
-# ---------------------------
-# SERVER (Headless)
-# ---------------------------
+
 add_executable(server
     ./src/server.cpp
     ./src/network_server.cpp
@@ -98,9 +84,7 @@ else()
     )
 endif()
 
-# ---------------------------
-# PERFORMANCE TEST (Part 1C)
-# ---------------------------
+
 add_executable(perf
     ./src/perf_main.cpp
     ./src/perf.cpp
