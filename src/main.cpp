@@ -361,7 +361,6 @@ void logicLoop(std::vector<SDL_FRect>& staticPlatforms) {
             globalEventManager->dispatchEvents();
         }
 
-        // Publish new state
         {
             std::lock_guard<std::mutex> lock(stateMutex);
             renderState = local;
@@ -385,7 +384,7 @@ int main(int, char**) {
     }
 
     SDL_Window* window = nullptr; SDL_Renderer* renderer = nullptr;
-    if (!SDL_CreateWindowAndRenderer("Skully Bird", 960,720, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("Skully Bird", 1920, 1080, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("CreateWindowAndRenderer failed: %s", SDL_GetError()); SDL_Quit(); return 1;
     }
     SDL_SetRenderVSync(renderer, 1);
@@ -628,7 +627,7 @@ int main(int, char**) {
             drawCircle(renderer, circleX, circleY, circleRad, 0, 255, 0);
         }
 
-        // Render death counter in top-left corner
+        
         char deathText[64];
         snprintf(deathText, sizeof(deathText), "Deaths: %d", deathCounter);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);

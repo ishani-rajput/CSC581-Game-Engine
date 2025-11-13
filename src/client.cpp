@@ -231,7 +231,7 @@ int main(int argc, char** argv){
 
     if(!SDL_Init(SDL_INIT_VIDEO)){ SDL_Log("SDL init failed: %s", SDL_GetError()); return 1; }
     SDL_Window* window=nullptr; SDL_Renderer* renderer=nullptr;
-    if(!SDL_CreateWindowAndRenderer(("Client - " + CLIENT_ID).c_str(),960,720,SDL_WINDOW_RESIZABLE,&window,&renderer)){
+    if(!SDL_CreateWindowAndRenderer(("Client - " + CLIENT_ID).c_str(),1920,1080,SDL_WINDOW_RESIZABLE,&window,&renderer)){
         SDL_Log("CreateWindowAndRenderer failed: %s", SDL_GetError()); SDL_Quit(); return 1;
     }
     SDL_SetRenderVSync(renderer, 1);
