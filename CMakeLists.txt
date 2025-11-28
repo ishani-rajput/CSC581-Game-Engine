@@ -96,7 +96,7 @@ else()
     target_link_libraries(perf PRIVATE ${ZMQ_LIB})
 endif()
 
-# Bubble Shooter - Section 3: Another Game
+# Bubble Shooter - Section 3 Milestone 5
 add_executable(bubble_shooter
     ./src/bubble_shooter.cpp
     ./src/input.cpp
@@ -109,7 +109,7 @@ target_link_libraries(bubble_shooter
         engine_events
 )
 
-# Snake Game - Section 4: Another Game
+# Snake Game - Section 4 Milestone 5
 add_executable(snake_game
     ./src/snake_game.cpp
     ./src/input.cpp
