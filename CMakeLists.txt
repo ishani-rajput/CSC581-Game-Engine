@@ -95,3 +95,16 @@ if (ZeroMQ_FOUND)
 else()
     target_link_libraries(perf PRIVATE ${ZMQ_LIB})
 endif()
+
+# Bubble Shooter - Section 3: Another Game
+add_executable(bubble_shooter
+    ./src/bubble_shooter.cpp
+    ./src/input.cpp
+    ./src/physics.cpp
+)
+
+target_link_libraries(bubble_shooter
+    PRIVATE
+        SDL3::SDL3
+        engine_events
+)

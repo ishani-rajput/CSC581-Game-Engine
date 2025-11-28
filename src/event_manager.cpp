@@ -238,6 +238,13 @@ Event Input(const std::string& key, bool pressed,
     return e;
 }
 
+Event InputChord(const std::string& chordName,
+                 Timeline* tl, int priority) {
+    Event e(EventType::InputChord, tl ? tl->time() : 0.0, priority);
+    e.payload["chord"] = chordName;
+    return e;
+}
+
 Event ReplayStart(Timeline* tl) {
     Event e(EventType::ReplayStart, tl ? tl->time() : 0.0, 0);
     e.payload["state"] = std::string("start");

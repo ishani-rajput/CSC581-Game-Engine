@@ -282,6 +282,53 @@ build perf.exe: CXX_EXECUTABLE_LINKER__perf_ CMakeFiles/perf.dir/src/perf_main.c
   TARGET_IMPLIB = libperf.dll.a
   TARGET_PDB = perf.exe.dbg
 
+# =============================================================================
+# Object build statements for EXECUTABLE target bubble_shooter
+
+
+#############################################
+# Order-only phony target for bubble_shooter
+
+build cmake_object_order_depends_target_bubble_shooter: phony || cmake_object_order_depends_target_engine_events
+
+build CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.obj: CXX_COMPILER__bubble_shooter_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/bubble_shooter.cpp || cmake_object_order_depends_target_bubble_shooter
+  DEP_FILE = CMakeFiles\bubble_shooter.dir\src\bubble_shooter.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\bubble_shooter.dir
+  OBJECT_FILE_DIR = CMakeFiles\bubble_shooter.dir\src
+
+build CMakeFiles/bubble_shooter.dir/src/input.cpp.obj: CXX_COMPILER__bubble_shooter_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/input.cpp || cmake_object_order_depends_target_bubble_shooter
+  DEP_FILE = CMakeFiles\bubble_shooter.dir\src\input.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\bubble_shooter.dir
+  OBJECT_FILE_DIR = CMakeFiles\bubble_shooter.dir\src
+
+build CMakeFiles/bubble_shooter.dir/src/physics.cpp.obj: CXX_COMPILER__bubble_shooter_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/physics.cpp || cmake_object_order_depends_target_bubble_shooter
+  DEP_FILE = CMakeFiles\bubble_shooter.dir\src\physics.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\bubble_shooter.dir
+  OBJECT_FILE_DIR = CMakeFiles\bubble_shooter.dir\src
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target bubble_shooter
+
+
+#############################################
+# Link the executable bubble_shooter.exe
+
+build bubble_shooter.exe: CXX_EXECUTABLE_LINKER__bubble_shooter_ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.obj CMakeFiles/bubble_shooter.dir/src/input.cpp.obj CMakeFiles/bubble_shooter.dir/src/physics.cpp.obj | libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
+  LINK_LIBRARIES = libengine_events.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\bubble_shooter.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = bubble_shooter.exe
+  TARGET_IMPLIB = libbubble_shooter.dll.a
+  TARGET_PDB = bubble_shooter.exe.dbg
+
 
 #############################################
 # Utility command for edit_cache
@@ -308,6 +355,8 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 # =============================================================================
 # Target aliases.
 
+build bubble_shooter: phony bubble_shooter.exe
+
 build client: phony client.exe
 
 build engine_events: phony libengine_events.a
@@ -326,7 +375,7 @@ build server: phony server.exe
 #############################################
 # Folder: C:/courses/GameEngine/CSC481-581-M1/build
 
-build all: phony libengine_events.a main.exe client.exe server.exe perf.exe
+build all: phony libengine_events.a main.exe client.exe server.exe perf.exe bubble_shooter.exe
 
 # =============================================================================
 # Built-in targets
