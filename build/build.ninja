@@ -329,6 +329,53 @@ build bubble_shooter.exe: CXX_EXECUTABLE_LINKER__bubble_shooter_ CMakeFiles/bubb
   TARGET_IMPLIB = libbubble_shooter.dll.a
   TARGET_PDB = bubble_shooter.exe.dbg
 
+# =============================================================================
+# Object build statements for EXECUTABLE target snake_game
+
+
+#############################################
+# Order-only phony target for snake_game
+
+build cmake_object_order_depends_target_snake_game: phony || cmake_object_order_depends_target_engine_events
+
+build CMakeFiles/snake_game.dir/src/snake_game.cpp.obj: CXX_COMPILER__snake_game_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/snake_game.cpp || cmake_object_order_depends_target_snake_game
+  DEP_FILE = CMakeFiles\snake_game.dir\src\snake_game.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\snake_game.dir
+  OBJECT_FILE_DIR = CMakeFiles\snake_game.dir\src
+
+build CMakeFiles/snake_game.dir/src/input.cpp.obj: CXX_COMPILER__snake_game_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/input.cpp || cmake_object_order_depends_target_snake_game
+  DEP_FILE = CMakeFiles\snake_game.dir\src\input.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\snake_game.dir
+  OBJECT_FILE_DIR = CMakeFiles\snake_game.dir\src
+
+build CMakeFiles/snake_game.dir/src/physics.cpp.obj: CXX_COMPILER__snake_game_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/physics.cpp || cmake_object_order_depends_target_snake_game
+  DEP_FILE = CMakeFiles\snake_game.dir\src\physics.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\snake_game.dir
+  OBJECT_FILE_DIR = CMakeFiles\snake_game.dir\src
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target snake_game
+
+
+#############################################
+# Link the executable snake_game.exe
+
+build snake_game.exe: CXX_EXECUTABLE_LINKER__snake_game_ CMakeFiles/snake_game.dir/src/snake_game.cpp.obj CMakeFiles/snake_game.dir/src/input.cpp.obj CMakeFiles/snake_game.dir/src/physics.cpp.obj | libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
+  LINK_LIBRARIES = libengine_events.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\snake_game.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = snake_game.exe
+  TARGET_IMPLIB = libsnake_game.dll.a
+  TARGET_PDB = snake_game.exe.dbg
+
 
 #############################################
 # Utility command for edit_cache
@@ -367,6 +414,8 @@ build perf: phony perf.exe
 
 build server: phony server.exe
 
+build snake_game: phony snake_game.exe
+
 # =============================================================================
 # Folder targets.
 
@@ -375,7 +424,7 @@ build server: phony server.exe
 #############################################
 # Folder: C:/courses/GameEngine/CSC481-581-M1/build
 
-build all: phony libengine_events.a main.exe client.exe server.exe perf.exe bubble_shooter.exe
+build all: phony libengine_events.a main.exe client.exe server.exe perf.exe bubble_shooter.exe snake_game.exe
 
 # =============================================================================
 # Built-in targets

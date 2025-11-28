@@ -108,3 +108,16 @@ target_link_libraries(bubble_shooter
         SDL3::SDL3
         engine_events
 )
+
+# Snake Game - Section 4: Another Game
+add_executable(snake_game
+    ./src/snake_game.cpp
+    ./src/input.cpp
+    ./src/physics.cpp
+)
+
+target_link_libraries(snake_game
+    PRIVATE
+        SDL3::SDL3
+        engine_events
+)
