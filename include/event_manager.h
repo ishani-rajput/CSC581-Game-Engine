@@ -15,6 +15,7 @@ enum class EventType {
     Death,
     Spawn,
     Input,
+    InputChord,      // NEW: For chord (simultaneous key press) events
     ReplayStart,
     ReplayStop,
     ReplayPlay,
@@ -96,6 +97,8 @@ namespace Events {
                 Timeline* tl, int priority = 3);
     Event Input(const std::string& key, bool pressed,
                 Timeline* tl, int priority = 4);
+    Event InputChord(const std::string& chordName, 
+                     Timeline* tl, int priority = 4);
 
     Event ReplayStart(Timeline* tl);
     Event ReplayStop(Timeline* tl);
