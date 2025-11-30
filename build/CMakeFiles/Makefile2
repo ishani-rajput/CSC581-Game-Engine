@@ -68,6 +68,7 @@ all: CMakeFiles/main.dir/all
 all: CMakeFiles/client.dir/all
 all: CMakeFiles/server.dir/all
 all: CMakeFiles/perf_runner.dir/all
+all: CMakeFiles/bubble_shooter.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
@@ -76,6 +77,7 @@ codegen: CMakeFiles/main.dir/codegen
 codegen: CMakeFiles/client.dir/codegen
 codegen: CMakeFiles/server.dir/codegen
 codegen: CMakeFiles/perf_runner.dir/codegen
+codegen: CMakeFiles/bubble_shooter.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -88,6 +90,7 @@ clean: CMakeFiles/main.dir/clean
 clean: CMakeFiles/client.dir/clean
 clean: CMakeFiles/server.dir/clean
 clean: CMakeFiles/perf_runner.dir/clean
+clean: CMakeFiles/bubble_shooter.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -97,7 +100,7 @@ clean: CMakeFiles/perf_runner.dir/clean
 CMakeFiles/engine_objs.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=3,4,5,6,7,8,9,10,11,12 "Built target engine_objs"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=5,6,7,8,9,10,11,12,13,14 "Built target engine_objs"
 .PHONY : CMakeFiles/engine_objs.dir/all
 
 # Build rule for subdir invocation for target.
@@ -114,7 +117,7 @@ engine_objs: CMakeFiles/engine_objs.dir/rule
 # codegen rule for target.
 CMakeFiles/engine_objs.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/engine_objs.dir/build.make CMakeFiles/engine_objs.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=3,4,5,6,7,8,9,10,11,12 "Finished codegen for target engine_objs"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=5,6,7,8,9,10,11,12,13,14 "Finished codegen for target engine_objs"
 .PHONY : CMakeFiles/engine_objs.dir/codegen
 
 # clean rule for target.
@@ -129,7 +132,7 @@ CMakeFiles/engine_objs.dir/clean:
 CMakeFiles/main.dir/all: CMakeFiles/engine_objs.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=13,14 "Built target main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=15,16 "Built target main"
 .PHONY : CMakeFiles/main.dir/all
 
 # Build rule for subdir invocation for target.
@@ -146,7 +149,7 @@ main: CMakeFiles/main.dir/rule
 # codegen rule for target.
 CMakeFiles/main.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=13,14 "Finished codegen for target main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=15,16 "Finished codegen for target main"
 .PHONY : CMakeFiles/main.dir/codegen
 
 # clean rule for target.
@@ -161,7 +164,7 @@ CMakeFiles/main.dir/clean:
 CMakeFiles/client.dir/all: CMakeFiles/engine_objs.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=1,2 "Built target client"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=3,4 "Built target client"
 .PHONY : CMakeFiles/client.dir/all
 
 # Build rule for subdir invocation for target.
@@ -178,7 +181,7 @@ client: CMakeFiles/client.dir/rule
 # codegen rule for target.
 CMakeFiles/client.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=1,2 "Finished codegen for target client"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=3,4 "Finished codegen for target client"
 .PHONY : CMakeFiles/client.dir/codegen
 
 # clean rule for target.
@@ -193,7 +196,7 @@ CMakeFiles/client.dir/clean:
 CMakeFiles/server.dir/all: CMakeFiles/engine_objs.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=17,18 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=19,20 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
@@ -210,7 +213,7 @@ server: CMakeFiles/server.dir/rule
 # codegen rule for target.
 CMakeFiles/server.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=17,18 "Finished codegen for target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=19,20 "Finished codegen for target server"
 .PHONY : CMakeFiles/server.dir/codegen
 
 # clean rule for target.
@@ -225,7 +228,7 @@ CMakeFiles/server.dir/clean:
 CMakeFiles/perf_runner.dir/all: CMakeFiles/engine_objs.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=15,16 "Built target perf_runner"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=17,18 "Built target perf_runner"
 .PHONY : CMakeFiles/perf_runner.dir/all
 
 # Build rule for subdir invocation for target.
@@ -242,13 +245,45 @@ perf_runner: CMakeFiles/perf_runner.dir/rule
 # codegen rule for target.
 CMakeFiles/perf_runner.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=15,16 "Finished codegen for target perf_runner"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=17,18 "Finished codegen for target perf_runner"
 .PHONY : CMakeFiles/perf_runner.dir/codegen
 
 # clean rule for target.
 CMakeFiles/perf_runner.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/clean
 .PHONY : CMakeFiles/perf_runner.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/bubble_shooter.dir
+
+# All Build rule for target.
+CMakeFiles/bubble_shooter.dir/all: CMakeFiles/engine_objs.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=1,2 "Built target bubble_shooter"
+.PHONY : CMakeFiles/bubble_shooter.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/bubble_shooter.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" 12
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/bubble_shooter.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" 0
+.PHONY : CMakeFiles/bubble_shooter.dir/rule
+
+# Convenience name for target.
+bubble_shooter: CMakeFiles/bubble_shooter.dir/rule
+.PHONY : bubble_shooter
+
+# codegen rule for target.
+CMakeFiles/bubble_shooter.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=1,2 "Finished codegen for target bubble_shooter"
+.PHONY : CMakeFiles/bubble_shooter.dir/codegen
+
+# clean rule for target.
+CMakeFiles/bubble_shooter.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/clean
+.PHONY : CMakeFiles/bubble_shooter.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

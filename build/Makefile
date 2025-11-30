@@ -181,6 +181,43 @@ perf_runner/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/perf_runner.dir/build.make CMakeFiles/perf_runner.dir/build
 .PHONY : perf_runner/fast
 
+#=============================================================================
+# Target rules for targets named bubble_shooter
+
+# Build rule for target.
+bubble_shooter: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 bubble_shooter
+.PHONY : bubble_shooter
+
+# fast build rule for target.
+bubble_shooter/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/build
+.PHONY : bubble_shooter/fast
+
+src/bubble_shooter.o: src/bubble_shooter.cpp.o
+.PHONY : src/bubble_shooter.o
+
+# target to build an object file
+src/bubble_shooter.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o
+.PHONY : src/bubble_shooter.cpp.o
+
+src/bubble_shooter.i: src/bubble_shooter.cpp.i
+.PHONY : src/bubble_shooter.i
+
+# target to preprocess a source file
+src/bubble_shooter.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.i
+.PHONY : src/bubble_shooter.cpp.i
+
+src/bubble_shooter.s: src/bubble_shooter.cpp.s
+.PHONY : src/bubble_shooter.s
+
+# target to generate assembly for a file
+src/bubble_shooter.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.s
+.PHONY : src/bubble_shooter.cpp.s
+
 src/client.o: src/client.cpp.o
 .PHONY : src/client.o
 
@@ -501,11 +538,15 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... bubble_shooter"
 	@echo "... client"
 	@echo "... engine_objs"
 	@echo "... main"
 	@echo "... perf_runner"
 	@echo "... server"
+	@echo "... src/bubble_shooter.o"
+	@echo "... src/bubble_shooter.i"
+	@echo "... src/bubble_shooter.s"
 	@echo "... src/client.o"
 	@echo "... src/client.i"
 	@echo "... src/client.s"
