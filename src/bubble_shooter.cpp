@@ -14,6 +14,9 @@
 #include "scaling.h"
 #include "timeline.h"
 #include "input.h"
+#include "registry.h"
+#include "event_manager.h"
+#include "memory_pool.h"
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 900;
@@ -61,7 +64,14 @@ struct Bubble {
         float dx = x - other.x;
         float dy = y - other.y;
         float dist = std::sqrt(dx * dx + dy * dy);
-        return dist <= (BUBBLE_RADIUS * 2 + 5.f);  
+        return dist < (BUBBLE_RADIUS * 2.6f);  
+    }
+    
+    bool isConnected(const Bubble& other) const {
+        float dx = x - other.x;
+        float dy = y - other.y;
+        float dist = std::sqrt(dx * dx + dy * dy);
+        return dist < (BUBBLE_RADIUS * 2.8f);
     }
 };
 
@@ -84,28 +94,42 @@ struct Projectile {
 
 class BubbleShooterGame {
 public:
-    BubbleShooterGame()
-        : bubbles(),
+    BubbleShooterGame(Engine::Registry* reg, Engine::EventManager* em, Timeline* tl)
+        : registry(reg),
+          eventManager(em),
+          timeline(tl),
+          bubbles(),
           projectiles(),
           gunAngle(0.f),  
           score(0),
           gameOver(false),
           bubbleDropTimer(0),
           bubbleDropInterval(10.0f),  
-          level(1),
           matchTimer(0),
           matchDuration(0.1f),
-          nextBubbleColor(BubbleColor::Red) {
+          nextBubbleColor(BubbleColor::Red),
+          bubbleIdCounter(0),
+          fastLaunchRequested(false),
+          fastLaunchAngle(0.0f),
+          gameWon(false) {
         initializeBubbles();
         pickRandomNextBubbleColor();
         std::cout << "Constructor: initialized " << bubbles.size() << " bubbles" << std::endl;
     }
 
-    void setInput(float rotateDir, bool fire) {
+    void setInput(float rotateDir, bool fire, bool fastLeft = false, bool fastRight = false) {
         std::lock_guard<std::mutex> lk(m_);
         desiredRotation = rotateDir;
         if (fire) {
             wantFire = true;
+        }
+        if (fastLeft) {
+            fastLaunchRequested = true;
+            fastLaunchAngle = -135.0f;
+        }
+        if (fastRight) {
+            fastLaunchRequested = true;
+            fastLaunchAngle = -45.0f;
         }
     }
 
@@ -113,17 +137,19 @@ public:
                       std::vector<Projectile>& outProjectiles,
                       float& outGunAngle,
                       int& outScore,
-                      int& outLevel,
                       bool& outGameOver,
-                      BubbleColor& outNextColor) const {
+                      BubbleColor& outNextColor,
+                      bool& outGameWon,
+                      float& outDescendOffset) const {
         std::lock_guard<std::mutex> lk(m_);
         outBubbles = bubbles;
         outProjectiles = projectiles;
         outGunAngle = gunAngle;
         outScore = score;
-        outLevel = level;
         outGameOver = gameOver;
         outNextColor = nextBubbleColor;
+        outGameWon = gameWon;
+        outDescendOffset = descendOffset;
     }
 
     void step(float dt) {
@@ -135,7 +161,11 @@ public:
         if (gunAngle < -90.f) gunAngle = -90.f;
         if (gunAngle > 90.f) gunAngle = 90.f;
 
-        if (wantFire) {
+        if (fastLaunchRequested) {
+            fireProjectileAtAngle(fastLaunchAngle);
+            fastLaunchRequested = false;
+            std::cout << "Fast launch at " << fastLaunchAngle << "°!" << std::endl;
+        } else if (wantFire) {
             fireProjectile();
             wantFire = false;
         }
@@ -153,45 +183,89 @@ public:
         }
 
         checkGameConditions();
+        
+        eventManager->dispatchEvents();
     }
 
 private:
     enum class GameState { Playing, Won, Lost };
 
+    std::pair<float,float> snapToGrid(float px, float py) const {
+        const int numCols = 8;
+        const float spacingX = BUBBLE_RADIUS * 2 + 8;
+        const float spacingY = BUBBLE_RADIUS * 2 + 8;
+        const float gridWidth = numCols * spacingX;
+        const float startX = (WINDOW_WIDTH - gridWidth) / 2 + BUBBLE_RADIUS;
+        const float startY = 40.f + BUBBLE_RADIUS;
+
+        int row = (int)std::round((py - startY) / spacingY);
+        if (row < 0) row = 0;
+        float rowOffsetX = (row % 2 == 1) ? spacingX / 2.f : 0.f;
+        int col = (int)std::round((px - (startX + rowOffsetX)) / spacingX);
+        if (col < 0) col = 0;
+
+        float snappedX = startX + rowOffsetX + col * spacingX;
+        float snappedY = startY + row * spacingY;
+        return {snappedX, snappedY};
+    }
+
+    std::pair<int,int> toGridRC(float px, float py) const {
+        const int numCols = 8;
+        const float spacingX = BUBBLE_RADIUS * 2.5f;
+        const float spacingY = BUBBLE_RADIUS * 2.2f;
+        const float gridWidth = numCols * spacingX;
+        const float startX = (WINDOW_WIDTH - gridWidth) / 2 + BUBBLE_RADIUS;
+        const float startY = 40.f + BUBBLE_RADIUS;
+
+        int row = (int)std::round((py - startY) / spacingY);
+        if (row < 0) row = 0;
+        float rowOffsetX = (row % 2 == 1) ? spacingX / 2.f : 0.f;
+        int col = (int)std::round((px - (startX + rowOffsetX)) / spacingX);
+        if (col < 0) col = 0;
+        return {row, col};
+    }
+
     void initializeBubbles() {
-    bubbles.clear();
+        bubbles.clear();
 
-    const int numRows = 4;
-    const int numCols = 8;
-    const float spacingX = BUBBLE_RADIUS * 2 + 8; 
-    const float spacingY = BUBBLE_RADIUS * 2 + 8;
-    const float gridWidth = numCols * spacingX;
-    const float startX = (WINDOW_WIDTH - gridWidth) / 2 + BUBBLE_RADIUS;
-    const float startY = 40.f + BUBBLE_RADIUS; 
+        const int numRows = 3;
+        const int numCols = 8;
+        const float spacingX = BUBBLE_RADIUS * 2.5f;
+        const float spacingY = BUBBLE_RADIUS * 2.2f;
+        const float gridWidth = numCols * spacingX;
+        const float startX = (WINDOW_WIDTH - gridWidth) / 2 + BUBBLE_RADIUS;
+        const float startY = 40.f + BUBBLE_RADIUS;
 
-    for (int row = 0; row < numRows; ++row) {
-        for (int col = 0; col < numCols; ++col) {
-            float x = startX + col * spacingX;
-            float y = startY + row * spacingY;
-            if (row % 2 == 1) x += spacingX / 2.f;
-            BubbleColor color = static_cast<BubbleColor>((row * 2 + col) % static_cast<int>(BubbleColor::Count));
-            bubbles.emplace_back(x, y, color);
+        for (int row = 0; row < numRows; ++row) {
+            for (int col = 0; col < numCols; ++col) {
+                float x = startX + col * spacingX;
+                float y = startY + row * spacingY;
+                if (row % 2 == 1) x += spacingX / 2.f;
+                BubbleColor color = static_cast<BubbleColor>((row * 2 + col) % static_cast<int>(BubbleColor::Count));
+                
+                bubbles.emplace_back(x, y, color);
+                auto rc = toGridRC(x, y);
+                if (rc.first >= 0 && rc.first < GRID_ROWS && rc.second >= 0 && rc.second < GRID_COLS) {
+                    grid[rc.first][rc.second] = true;
+                }
+                
+                std::string id = "bubble_" + std::to_string(bubbleIdCounter++);
+                auto& gameObj = registry->upsert(id);
+                gameObj.set("x", x);
+                gameObj.set("y", y);
+                gameObj.set("color", static_cast<int>(color));
+                gameObj.set("active", true);
+            }
         }
     }
-}
 
-    void fireProjectile() {
-        float radians = (gunAngle * 3.14159f / 180.f);
-
-        const float speed = 800.f;
-
+    void fireProjectileAtAngle(float angle) {
+        float radians = (angle * 3.14159f / 180.f);
+        const float speed = 800.f * 1.5f;
         float velx = speed * std::sin(radians);
-        float vely = -speed * std::cos(radians); 
-
+        float vely = -speed * std::cos(radians);
         projectiles.emplace_back(GUN_X, GUN_Y, velx, vely, nextBubbleColor);
-        std::cout << "Fired projectile with color: " << (int)nextBubbleColor << std::endl;
         pickRandomNextBubbleColor();
-        std::cout << "Next bubble color will be: " << (int)nextBubbleColor << std::endl;
     }
 
     void pickRandomNextBubbleColor() {
@@ -199,24 +273,48 @@ private:
     }
 
     void updateProjectiles(float dt) {
+        float currentTopBoundary = 40.f + BUBBLE_RADIUS + descendOffset;
         for (auto& proj : projectiles) {
             if (!proj.active) continue;
 
             proj.x += proj.vx * dt;
             proj.y += proj.vy * dt;
 
-            if (proj.x < 0 || proj.x > WINDOW_WIDTH ||
-                proj.y < 0 || proj.y > WINDOW_HEIGHT) {
+            if (proj.x - BUBBLE_RADIUS < 0 || proj.x + BUBBLE_RADIUS > WINDOW_WIDTH) {
+                proj.vx = -proj.vx;
+                proj.x = std::clamp(proj.x, BUBBLE_RADIUS, (float)WINDOW_WIDTH - BUBBLE_RADIUS);
+            }
+
+            if (proj.y < currentTopBoundary) {
+                proj.y = currentTopBoundary;
+                proj.vy = 0;
+                proj.active = false;
+            }
+
+            if (proj.y > WINDOW_HEIGHT) {
                 proj.active = false;
             }
         }
 
         projectiles.erase(
             std::remove_if(projectiles.begin(), projectiles.end(),
-                          [](const Projectile& p) { return !p.active; }),
+                           [](const Projectile& p) { return !p.active; }),
             projectiles.end());
     }
 
+    void fireProjectile() {
+        float radians = (gunAngle * 3.14159f / 180.f);
+
+        const float speed = 800.f;
+
+        float velx = speed * std::sin(radians);
+        float vely = -speed * std::cos(radians);
+
+        projectiles.emplace_back(GUN_X, GUN_Y, velx, vely, nextBubbleColor);
+        std::cout << "Fired projectile with color: " << (int)nextBubbleColor << std::endl;
+        pickRandomNextBubbleColor();
+        std::cout << "Next bubble color will be: " << (int)nextBubbleColor << std::endl;
+    }
     void checkCollisions() {
         static int callCount = 0;
         if (callCount % 60 == 0) {  
@@ -225,67 +323,81 @@ private:
         }
         callCount++;
         
+        const float spacingX = BUBBLE_RADIUS * 2.5f;
+        const float spacingY = BUBBLE_RADIUS * 2.2f;
+        const float collisionDist = (spacingX + spacingY) / 2.0f;
+        
         for (auto& proj : projectiles) {
             if (!proj.active) continue;
 
+            bool hitBubble = false;
             for (size_t i = 0; i < bubbles.size(); ++i) {
                 Bubble& bubble = bubbles[i];
                 if (!bubble.active) continue;
 
-                if (bubble.contains(proj.x, proj.y)) {
-                    proj.active = false;
-                    
-                    std::cout << "Collision detected at (" << proj.x << ", " << proj.y 
-                              << ")! Projectile color: " << (int)proj.color << std::endl;
-                    
-                    float dx = proj.x - bubble.x;
-                    float dy = proj.y - bubble.y;
-                    float dist = std::sqrt(dx*dx + dy*dy);
-                    
-                    float newX = proj.x;
-                    float newY = proj.y;
-                    
-                    if (dist > 0.001f) {
-                        newX = bubble.x + (dx/dist) * (BUBBLE_RADIUS * 2 + 4.f);
-                        newY = bubble.y + (dy/dist) * (BUBBLE_RADIUS * 2 + 4.f);
-                    }
-                    
-                    const float minDistance = BUBBLE_RADIUS * 2 + 2.f;
-                    const int maxAttempts = 8;
-                    
-                    for (int attempt = 0; attempt < maxAttempts; ++attempt) {
-                        bool tooClose = false;
-                        
-                        for (const auto& existingBubble : bubbles) {
-                            if (!existingBubble.active) continue;
-                            
-                            float checkDx = newX - existingBubble.x;
-                            float checkDy = newY - existingBubble.y;
-                            float checkDist = std::sqrt(checkDx*checkDx + checkDy*checkDy);
-                            
-                            if (checkDist < minDistance) {
-                                tooClose = true;
-                                
-                                float pushAngle = std::atan2(checkDy, checkDx);
-                                newX = existingBubble.x + std::cos(pushAngle) * minDistance;
-                                newY = existingBubble.y + std::sin(pushAngle) * minDistance;
-                                break;
-                            }
-                        }
-                        
-                        if (!tooClose) break;
-                    }
-                    
-                    bubbles.emplace_back(newX, newY, proj.color);
-                    size_t newBubbleIdx = bubbles.size() - 1;
-                    std::cout << "Added new bubble at (" << newX << ", " << newY 
-                              << ") with color " << (int)proj.color << std::endl;
-                    
-                    popMatchingBubbles(newBubbleIdx);
-                    
-                    score += 10;
+                float pdx = proj.x - bubble.x;
+                float pdy = proj.y - bubble.y;
+                float pdist = std::sqrt(pdx*pdx + pdy*pdy);
+                if (pdist <= collisionDist) {
+                    hitBubble = true;
                     break;
                 }
+            }
+
+            float currentTopBoundary = 40.f + BUBBLE_RADIUS + descendOffset;
+            
+            if (!hitBubble && proj.y > currentTopBoundary) {
+                continue;
+            }
+
+            if (hitBubble || proj.y <= currentTopBoundary) {
+                proj.active = false;
+                
+                std::cout << "Collision detected at (" << proj.x << ", " << proj.y 
+                          << ")! Projectile color: " << (int)proj.color << std::endl;
+                
+                auto [row, col] = toGridRC(proj.x, proj.y);
+                
+                if (row >= GRID_ROWS) row = GRID_ROWS - 1;
+                if (row < 0) row = 0;
+                if (col < 0) col = 0;
+                if (col >= GRID_COLS) col = GRID_COLS - 1;
+
+                while (grid[row][col] && row > 0) {
+                    row--;
+                }
+
+                if (grid[row][col]) {
+                    std::cout << "No space available, bubble lost" << std::endl;
+                    continue;
+                }
+
+                const float gridWidth = 8 * spacingX;
+                const float startX = (WINDOW_WIDTH - gridWidth) / 2 + BUBBLE_RADIUS;
+                const float startY = 40.f + BUBBLE_RADIUS;
+
+                float offsetX = (row % 2 == 1) ? spacingX / 2.f : 0.f;
+                float newX = startX + offsetX + col * spacingX;
+                float newY = startY + row * spacingY;
+
+                bubbles.emplace_back(newX, newY, proj.color);
+                size_t newBubbleIdx = bubbles.size() - 1;
+                
+                std::string id = "bubble_" + std::to_string(bubbleIdCounter++);
+                auto& gameObj = registry->upsert(id);
+                gameObj.set("x", newX);
+                gameObj.set("y", newY);
+                gameObj.set("color", static_cast<int>(proj.color));
+                gameObj.set("active", true);
+                
+                std::cout << "Added new bubble at (" << newX << ", " << newY 
+                          << ") grid[" << row << "][" << col << "] with color " << (int)proj.color << std::endl;
+                
+                grid[row][col] = true;
+
+                popMatchingBubbles(newBubbleIdx);
+                
+                score += 10;
             }
         }
 
@@ -299,6 +411,14 @@ private:
         
         if (removedCount > 0) {
             std::cout << "Removed " << removedCount << " bubbles from vector" << std::endl;
+            for (int r = 0; r < GRID_ROWS; ++r) for (int c = 0; c < GRID_COLS; ++c) grid[r][c] = false;
+            for (const auto& b : bubbles) {
+                if (!b.active) continue;
+                auto rc = toGridRC(b.x, b.y);
+                if (rc.first >= 0 && rc.first < GRID_ROWS && rc.second >= 0 && rc.second < GRID_COLS) {
+                    grid[rc.first][rc.second] = true;
+                }
+            }
         }
     }
 
@@ -306,6 +426,8 @@ private:
         std::vector<bool> visited(bubbles.size(), false);
         std::vector<size_t> queue;
         std::vector<size_t> toRemove;
+
+        const float matchDist = BUBBLE_RADIUS * 2.6f;
 
         queue.push_back(hitBubbleIndex);
         visited[hitBubbleIndex] = true;
@@ -318,28 +440,120 @@ private:
 
             for (size_t i = 0; i < bubbles.size(); ++i) {
                 if (visited[i] || !bubbles[i].active) continue;
+                if (bubbles[i].color != b.color) continue;
 
-                if (bubbles[i].color == b.color && bubbles[i].intersects(b)) {
+                float dx = bubbles[i].x - b.x;
+                float dy = bubbles[i].y - b.y;
+                float dist = std::sqrt(dx*dx + dy*dy);
+
+                if (dist < matchDist) {
                     visited[i] = true;
                     queue.push_back(i);
                 }
             }
         }
 
-        std::cout << "Found " << toRemove.size() << " connected bubbles" << std::endl;
+        std::cout << "Found " << toRemove.size() << " connected bubbles of color " 
+                  << (int)bubbles[hitBubbleIndex].color << std::endl;
 
         if (toRemove.size() >= 3) {
             std::cout << "Removing " << toRemove.size() << " bubbles!" << std::endl;
             for (size_t idx : toRemove) {
                 bubbles[idx].markedForRemoval = true;
+                
+                std::string bubbleId = "bubble_match_" + std::to_string(idx);
+                Engine::Event deathEvent = Engine::Events::Death(bubbleId, timeline);
+                deathEvent.payload["reason"] = std::string("matched");
+                deathEvent.payload["score"] = 5;
+                eventManager->raiseEvent(deathEvent);
             }
-            score += 5 * (toRemove.size() - 2);  
+            score += 5 * (toRemove.size() - 2);
+            
+            removeFloatingBubbles();
         } else {
-            std::cout << "Not enough matches (need 3+)" << std::endl;
+            std::cout << "Not enough matches (need 3+), only found " << toRemove.size() << std::endl;
         }
     }
 
     void removeFloatingBubbles() {
+        int totalActive = 0;
+        int alreadyMarked = 0;
+        for (const auto& bubble : bubbles) {
+            if (bubble.active) totalActive++;
+            if (bubble.markedForRemoval) alreadyMarked++;
+        }
+        std::cout << "removeFloatingBubbles: total active=" << totalActive 
+                  << ", already marked=" << alreadyMarked << std::endl;
+        
+        for (auto& bubble : bubbles) {
+            bubble.vx = 0.0f;
+        }
+        
+        float minY = 999999.0f;
+        for (size_t i = 0; i < bubbles.size(); ++i) {
+            if (!bubbles[i].markedForRemoval && bubbles[i].active) {
+                if (bubbles[i].y < minY) minY = bubbles[i].y;
+            }
+        }
+        
+        std::cout << "Min Y found: " << minY << std::endl;
+        
+        std::vector<size_t> queue;
+        int topRowCount = 0;
+        for (size_t i = 0; i < bubbles.size(); ++i) {
+            if (bubbles[i].markedForRemoval) continue;
+            
+            if (bubbles[i].active && bubbles[i].y < minY + 60.0f) {
+                queue.push_back(i);
+                bubbles[i].vx = 1.0f;
+                topRowCount++;
+            }
+        }
+        
+        std::cout << "Starting BFS from " << topRowCount << " bubbles in top row" << std::endl;
+        
+        size_t qIndex = 0;
+        while (qIndex < queue.size()) {
+            size_t current = queue[qIndex++];
+            const Bubble& b = bubbles[current];
+            
+            for (size_t i = 0; i < bubbles.size(); ++i) {
+                if (bubbles[i].markedForRemoval || !bubbles[i].active || bubbles[i].vx == 1.0f) continue;
+                
+                    if (bubbles[i].isConnected(b)) {
+                    bubbles[i].vx = 1.0f;
+                    queue.push_back(i);
+                }
+            }
+        }
+        
+        std::cout << "BFS reached " << queue.size() << " total bubbles" << std::endl;
+        
+        int floatingCount = 0;
+        for (size_t i = 0; i < bubbles.size(); ++i) {
+            if (bubbles[i].markedForRemoval) continue;
+            
+            if (bubbles[i].active && bubbles[i].vx != 1.0f) {
+                bubbles[i].markedForRemoval = true;
+                floatingCount++;
+                
+                std::string bubbleId = "bubble_floating_" + std::to_string(i);
+                Engine::Event deathEvent = Engine::Events::Death(bubbleId, timeline);
+                deathEvent.payload["reason"] = std::string("floating");
+                deathEvent.payload["score"] = 5;
+                eventManager->raiseEvent(deathEvent);
+                
+                score += 5;
+            }
+        }
+        
+        for (auto& bubble : bubbles) {
+            bubble.vx = 0.0f;
+        }
+        
+        if (floatingCount > 0) {
+            std::cout << "Removed " << floatingCount << " floating bubbles!" << std::endl;
+        }
     }
 
     void updateBubbles(float dt) {
@@ -357,13 +571,16 @@ private:
             }
         }
 
+        descendOffset += dropDistance;
         bubbleDropInterval *= 0.98f;  
     }
 
     void checkGameConditions() {
+        const float loseHeight = WINDOW_HEIGHT - 100.f;
         for (const auto& bubble : bubbles) {
-            if (bubble.active && bubble.y + BUBBLE_RADIUS >= WINDOW_HEIGHT) {
+            if (bubble.active && bubble.y + BUBBLE_RADIUS >= loseHeight) {
                 gameOver = true;
+                gameWon = false;
                 std::cout << "Game Over! Bubbles reached bottom." << std::endl;
                 return;
             }
@@ -377,11 +594,11 @@ private:
             }
         }
 
-        if (allCleared && !bubbles.empty()) {
-            level++;
-            bubbleDropInterval = 10.0f / level; 
-            initializeBubbles();
-            std::cout << "Level " << level << " cleared! Starting next level..." << std::endl;
+        if (allCleared) {
+            gameOver = true;
+            gameWon = true;
+            std::cout << "You win! All bubbles cleared." << std::endl;
+            return;
         }
     }
 
@@ -392,15 +609,27 @@ private:
     float gunAngle;
     float desiredRotation{0};
     bool wantFire{false};
+    bool fastLaunchRequested{false};
+    float fastLaunchAngle{0.0f};
 
     int score;
-    int level;
     bool gameOver;
+    bool gameWon;
     float bubbleDropTimer;
     float bubbleDropInterval;
     float matchTimer;
     float matchDuration;
     BubbleColor nextBubbleColor;
+    
+    Engine::Registry* registry;
+    Engine::EventManager* eventManager;
+    Timeline* timeline;
+    int bubbleIdCounter;
+    
+    static constexpr int GRID_ROWS = 20;
+    static constexpr int GRID_COLS = 15;
+    bool grid[GRID_ROWS][GRID_COLS] = {{false}};
+    float descendOffset = 0.0f;
 };
 
 static void gameLoop(std::atomic<bool>& running, BubbleShooterGame& game,
@@ -565,20 +794,38 @@ int main(int, char**) {
     Scaling::setMode(ScaleMode::Pixel);
     srand((unsigned)time(nullptr));
 
-    BubbleShooterGame game;
+        SDL_Texture* winTexture = IMG_LoadTexture(renderer, "../assets/win.png");
+        SDL_Texture* loseTexture = IMG_LoadTexture(renderer, "../assets/lose.png");
+        if (!winTexture) {
+            std::cout << "Failed to load win.png: " << SDL_GetError() << std::endl;
+        }
+        if (!loseTexture) {
+            std::cout << "Failed to load lose.png: " << SDL_GetError() << std::endl;
+        }
+
+    Timeline gameTime;
+    gameTime.anchorToRealTime();
+    
+    Engine::PoolAllocator<Engine::GameObject> bubblePool(500);
+    Engine::Registry registry(&bubblePool);
+    Engine::EventManager eventManager(&gameTime);
+    
+    InputChord fastLaunchLeft("fast_launch_left", {SDL_SCANCODE_SPACE, SDL_SCANCODE_A});
+    InputChord fastLaunchRight("fast_launch_right", {SDL_SCANCODE_SPACE, SDL_SCANCODE_D});
+    Input::registerChord(fastLaunchLeft);
+    Input::registerChord(fastLaunchRight);
+
+    BubbleShooterGame game(&registry, &eventManager, &gameTime);
     std::atomic<bool> running(true);
 
     {
         std::vector<Bubble> dbgBubbles;
         std::vector<Projectile> dbgProj;
-        float dbgAngle; int dbgScore; int dbgLevel; bool dbgOver;
+        float dbgAngle; int dbgScore; bool dbgOver; bool dbgWon; float dbgDescend;
         BubbleColor dbgNextColor;
-        game.getGameState(dbgBubbles, dbgProj, dbgAngle, dbgScore, dbgLevel, dbgOver, dbgNextColor);
+        game.getGameState(dbgBubbles, dbgProj, dbgAngle, dbgScore, dbgOver, dbgNextColor, dbgWon, dbgDescend);
         std::cout << "After construction: game reports " << dbgBubbles.size() << " bubbles" << std::endl;
     }
-
-    Timeline gameTime;
-    gameTime.anchorToRealTime();
 
     std::thread tGameLoop(gameLoop, std::ref(running), std::ref(game),
                           std::ref(gameTime));
@@ -615,7 +862,14 @@ int main(int, char**) {
         renderTime.tick();
 
         float rotateDir = 0;
-        if (Input::isKeyPressed(SDL_SCANCODE_A) ||
+        bool fastLaunchLeftActive = Input::isChordActive("fast_launch_left");
+        bool fastLaunchRightActive = Input::isChordActive("fast_launch_right");
+        
+        if (fastLaunchLeftActive) {
+            rotateDir = -2.f; 
+        } else if (fastLaunchRightActive) {
+            rotateDir = 2.f; 
+        } else if (Input::isKeyPressed(SDL_SCANCODE_A) ||
             Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
             rotateDir = -1.f;
         } else if (Input::isKeyPressed(SDL_SCANCODE_D) ||
@@ -628,15 +882,17 @@ int main(int, char**) {
         bool fire = curFire && !prevFire;
         prevFire = curFire;
         
-        game.setInput(rotateDir, fire);
+        game.setInput(rotateDir, fire, fastLaunchLeftActive, fastLaunchRightActive);
 
         std::vector<Bubble> bubbles;
         std::vector<Projectile> projectiles;
         float gunAngle;
-        int score, level;
+        int score;
         bool gameOver;
+        bool gameWon;
+        float descendOffset;
         BubbleColor nextColor;
-        game.getGameState(bubbles, projectiles, gunAngle, score, level, gameOver, nextColor);
+        game.getGameState(bubbles, projectiles, gunAngle, score, gameOver, nextColor, gameWon, descendOffset);
 
         static int frameCount = 0;
         if (frameCount == 0) {
@@ -647,6 +903,18 @@ int main(int, char**) {
 
         SDL_SetRenderDrawColor(renderer, 10, 10, 30, 255);  
         SDL_RenderClear(renderer);
+
+        float topBoundary = 40.f + BUBBLE_RADIUS + descendOffset;
+        SDL_SetRenderDrawColor(renderer, 255, 100, 100, 255);
+        for (int i = 0; i < 3; ++i) {
+            SDL_RenderLine(renderer, 0, topBoundary + i, WINDOW_WIDTH, topBoundary + i);
+        }
+
+        float bottomBoundary = WINDOW_HEIGHT - 100.f;
+        SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
+        for (int i = 0; i < 5; ++i) {
+            SDL_RenderLine(renderer, 0, bottomBoundary - i, WINDOW_WIDTH, bottomBoundary - i);
+        }
 
         for (const auto& bubble : bubbles) {
             if (bubble.active) {
@@ -699,72 +967,47 @@ int main(int, char**) {
         SDL_RenderFillRect(renderer, &scoreBackground);
         drawNumber(renderer, score, 20, 20, 30, 30);
 
-        std::cout << "\rScore: " << score << " | Level: " << level
-                  << " | Bubbles: " << bubbles.size() << " | Angle: " << (int)gunAngle
-                  << "° | Projectiles: " << projectiles.size() << "   " << std::flush;
+    if (!gameOver) {
+        std::cout << "\rScore: " << score
+                      << " | Bubbles: " << bubbles.size() << " | Angle: " << (int)gunAngle
+                      << "° | Projectiles: " << projectiles.size() << "   " << std::flush;
+    }
 
         if (gameOver) {
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
             SDL_FRect overlay = {0.f, 0.f, (float)WINDOW_WIDTH, (float)WINDOW_HEIGHT};
             SDL_RenderFillRect(renderer, &overlay);
             
-            SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
-            float centerX = WINDOW_WIDTH / 2.f;
-            float centerY = WINDOW_HEIGHT / 2.f;
-            
-            SDL_FRect redBox = {centerX - 300.f, centerY - 100.f, 600.f, 200.f};
-            SDL_RenderFillRect(renderer, &redBox);
-            
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            
-            SDL_FRect rect;  
-            
-            rect = {centerX - 280.f, centerY - 60.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 280.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 280.f, centerY + 10.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 250.f, centerY + 10.f, 10.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            rect = {centerX - 220.f, centerY - 60.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 220.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 180.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 220.f, centerY - 10.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            rect = {centerX - 150.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 100.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 150.f, centerY - 60.f, 20.f, 20.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 120.f, centerY - 60.f, 20.f, 20.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            rect = {centerX - 70.f, centerY - 60.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 70.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 70.f, centerY - 10.f, 30.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX - 70.f, centerY + 10.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            rect = {centerX + 20.f, centerY - 60.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 20.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 50.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 20.f, centerY + 10.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            rect = {centerX + 80.f, centerY - 60.f, 10.f, 60.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 130.f, centerY - 60.f, 10.f, 60.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 90.f, centerY + 0.f, 10.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 100.f, centerY + 10.f, 10.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 110.f, centerY + 10.f, 10.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 120.f, centerY + 0.f, 10.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            rect = {centerX + 160.f, centerY - 60.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 160.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 160.f, centerY - 10.f, 30.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 160.f, centerY + 10.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            rect = {centerX + 220.f, centerY - 60.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 220.f, centerY - 60.f, 10.f, 80.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 250.f, centerY - 60.f, 10.f, 40.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 220.f, centerY - 10.f, 40.f, 10.f}; SDL_RenderFillRect(renderer, &rect);
-            rect = {centerX + 250.f, centerY + 0.f, 10.f, 20.f}; SDL_RenderFillRect(renderer, &rect);
-            
-            drawNumber(renderer, score, (int)(centerX - 50), (int)(centerY + 50), 40, 40);
-            
-            std::cout << " | GAME OVER!" << std::endl;
+            if (gameWon) {
+                float centerX = WINDOW_WIDTH / 2.f;
+                float centerY = WINDOW_HEIGHT / 2.f;
+                if (winTexture) {
+                    SDL_FRect imgRect = {centerX - 200.f, centerY - 220.f, 400.f, 200.f};
+                    SDL_RenderTexture(renderer, winTexture, nullptr, &imgRect);
+                }
+                SDL_SetRenderDrawColor(renderer, 20, 20, 40, 255);
+                SDL_FRect rect = {centerX - 250.f, centerY + 40.f, 500.f, 100.f};
+                SDL_RenderFillRect(renderer, &rect);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                drawNumber(renderer, score, (int)(centerX - 100), (int)(centerY + 55), 60, 70);
+            } else {
+                float centerX = WINDOW_WIDTH / 2.f;
+                float centerY = WINDOW_HEIGHT / 2.f;
+                if (loseTexture) {
+                    SDL_FRect imgRect = {centerX - 200.f, centerY - 150.f, 400.f, 150.f};
+                    SDL_RenderTexture(renderer, loseTexture, nullptr, &imgRect);
+                }
+                SDL_SetRenderDrawColor(renderer, 20, 20, 40, 255);
+                SDL_FRect rect = {centerX - 200.f, centerY + 10.f, 400.f, 90.f};
+                SDL_RenderFillRect(renderer, &rect);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                drawNumber(renderer, score, (int)(centerX - 70), (int)(centerY + 25), 50, 60);
+            }
+            static bool loggedGameOver = false;
+            if (!loggedGameOver) {
+                std::cout << " | GAME OVER!" << std::endl;
+                loggedGameOver = true;
+            }
         }
 
         SDL_RenderPresent(renderer);
@@ -772,6 +1015,9 @@ int main(int, char**) {
     }
 
     tGameLoop.join();
+
+        if (winTexture) SDL_DestroyTexture(winTexture);
+        if (loseTexture) SDL_DestroyTexture(loseTexture);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

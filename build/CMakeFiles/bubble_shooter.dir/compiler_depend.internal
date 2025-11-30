@@ -803,7 +803,11 @@ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h
+ /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include/event_manager.h
  /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include/input.h
+ /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include/memory_pool.h
+ /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include/object_model.h
+ /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include/registry.h
  /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include/scaling.h
  /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/include/timeline.h
  /opt/homebrew/include/SDL3/SDL.h

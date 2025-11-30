@@ -802,7 +802,11 @@ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o: /Users/ishanirajput/Desk
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/event_manager.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/input.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/memory_pool.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/object_model.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/registry.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/scaling.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/timeline.h \
   /opt/homebrew/include/SDL3/SDL.h \
@@ -941,6 +945,8 @@ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o: /Users/ishanirajput/Desk
 /opt/homebrew/include/SDL3/SDL.h:
 
 /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/timeline.h:
+
+/Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/memory_pool.h:
 
 /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/input.h:
 
@@ -1568,6 +1574,8 @@ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o: /Users/ishanirajput/Desk
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/system_error.h:
 
+/Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/event_manager.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_empty.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__system_error/error_condition.h:
@@ -1885,6 +1893,8 @@ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o: /Users/ishanirajput/Desk
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__concepts/invocable.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_fd_clr.h:
+
+/Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/object_model.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/pthread/sched.h:
 
@@ -2441,6 +2451,8 @@ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o: /Users/ishanirajput/Desk
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/compare:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/half_positive.h:
+
+/Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/registry.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/find_if_not.h:
 
