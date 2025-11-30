@@ -12,6 +12,7 @@
 #include "input.h"
 #include "memory_pool.h"
 #include "scaling.h"
+#include "collision.h"
 
 static constexpr float W = 1920;
 static constexpr float H = 1080;
@@ -69,6 +70,32 @@ static bool isInBoundary(int gx, int gy) {
             return true;
         }
     }
+    return false;
+}
+
+static SDL_FRect gridToRect(int gx, int gy) {
+    return SDL_FRect{(float)(gx * CELL), (float)(gy * CELL), CELL, CELL};
+}
+
+static bool checkBoundaryCollision(int gx, int gy) {
+    SDL_FRect pos = gridToRect(gx, gy);
+    
+    int midCol = COLS / 2;
+    for(int row = ROWS/4; row < 3*ROWS/4; row++) {
+        SDL_FRect wall = gridToRect(midCol, row);
+        if(aabbIntersect(pos, wall)) return true;
+    }
+    
+    int midRow = ROWS / 2;
+    for(int col = 0; col < COLS/4; col++) {
+        SDL_FRect wall = gridToRect(col, midRow);
+        if(aabbIntersect(pos, wall)) return true;
+    }
+    for(int col = 3*COLS/4; col < COLS; col++) {
+        SDL_FRect wall = gridToRect(col, midRow);
+        if(aabbIntersect(pos, wall)) return true;
+    }
+    
     return false;
 }
 
@@ -196,16 +223,22 @@ static void update(GameState& g,Engine::Registry& reg,Timeline& tl,Engine::Event
         return;
     }
 
-    if(isInBoundary(nx, ny)){
+    if(checkBoundaryCollision(nx, ny)){
         gameLose(g);
         return;
     }
 
+    SDL_FRect headRect = gridToRect(nx, ny);
     for(auto& id:g.parts){
         auto* s=reg.get(id);
-        if(s && s->get<int>("gx")==nx && s->get<int>("gy")==ny){
-            gameLose(g);
-            return;
+        if(s) {
+            int sx = s->get<int>("gx");
+            int sy = s->get<int>("gy");
+            SDL_FRect bodyRect = gridToRect(sx, sy);
+            if(aabbIntersect(headRect, bodyRect)){
+                gameLose(g);
+                return;
+            }
         }
     }
 
@@ -213,7 +246,8 @@ static void update(GameState& g,Engine::Registry& reg,Timeline& tl,Engine::Event
     bool eat=false;
     if(fd){
         int fx=fd->get<int>("gx"), fy=fd->get<int>("gy");
-        if(nx==fx && ny==fy){
+        SDL_FRect foodRect = gridToRect(fx, fy);
+        if(aabbIntersect(headRect, foodRect)){
             eat=true;
             g.score+=10;
             spawnFood(reg,g);
@@ -550,7 +584,6 @@ int main(){
             bool yNow=Input::isKeyPressed(SDL_SCANCODE_Y);
             static bool yPrev=false;
             if(yNow && !yPrev) {
-                // Reset game state for replay
                 G.parts.clear();
                 reg.clear();
                 initSnake(G, reg, false);  
