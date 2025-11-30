@@ -93,6 +93,16 @@ target_link_libraries(bubble_shooter
         SDL3_image::SDL3_image
 )
 
+add_executable(snake
+    src/snake.cpp
+)
+target_link_libraries(snake
+    PRIVATE
+        engine_objs
+        SDL3::SDL3
+        SDL3_image::SDL3_image
+)
+
 if (MSVC)
     target_compile_options(engine_objs PRIVATE /W4)
 else()
@@ -100,7 +110,7 @@ else()
 endif()
 
 set_target_properties(engine_objs PROPERTIES FOLDER "engine")
-set_target_properties(main client server perf_runner bubble_shooter PROPERTIES FOLDER "apps")
+set_target_properties(main client server perf_runner bubble_shooter snake PROPERTIES FOLDER "apps")
 
 message(STATUS "SDL3 include: ${SDL3_DIR}")
 message(STATUS "ZeroMQ lib: ${ZMQ_LIB}")

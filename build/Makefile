@@ -194,6 +194,19 @@ bubble_shooter/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/build
 .PHONY : bubble_shooter/fast
 
+#=============================================================================
+# Target rules for targets named snake
+
+# Build rule for target.
+snake: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 snake
+.PHONY : snake
+
+# fast build rule for target.
+snake/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/build
+.PHONY : snake/fast
+
 src/bubble_shooter.o: src/bubble_shooter.cpp.o
 .PHONY : src/bubble_shooter.o
 
@@ -506,6 +519,30 @@ src/server.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server.cpp.s
 .PHONY : src/server.cpp.s
 
+src/snake.o: src/snake.cpp.o
+.PHONY : src/snake.o
+
+# target to build an object file
+src/snake.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/src/snake.cpp.o
+.PHONY : src/snake.cpp.o
+
+src/snake.i: src/snake.cpp.i
+.PHONY : src/snake.i
+
+# target to preprocess a source file
+src/snake.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/src/snake.cpp.i
+.PHONY : src/snake.cpp.i
+
+src/snake.s: src/snake.cpp.s
+.PHONY : src/snake.s
+
+# target to generate assembly for a file
+src/snake.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/src/snake.cpp.s
+.PHONY : src/snake.cpp.s
+
 src/timeline.o: src/timeline.cpp.o
 .PHONY : src/timeline.o
 
@@ -544,6 +581,7 @@ help:
 	@echo "... main"
 	@echo "... perf_runner"
 	@echo "... server"
+	@echo "... snake"
 	@echo "... src/bubble_shooter.o"
 	@echo "... src/bubble_shooter.i"
 	@echo "... src/bubble_shooter.s"
@@ -583,6 +621,9 @@ help:
 	@echo "... src/server.o"
 	@echo "... src/server.i"
 	@echo "... src/server.s"
+	@echo "... src/snake.o"
+	@echo "... src/snake.i"
+	@echo "... src/snake.s"
 	@echo "... src/timeline.o"
 	@echo "... src/timeline.i"
 	@echo "... src/timeline.s"

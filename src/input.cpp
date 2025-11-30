@@ -25,7 +25,6 @@ void Input::registerChord(const InputChord& chord) {
 bool Input::checkChord(const InputChord& chord) {
     if (!s_state) return false;
     
-    // All keys in the chord must be pressed
     for (SDL_Scancode key : chord.keys) {
         if (!isKeyPressed(key)) {
             return false;

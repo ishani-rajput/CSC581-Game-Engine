@@ -20,13 +20,11 @@ public:
             throw std::invalid_argument("PoolAllocator capacity must be > 0");
         }
 
-        // Allocate raw storage for T objects (uninitialized).
         m_storage = static_cast<T*>(::operator new[](capacity * sizeof(T)));
 
         m_freeIndices.reserve(capacity);
         m_live.assign(capacity, false);
 
-        // Fill free list with indices [0..capacity-1], last element will be allocated first.
         for (std::size_t i = 0; i < capacity; ++i) {
             m_freeIndices.push_back(capacity - 1 - i);
         }
@@ -36,14 +34,12 @@ public:
     PoolAllocator& operator=(const PoolAllocator&) = delete;
 
     ~PoolAllocator() {
-        // Call destructors on any still-live objects.
         for (std::size_t i = 0; i < m_capacity; ++i) {
             if (m_live[i]) {
                 T* ptr = m_storage + i;
                 ptr->~T();
             }
         }
-        // FIXED: Actually free the allocated memory
         ::operator delete[](m_storage);
     }
 
@@ -54,7 +50,6 @@ public:
     template <typename... Args>
     T* create(Args&&... args) {
         if (m_freeIndices.empty()) {
-            // Pool exhausted. Caller may choose to fall back to regular new.
             return nullptr;
         }
 
@@ -71,13 +66,11 @@ public:
         if (!ptr) return;
 
         if (!owns(ptr)) {
-            // Pointer is not from this pool; ignore or throw in debug builds.
             return;
         }
 
         std::size_t index = static_cast<std::size_t>(ptr - m_storage);
         if (!m_live[index]) {
-            // Double free or invalid; ignore or assert in debug builds.
             return;
         }
 
@@ -100,5 +93,4 @@ private:
     std::vector<bool> m_live;
 };
 
-} // namespace Engine
-
+} 

@@ -4,5 +4,6 @@
 /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/server.dir
 /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/perf_runner.dir
 /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/bubble_shooter.dir
+/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/snake.dir
 /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/edit_cache.dir
 /Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles/rebuild_cache.dir

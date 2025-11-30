@@ -1,7 +1,7 @@
 #pragma once
 
 #include "object_model.h"
-#include "memory_pool.h"   // <-- NEW include for pool allocator
+#include "memory_pool.h"  
 
 #include <unordered_map>
 #include <memory>
@@ -10,7 +10,6 @@
 
 namespace Engine {
 
-// Deleter that will either return objects to a pool, or delete them normally.
 template<typename T>
 struct PoolDeleter {
     PoolAllocator<T>* pool = nullptr;
@@ -30,17 +29,14 @@ public:
     using GameObjectDeleter = PoolDeleter<GameObject>;
     using GameObjectPtr     = std::unique_ptr<GameObject, GameObjectDeleter>;
 
-    // Default: no pool, use dynamic allocation (same behavior as before).
     Registry()
         : m_pool(nullptr)
     {}
 
-    // Optional: construct with a pool allocator for GameObject.
     explicit Registry(PoolAllocator<GameObject>* pool)
         : m_pool(pool)
     {}
 
-    // Allow changing the pool at runtime if desired.
     void setPool(PoolAllocator<GameObject>* pool) {
         m_pool = pool;
     }
@@ -51,7 +47,6 @@ public:
             return *(it->second);
         }
 
-        // Need to create a new GameObject.
         GameObject* raw = nullptr;
         GameObjectDeleter del;
         del.pool = m_pool;
@@ -59,9 +54,8 @@ public:
         if (m_pool) {
             raw = m_pool->create(id);
             if (!raw) {
-                // Pool exhausted: fall back to heap allocation.
                 raw = new GameObject(id);
-                del.pool = nullptr; // so destructor will use delete, not pool->destroy
+                del.pool = nullptr; 
             }
         } else {
             raw = new GameObject(id);
@@ -102,7 +96,6 @@ public:
 
     void clear() { objs_.clear(); }
 
-    // --- range-based for loops (unchanged interface) ---
     auto begin()       { return objs_.begin(); }
     auto end()         { return objs_.end(); }
     auto begin() const { return objs_.begin(); }
@@ -110,8 +103,8 @@ public:
 
 private:
     std::unordered_map<std::string, GameObjectPtr> objs_;
-    PoolAllocator<GameObject>* m_pool; // nullptr = no custom allocator
+    PoolAllocator<GameObject>* m_pool; 
 };
 
-} // namespace Engine
+} 
  

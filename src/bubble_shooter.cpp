@@ -279,7 +279,6 @@ private:
                 gameObj.set("y", bubble.y);
                 gameObj.set("color", static_cast<int>(bubble.color));
                 gameObj.set("active", true);
-                auto rc = toGridRC(bubble.x, bubble.y);
                 gameObj.set("gridRow", rc.first);
                 gameObj.set("gridCol", rc.second);
             }
@@ -486,7 +485,7 @@ private:
                     removedCount++;
                     if (!b.id.empty()) {
                         registry->erase(b.id);
-\                    }
+                    }
                     return true;
                 }
                 return false;

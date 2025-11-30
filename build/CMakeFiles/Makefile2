@@ -69,6 +69,7 @@ all: CMakeFiles/client.dir/all
 all: CMakeFiles/server.dir/all
 all: CMakeFiles/perf_runner.dir/all
 all: CMakeFiles/bubble_shooter.dir/all
+all: CMakeFiles/snake.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
@@ -78,6 +79,7 @@ codegen: CMakeFiles/client.dir/codegen
 codegen: CMakeFiles/server.dir/codegen
 codegen: CMakeFiles/perf_runner.dir/codegen
 codegen: CMakeFiles/bubble_shooter.dir/codegen
+codegen: CMakeFiles/snake.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -91,6 +93,7 @@ clean: CMakeFiles/client.dir/clean
 clean: CMakeFiles/server.dir/clean
 clean: CMakeFiles/perf_runner.dir/clean
 clean: CMakeFiles/bubble_shooter.dir/clean
+clean: CMakeFiles/snake.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -284,6 +287,38 @@ CMakeFiles/bubble_shooter.dir/codegen:
 CMakeFiles/bubble_shooter.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bubble_shooter.dir/build.make CMakeFiles/bubble_shooter.dir/clean
 .PHONY : CMakeFiles/bubble_shooter.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/snake.dir
+
+# All Build rule for target.
+CMakeFiles/snake.dir/all: CMakeFiles/engine_objs.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=21,22 "Built target snake"
+.PHONY : CMakeFiles/snake.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/snake.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" 12
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/snake.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start "/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" 0
+.PHONY : CMakeFiles/snake.dir/rule
+
+# Convenience name for target.
+snake: CMakeFiles/snake.dir/rule
+.PHONY : snake
+
+# codegen rule for target.
+CMakeFiles/snake.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/Users/ishanirajput/Desktop/Fall25/Game Engine/CSC581-Game-Engine/build/CMakeFiles" --progress-num=21,22 "Finished codegen for target snake"
+.PHONY : CMakeFiles/snake.dir/codegen
+
+# clean rule for target.
+CMakeFiles/snake.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/snake.dir/build.make CMakeFiles/snake.dir/clean
+.PHONY : CMakeFiles/snake.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
