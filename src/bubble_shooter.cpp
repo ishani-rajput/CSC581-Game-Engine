@@ -10,6 +10,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <string>
+#include <variant>
 
 #include "scaling.h"
 #include "timeline.h"
@@ -17,6 +19,8 @@
 #include "registry.h"
 #include "event_manager.h"
 #include "memory_pool.h"
+#include "collision.h"
+#include "physics.h"   
 
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 900;
@@ -39,14 +43,15 @@ struct Bubble {
     BubbleColor color;
     bool active;
     bool markedForRemoval;
+    std::string id;   
 
     Bubble()
         : x(0), y(0), vx(0), vy(0), color(BubbleColor::Red),
-          active(false), markedForRemoval(false) {}
+          active(false), markedForRemoval(false), id() {}
 
     Bubble(float px, float py, BubbleColor c)
         : x(px), y(py), vx(0), vy(0), color(c),
-          active(true), markedForRemoval(false) {}
+          active(true), markedForRemoval(false), id() {}
 
     SDL_FRect getRect() const {
         return SDL_FRect{x - BUBBLE_RADIUS, y - BUBBLE_RADIUS,
@@ -80,12 +85,15 @@ struct Projectile {
     float vx, vy;
     bool active;
     BubbleColor color;
+    std::string id;    
 
     Projectile()
-        : x(0), y(0), vx(0), vy(0), active(false), color(BubbleColor::Red) {}
+        : x(0), y(0), vx(0), vy(0), active(false),
+          color(BubbleColor::Red), id() {}
 
     Projectile(float px, float py, float velx, float vely, BubbleColor c)
-        : x(px), y(py), vx(velx), vy(vely), active(true), color(c) {}
+        : x(px), y(py), vx(velx), vy(vely), active(true),
+          color(c), id() {}
 
     SDL_FRect getRect() const {
         return SDL_FRect{x - 5.f, y - 5.f, 10.f, 10.f};
@@ -109,11 +117,25 @@ public:
           matchDuration(0.1f),
           nextBubbleColor(BubbleColor::Red),
           bubbleIdCounter(0),
+          projectileIdCounter(0),             
           fastLaunchRequested(false),
           fastLaunchAngle(0.0f),
           gameWon(false) {
         initializeBubbles();
         pickRandomNextBubbleColor();
+
+        eventManager->registerListener(
+            Engine::EventType::Death,
+            [this](const Engine::Event& ev) {
+                auto it = ev.payload.find("score");
+                if (it != ev.payload.end()) {
+                    if (std::holds_alternative<int>(it->second)) {
+                        score += std::get<int>(it->second);
+                    }
+                }
+            }
+        );
+
         std::cout << "Constructor: initialized " << bubbles.size() << " bubbles" << std::endl;
     }
 
@@ -159,7 +181,7 @@ public:
 
         gunAngle += desiredRotation * 180.f * dt; 
         if (gunAngle < -90.f) gunAngle = -90.f;
-        if (gunAngle > 90.f) gunAngle = 90.f;
+        if (gunAngle > 90.f)  gunAngle = 90.f;
 
         if (fastLaunchRequested) {
             fireProjectileAtAngle(fastLaunchAngle);
@@ -171,9 +193,7 @@ public:
         }
 
         updateProjectiles(dt);
-
         checkCollisions();
-
         updateBubbles(dt);
 
         bubbleDropTimer += dt;
@@ -243,18 +263,25 @@ private:
                 if (row % 2 == 1) x += spacingX / 2.f;
                 BubbleColor color = static_cast<BubbleColor>((row * 2 + col) % static_cast<int>(BubbleColor::Count));
                 
+                std::string id = "bubble_" + std::to_string(bubbleIdCounter++);
+                
                 bubbles.emplace_back(x, y, color);
+                Bubble& bubble = bubbles.back();
+                bubble.id = id; 
+
                 auto rc = toGridRC(x, y);
                 if (rc.first >= 0 && rc.first < GRID_ROWS && rc.second >= 0 && rc.second < GRID_COLS) {
                     grid[rc.first][rc.second] = true;
                 }
                 
-                std::string id = "bubble_" + std::to_string(bubbleIdCounter++);
                 auto& gameObj = registry->upsert(id);
-                gameObj.set("x", x);
-                gameObj.set("y", y);
-                gameObj.set("color", static_cast<int>(color));
+                gameObj.set("x", bubble.x);
+                gameObj.set("y", bubble.y);
+                gameObj.set("color", static_cast<int>(bubble.color));
                 gameObj.set("active", true);
+                auto rc = toGridRC(bubble.x, bubble.y);
+                gameObj.set("gridRow", rc.first);
+                gameObj.set("gridCol", rc.second);
             }
         }
     }
@@ -264,7 +291,21 @@ private:
         const float speed = 800.f * 1.5f;
         float velx = speed * std::sin(radians);
         float vely = -speed * std::cos(radians);
+
+        std::string id = "projectile_" + std::to_string(projectileIdCounter++);
+
         projectiles.emplace_back(GUN_X, GUN_Y, velx, vely, nextBubbleColor);
+        Projectile& proj = projectiles.back();
+        proj.id = id;
+
+        auto& gameObj = registry->upsert(id); 
+        gameObj.set("x", proj.x);
+        gameObj.set("y", proj.y);
+        gameObj.set("vx", proj.vx);
+        gameObj.set("vy", proj.vy);
+        gameObj.set("color", static_cast<int>(proj.color));
+        gameObj.set("active", true);
+
         pickRandomNextBubbleColor();
     }
 
@@ -277,8 +318,13 @@ private:
         for (auto& proj : projectiles) {
             if (!proj.active) continue;
 
-            proj.x += proj.vx * dt;
-            proj.y += proj.vy * dt;
+            Body body;
+            body.vx = proj.vx;
+            body.vy = proj.vy;
+            body.affectedByGravity = false;
+            Physics::step(dt * 1000.0f, proj.x, proj.y, body);
+            proj.vx = body.vx;
+            proj.vy = body.vy;
 
             if (proj.x - BUBBLE_RADIUS < 0 || proj.x + BUBBLE_RADIUS > WINDOW_WIDTH) {
                 proj.vx = -proj.vx;
@@ -294,27 +340,58 @@ private:
             if (proj.y > WINDOW_HEIGHT) {
                 proj.active = false;
             }
+
+            if (!proj.id.empty()) {
+                auto* obj = registry->get(proj.id);
+                if (obj) {
+                    obj->set("x", proj.x);
+                    obj->set("y", proj.y);
+                    obj->set("vx", proj.vx);
+                    obj->set("vy", proj.vy);
+                    obj->set("active", proj.active);
+                }
+            }
         }
 
         projectiles.erase(
             std::remove_if(projectiles.begin(), projectiles.end(),
-                           [](const Projectile& p) { return !p.active; }),
+                           [this](const Projectile& p) {
+                               if (!p.active) {
+                                   if (!p.id.empty()) {
+                                       registry->erase(p.id);
+                                   }
+                                   return true;
+                               }
+                               return false;
+                           }),
             projectiles.end());
     }
 
     void fireProjectile() {
         float radians = (gunAngle * 3.14159f / 180.f);
-
         const float speed = 800.f;
-
         float velx = speed * std::sin(radians);
         float vely = -speed * std::cos(radians);
 
+        std::string id = "projectile_" + std::to_string(projectileIdCounter++); 
+
         projectiles.emplace_back(GUN_X, GUN_Y, velx, vely, nextBubbleColor);
+        Projectile& proj = projectiles.back();
+        proj.id = id; 
+
+        auto& gameObj = registry->upsert(id);  
+        gameObj.set("x", proj.x);
+        gameObj.set("y", proj.y);
+        gameObj.set("vx", proj.vx);
+        gameObj.set("vy", proj.vy);
+        gameObj.set("color", static_cast<int>(proj.color));
+        gameObj.set("active", true);
+
         std::cout << "Fired projectile with color: " << (int)nextBubbleColor << std::endl;
         pickRandomNextBubbleColor();
         std::cout << "Next bubble color will be: " << (int)nextBubbleColor << std::endl;
     }
+
     void checkCollisions() {
         static int callCount = 0;
         if (callCount % 60 == 0) {  
@@ -323,29 +400,24 @@ private:
         }
         callCount++;
         
-        const float spacingX = BUBBLE_RADIUS * 2.5f;
-        const float spacingY = BUBBLE_RADIUS * 2.2f;
-        const float collisionDist = (spacingX + spacingY) / 2.0f;
+        float currentTopBoundary = 40.f + BUBBLE_RADIUS + descendOffset;
         
         for (auto& proj : projectiles) {
             if (!proj.active) continue;
 
             bool hitBubble = false;
+            SDL_FRect projRect = proj.getRect();
             for (size_t i = 0; i < bubbles.size(); ++i) {
                 Bubble& bubble = bubbles[i];
                 if (!bubble.active) continue;
 
-                float pdx = proj.x - bubble.x;
-                float pdy = proj.y - bubble.y;
-                float pdist = std::sqrt(pdx*pdx + pdy*pdy);
-                if (pdist <= collisionDist) {
+                SDL_FRect bubbleRect = bubble.getRect();
+                if (aabbIntersect(bubbleRect, projRect)) {
                     hitBubble = true;
                     break;
                 }
             }
 
-            float currentTopBoundary = 40.f + BUBBLE_RADIUS + descendOffset;
-            
             if (!hitBubble && proj.y > currentTopBoundary) {
                 continue;
             }
@@ -359,8 +431,8 @@ private:
                 auto [row, col] = toGridRC(proj.x, proj.y);
                 
                 if (row >= GRID_ROWS) row = GRID_ROWS - 1;
-                if (row < 0) row = 0;
-                if (col < 0) col = 0;
+                if (row < 0)         row = 0;
+                if (col < 0)         col = 0;
                 if (col >= GRID_COLS) col = GRID_COLS - 1;
 
                 while (grid[row][col] && row > 0) {
@@ -372,6 +444,8 @@ private:
                     continue;
                 }
 
+                const float spacingX = BUBBLE_RADIUS * 2.5f;
+                const float spacingY = BUBBLE_RADIUS * 2.2f; 
                 const float gridWidth = 8 * spacingX;
                 const float startX = (WINDOW_WIDTH - gridWidth) / 2 + BUBBLE_RADIUS;
                 const float startY = 40.f + BUBBLE_RADIUS;
@@ -382,13 +456,18 @@ private:
 
                 bubbles.emplace_back(newX, newY, proj.color);
                 size_t newBubbleIdx = bubbles.size() - 1;
-                
+                Bubble& newBubble = bubbles.back();
+
                 std::string id = "bubble_" + std::to_string(bubbleIdCounter++);
+                newBubble.id = id;
+
                 auto& gameObj = registry->upsert(id);
-                gameObj.set("x", newX);
-                gameObj.set("y", newY);
-                gameObj.set("color", static_cast<int>(proj.color));
+                gameObj.set("x", newBubble.x);
+                gameObj.set("y", newBubble.y);
+                gameObj.set("color", static_cast<int>(newBubble.color));
                 gameObj.set("active", true);
+                gameObj.set("gridRow", row);
+                gameObj.set("gridCol", col);
                 
                 std::cout << "Added new bubble at (" << newX << ", " << newY 
                           << ") grid[" << row << "][" << col << "] with color " << (int)proj.color << std::endl;
@@ -396,26 +475,35 @@ private:
                 grid[row][col] = true;
 
                 popMatchingBubbles(newBubbleIdx);
-                
-                score += 10;
             }
         }
 
         int removedCount = 0;
-        auto newEnd = std::remove_if(bubbles.begin(), bubbles.end(),
-                          [&removedCount](const Bubble& b) { 
-                              if (b.markedForRemoval) removedCount++;
-                              return b.markedForRemoval; 
-                          });
+        auto newEnd = std::remove_if(
+            bubbles.begin(), bubbles.end(),
+            [this, &removedCount](const Bubble& b) {
+                if (b.markedForRemoval) {
+                    removedCount++;
+                    if (!b.id.empty()) {
+                        registry->erase(b.id);
+\                    }
+                    return true;
+                }
+                return false;
+            }
+        );
         bubbles.erase(newEnd, bubbles.end());
         
         if (removedCount > 0) {
             std::cout << "Removed " << removedCount << " bubbles from vector" << std::endl;
-            for (int r = 0; r < GRID_ROWS; ++r) for (int c = 0; c < GRID_COLS; ++c) grid[r][c] = false;
+            for (int r = 0; r < GRID_ROWS; ++r)
+                for (int c = 0; c < GRID_COLS; ++c)
+                    grid[r][c] = false;
             for (const auto& b : bubbles) {
                 if (!b.active) continue;
                 auto rc = toGridRC(b.x, b.y);
-                if (rc.first >= 0 && rc.first < GRID_ROWS && rc.second >= 0 && rc.second < GRID_COLS) {
+                if (rc.first >= 0 && rc.first < GRID_ROWS &&
+                    rc.second >= 0 && rc.second < GRID_COLS) {
                     grid[rc.first][rc.second] = true;
                 }
             }
@@ -461,13 +549,14 @@ private:
             for (size_t idx : toRemove) {
                 bubbles[idx].markedForRemoval = true;
                 
-                std::string bubbleId = "bubble_match_" + std::to_string(idx);
-                Engine::Event deathEvent = Engine::Events::Death(bubbleId, timeline);
-                deathEvent.payload["reason"] = std::string("matched");
-                deathEvent.payload["score"] = 5;
-                eventManager->raiseEvent(deathEvent);
+                const std::string& bubbleId = bubbles[idx].id;
+                if (!bubbleId.empty()) {
+                    Engine::Event deathEvent = Engine::Events::Death(bubbleId, timeline);
+                    deathEvent.payload["reason"] = std::string("matched");
+                    deathEvent.payload["score"]  = 10; 
+                    eventManager->raiseEvent(deathEvent);
+                }
             }
-            score += 5 * (toRemove.size() - 2);
             
             removeFloatingBubbles();
         } else {
@@ -520,7 +609,7 @@ private:
             for (size_t i = 0; i < bubbles.size(); ++i) {
                 if (bubbles[i].markedForRemoval || !bubbles[i].active || bubbles[i].vx == 1.0f) continue;
                 
-                    if (bubbles[i].isConnected(b)) {
+                if (bubbles[i].isConnected(b)) {
                     bubbles[i].vx = 1.0f;
                     queue.push_back(i);
                 }
@@ -537,13 +626,13 @@ private:
                 bubbles[i].markedForRemoval = true;
                 floatingCount++;
                 
-                std::string bubbleId = "bubble_floating_" + std::to_string(i);
-                Engine::Event deathEvent = Engine::Events::Death(bubbleId, timeline);
-                deathEvent.payload["reason"] = std::string("floating");
-                deathEvent.payload["score"] = 5;
-                eventManager->raiseEvent(deathEvent);
-                
-                score += 5;
+                const std::string& bubbleId = bubbles[i].id;
+                if (!bubbleId.empty()) {
+                    Engine::Event deathEvent = Engine::Events::Death(bubbleId, timeline);
+                    deathEvent.payload["reason"] = std::string("floating");
+                    deathEvent.payload["score"]  = 5;
+                    eventManager->raiseEvent(deathEvent);
+                }
             }
         }
         
@@ -556,7 +645,7 @@ private:
         }
     }
 
-    void updateBubbles(float dt) {
+    void updateBubbles(float /*dt*/) {
         for (auto& bubble : bubbles) {
             if (!bubble.active) continue;
         }
@@ -568,6 +657,13 @@ private:
         for (auto& bubble : bubbles) {
             if (bubble.active) {
                 bubble.y += dropDistance;
+
+                if (!bubble.id.empty()) {
+                    auto* obj = registry->get(bubble.id);
+                    if (obj) {
+                        obj->set("y", bubble.y);
+                    }
+                }
             }
         }
 
@@ -625,6 +721,7 @@ private:
     Engine::EventManager* eventManager;
     Timeline* timeline;
     int bubbleIdCounter;
+    int projectileIdCounter; 
     
     static constexpr int GRID_ROWS = 20;
     static constexpr int GRID_COLS = 15;
@@ -794,14 +891,14 @@ int main(int, char**) {
     Scaling::setMode(ScaleMode::Pixel);
     srand((unsigned)time(nullptr));
 
-        SDL_Texture* winTexture = IMG_LoadTexture(renderer, "../assets/win.png");
-        SDL_Texture* loseTexture = IMG_LoadTexture(renderer, "../assets/lose.png");
-        if (!winTexture) {
-            std::cout << "Failed to load win.png: " << SDL_GetError() << std::endl;
-        }
-        if (!loseTexture) {
-            std::cout << "Failed to load lose.png: " << SDL_GetError() << std::endl;
-        }
+    SDL_Texture* winTexture = IMG_LoadTexture(renderer, "../assets/win.png");
+    SDL_Texture* loseTexture = IMG_LoadTexture(renderer, "../assets/lose.png");
+    if (!winTexture) {
+        std::cout << "Failed to load win.png: " << SDL_GetError() << std::endl;
+    }
+    if (!loseTexture) {
+        std::cout << "Failed to load lose.png: " << SDL_GetError() << std::endl;
+    }
 
     Timeline gameTime;
     gameTime.anchorToRealTime();
@@ -834,6 +931,7 @@ int main(int, char**) {
     renderTime.anchorToRealTime();
 
     bool prevT = false;
+    bool prev1 = false, prev2 = false, prev3 = false; 
 
     SDL_Event ev;
     while (running) {
@@ -859,6 +957,26 @@ int main(int, char**) {
         }
         prevP = curP;
 
+        bool k1 = Input::isKeyPressed(SDL_SCANCODE_1);
+        bool k2 = Input::isKeyPressed(SDL_SCANCODE_2);
+        bool k3 = Input::isKeyPressed(SDL_SCANCODE_3);
+
+        if (k1 && !prev1) {
+            gameTime.setScale(0.5);
+            std::cout << "\nTime scale: 0.5x\n";
+        }
+        if (k2 && !prev2) {
+            gameTime.setScale(1.0);
+            std::cout << "\nTime scale: 1.0x\n";
+        }
+        if (k3 && !prev3) {
+            gameTime.setScale(2.0);
+            std::cout << "\nTime scale: 2.0x\n";
+        }
+        prev1 = k1;
+        prev2 = k2;
+        prev3 = k3;
+
         renderTime.tick();
 
         float rotateDir = 0;
@@ -870,7 +988,7 @@ int main(int, char**) {
         } else if (fastLaunchRightActive) {
             rotateDir = 2.f; 
         } else if (Input::isKeyPressed(SDL_SCANCODE_A) ||
-            Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
+                   Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
             rotateDir = -1.f;
         } else if (Input::isKeyPressed(SDL_SCANCODE_D) ||
                    Input::isKeyPressed(SDL_SCANCODE_RIGHT)) {
@@ -967,20 +1085,23 @@ int main(int, char**) {
         SDL_RenderFillRect(renderer, &scoreBackground);
         drawNumber(renderer, score, 20, 20, 30, 30);
 
-    if (!gameOver) {
-        std::cout << "\rScore: " << score
-                      << " | Bubbles: " << bubbles.size() << " | Angle: " << (int)gunAngle
-                      << "° | Projectiles: " << projectiles.size() << "   " << std::flush;
-    }
+        if (!gameOver) {
+            std::cout << "\rScore: " << score
+                      << " | Bubbles: " << bubbles.size()
+                      << " | Angle: " << (int)gunAngle
+                      << "° | Projectiles: " << projectiles.size()
+                      << "   " << std::flush;
+        }
 
         if (gameOver) {
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
             SDL_FRect overlay = {0.f, 0.f, (float)WINDOW_WIDTH, (float)WINDOW_HEIGHT};
             SDL_RenderFillRect(renderer, &overlay);
             
+            float centerX = WINDOW_WIDTH / 2.f;
+            float centerY = WINDOW_HEIGHT / 2.f;
+
             if (gameWon) {
-                float centerX = WINDOW_WIDTH / 2.f;
-                float centerY = WINDOW_HEIGHT / 2.f;
                 if (winTexture) {
                     SDL_FRect imgRect = {centerX - 200.f, centerY - 220.f, 400.f, 200.f};
                     SDL_RenderTexture(renderer, winTexture, nullptr, &imgRect);
@@ -991,8 +1112,6 @@ int main(int, char**) {
                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
                 drawNumber(renderer, score, (int)(centerX - 100), (int)(centerY + 55), 60, 70);
             } else {
-                float centerX = WINDOW_WIDTH / 2.f;
-                float centerY = WINDOW_HEIGHT / 2.f;
                 if (loseTexture) {
                     SDL_FRect imgRect = {centerX - 200.f, centerY - 150.f, 400.f, 150.f};
                     SDL_RenderTexture(renderer, loseTexture, nullptr, &imgRect);
@@ -1016,8 +1135,8 @@ int main(int, char**) {
 
     tGameLoop.join();
 
-        if (winTexture) SDL_DestroyTexture(winTexture);
-        if (loseTexture) SDL_DestroyTexture(loseTexture);
+    if (winTexture) SDL_DestroyTexture(winTexture);
+    if (loseTexture) SDL_DestroyTexture(loseTexture);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

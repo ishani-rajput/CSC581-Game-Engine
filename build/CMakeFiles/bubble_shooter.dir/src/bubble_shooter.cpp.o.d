@@ -867,4 +867,6 @@ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.o: \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/registry.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/object_model.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/memory_pool.h \
-  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/event_manager.h
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/event_manager.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/collision.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/physics.h
