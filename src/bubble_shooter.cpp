@@ -15,8 +15,8 @@
 #include "timeline.h"
 #include "input.h"
 
-const int WINDOW_WIDTH = 1920;
-const int WINDOW_HEIGHT = 1080;
+const int WINDOW_WIDTH = 800;
+const int WINDOW_HEIGHT = 900;
 
 const float BUBBLE_RADIUS = 20.f;
 const float GUN_X = WINDOW_WIDTH / 2.f;
