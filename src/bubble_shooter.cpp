@@ -981,11 +981,16 @@ int main(int, char**) {
         float rotateDir = 0;
         bool fastLaunchLeftActive = Input::isChordActive("fast_launch_left");
         bool fastLaunchRightActive = Input::isChordActive("fast_launch_right");
-        
+
+        static bool prevFastLeft = false;
+        static bool prevFastRight = false;
+        bool fastLaunchLeftEdge = fastLaunchLeftActive && !prevFastLeft;
+        bool fastLaunchRightEdge = fastLaunchRightActive && !prevFastRight;
+
         if (fastLaunchLeftActive) {
-            rotateDir = -2.f; 
+            rotateDir = -2.f;
         } else if (fastLaunchRightActive) {
-            rotateDir = 2.f; 
+            rotateDir = 2.f;
         } else if (Input::isKeyPressed(SDL_SCANCODE_A) ||
                    Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
             rotateDir = -1.f;
@@ -999,7 +1004,10 @@ int main(int, char**) {
         bool fire = curFire && !prevFire;
         prevFire = curFire;
         
-        game.setInput(rotateDir, fire, fastLaunchLeftActive, fastLaunchRightActive);
+    game.setInput(rotateDir, fire, fastLaunchLeftEdge, fastLaunchRightEdge);
+
+    prevFastLeft = fastLaunchLeftActive;
+    prevFastRight = fastLaunchRightActive;
 
         std::vector<Bubble> bubbles;
         std::vector<Projectile> projectiles;
