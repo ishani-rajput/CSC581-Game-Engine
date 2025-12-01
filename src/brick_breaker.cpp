@@ -79,6 +79,8 @@ int main(int, char**) {
                                           windowWidth, windowHeight, 
                                           SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
+    SDL_SetRenderLogicalPresentation(renderer, DESIGN_WIDTH, DESIGN_HEIGHT,
+                                     SDL_LOGICAL_PRESENTATION_LETTERBOX);
     Scaling::setMode(ScaleMode::Proportional);
 
     // ENGINE FEATURE: Timeline system
@@ -214,9 +216,13 @@ int main(int, char**) {
                 if (event.key.scancode == SDL_SCANCODE_S) {
                     if (Scaling::mode() == ScaleMode::Proportional) {
                         Scaling::setMode(ScaleMode::Pixel);
+                        SDL_SetRenderLogicalPresentation(renderer, 0, 0,
+                                                         SDL_LOGICAL_PRESENTATION_DISABLED);
                         statusMessage = "Scaling: Pixel Perfect";
                     } else {
                         Scaling::setMode(ScaleMode::Proportional);
+                        SDL_SetRenderLogicalPresentation(renderer, DESIGN_WIDTH, DESIGN_HEIGHT,
+                                                         SDL_LOGICAL_PRESENTATION_LETTERBOX);
                         statusMessage = "Scaling: Proportional";
                     }
                     statusMessageTimer = 120;
