@@ -230,3 +230,11 @@ assets/
 ├── ground_bottom.png     # Platform base
 └── spikes.png            # Hazards
 ```
+
+---
+
+## 🎨 Credits
+
+**Space Invaders Sprites:** Created by Kenney ([kenney.nl](https://kenney.nl)) - Licensed under CC0 1.0 Universal
+
+---
