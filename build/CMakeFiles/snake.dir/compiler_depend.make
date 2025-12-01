@@ -845,6 +845,7 @@ CMakeFiles/snake.dir/src/snake.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ E
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
+  /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/collision.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/event_manager.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/input.h \
   /Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/memory_pool.h \
@@ -2332,6 +2333,8 @@ CMakeFiles/snake.dir/src/snake.cpp.o: /Users/ishanirajput/Desktop/Fall25/Game\ E
 /opt/homebrew/include/SDL3/SDL_mutex.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/duration.h:
+
+/Users/ishanirajput/Desktop/Fall25/Game\ Engine/CSC581-Game-Engine/include/collision.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__random/geometric_distribution.h:
 

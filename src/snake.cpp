@@ -160,6 +160,7 @@ static void spawnFood(Engine::Registry& reg,const GameState& g, int fx=-1, int f
     f.set("gx",fx);
     f.set("gy",fy);
     f.set("kind",2);
+    std::cout << "spawnFood: placed food at (" << fx << "," << fy << ")" << std::endl;
 }
 
 static void initSnake(GameState& g,Engine::Registry& reg, bool spawnInitialFood = true){
@@ -188,6 +189,8 @@ static void initSnake(GameState& g,Engine::Registry& reg, bool spawnInitialFood 
         g.parts.push_back(b);
     }
 
+    std::cout << "initSnake: created head at (" << cx << "," << cy << ") with " << g.parts.size() << " parts" << std::endl;
+
     if(spawnInitialFood) {
         spawnFood(reg,g);
     }
@@ -197,11 +200,15 @@ static void resetGame(GameState& g,Engine::Registry& reg){
     if(g.score > g.highScore) {
         g.highScore = g.score;
     }
+    std::cout << "resetGame: score=" << g.score << " highScore=" << g.highScore << std::endl;
     reg.clear();
     initSnake(g,reg);
 }
 
-static void gameLose(GameState& g){ g.end=EndState::Lose; }
+static void gameLose(GameState& g){
+    std::cout << "gameLose: final score=" << g.score << std::endl;
+    g.end = EndState::Lose;
+}
 
 static void update(GameState& g,Engine::Registry& reg,Timeline& tl,Engine::EventManager& em,float dt){
     if(g.paused || g.end!=EndState::None) return;
@@ -250,6 +257,7 @@ static void update(GameState& g,Engine::Registry& reg,Timeline& tl,Engine::Event
         if(aabbIntersect(headRect, foodRect)){
             eat=true;
             g.score+=10;
+            std::cout << "update: food eaten at (" << fx << "," << fy << ")" << std::endl;
             spawnFood(reg,g);
             
             if(!em.isReplaying()) {
@@ -257,6 +265,7 @@ static void update(GameState& g,Engine::Registry& reg,Timeline& tl,Engine::Event
                 if(newFood) {
                     int newFx = newFood->get<int>("gx");
                     int newFy = newFood->get<int>("gy");
+                    std::cout << "update: raising Spawn event for new food at (" << newFx << "," << newFy << ")" << std::endl;
                     em.raiseEvent(Engine::Events::Spawn("food", (float)newFx, (float)newFy, &tl));
                 }
             }
@@ -433,9 +442,33 @@ static void draw(SDL_Renderer* r,const GameState& g,Engine::Registry& reg, SDL_T
     }
 
     if(em && em->isRecording()) {
-        SDL_SetRenderDrawColor(r, 255, 0, 0, 255);
-        SDL_FRect recDot = {W - 50.f, 65.f, 16.f, 16.f};
-        SDL_RenderFillRect(r, &recDot);
+    SDL_SetRenderDrawColor(r, 200, 30, 30, 255);
+    SDL_FRect recBox = {10.f, 55.f, 72.f, 24.f};
+        SDL_RenderFillRect(r, &recBox);
+        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        SDL_FRect topR = {recBox.x, recBox.y, recBox.w, 2.f};
+        SDL_FRect botR = {recBox.x, recBox.y + recBox.h - 2.f, recBox.w, 2.f};
+        SDL_FRect leftR = {recBox.x, recBox.y, 2.f, recBox.h};
+        SDL_FRect rightR = {recBox.x + recBox.w - 2.f, recBox.y, 2.f, recBox.h};
+        SDL_RenderFillRect(r, &topR);
+        SDL_RenderFillRect(r, &botR);
+        SDL_RenderFillRect(r, &leftR);
+        SDL_RenderFillRect(r, &rightR);
+    }
+
+    if(em && em->isReplaying()) {
+        SDL_SetRenderDrawColor(r, 30, 200, 30, 255);
+    SDL_FRect repBox = {94.f, 55.f, 72.f, 24.f};
+        SDL_RenderFillRect(r, &repBox);
+        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        SDL_FRect topR2 = {repBox.x, repBox.y, repBox.w, 2.f};
+        SDL_FRect botR2 = {repBox.x, repBox.y + repBox.h - 2.f, repBox.w, 2.f};
+        SDL_FRect leftR2 = {repBox.x, repBox.y, 2.f, repBox.h};
+        SDL_FRect rightR2 = {repBox.x + repBox.w - 2.f, repBox.y, 2.f, repBox.h};
+        SDL_RenderFillRect(r, &topR2);
+        SDL_RenderFillRect(r, &botR2);
+        SDL_RenderFillRect(r, &leftR2);
+        SDL_RenderFillRect(r, &rightR2);
     }
 
     if(g.end!=EndState::None && !em->isReplaying()){
@@ -480,7 +513,7 @@ int main(){
             else if(key == "down") G.nxt = DOWN;
             else if(key == "left") G.nxt = LEFT;
             else if(key == "right") G.nxt = RIGHT;
-            
+
             G.step = G.normalStep;
             G.isBoosting = false;
         }
@@ -523,6 +556,7 @@ int main(){
                 if(xIt != ev.payload.end() && yIt != ev.payload.end()) {
                     int fx = (int)std::get<float>(xIt->second);
                     int fy = (int)std::get<float>(yIt->second);
+                    std::cout << "Event(Spawn): spawning food at (" << fx << "," << fy << ")" << std::endl;
                     spawnFood(reg, G, fx, fy);
                 }
             }
@@ -562,6 +596,7 @@ int main(){
         if(recNow && !recPrev) {
             if(em.isRecording()) {
                 em.stopRecording();
+                std::cout << "Recording stopped." << std::endl;
             } else {
                 if(G.score > G.highScore) {
                     G.highScore = G.score;
@@ -570,10 +605,12 @@ int main(){
                 initSnake(G, reg);
                 
                 em.startRecording();
+                std::cout << "Recording started." << std::endl;
                 auto* food = reg.get("food");
                 if(food) {
                     int fx = food->get<int>("gx");
                     int fy = food->get<int>("gy");
+                    std::cout << "Recording: initial food at (" << fx << "," << fy << ") - raising Spawn event" << std::endl;
                     em.raiseEvent(Engine::Events::Spawn("food", (float)fx, (float)fy, &tl));
                 }
             }
@@ -587,7 +624,7 @@ int main(){
                 G.parts.clear();
                 reg.clear();
                 initSnake(G, reg, false);  
-                
+                std::cout << "Replay: starting playback..." << std::endl;
                 em.playReplay();
             }
             yPrev=yNow;
@@ -595,43 +632,85 @@ int main(){
 
         if(G.end==EndState::None && !em.isReplaying()){
             bool boosting = false;
-            if(Input::isChordActive("boost_up")) {
+            static bool boostUpPrev = false, boostDownPrev = false, boostLeftPrev = false, boostRightPrev = false;
+            static bool upPrev = false, downPrev = false, leftPrev = false, rightPrev = false;
+
+            bool boostUpCur = Input::isChordActive("boost_up");
+            bool boostDownCur = Input::isChordActive("boost_down");
+            bool boostLeftCur = Input::isChordActive("boost_left");
+            bool boostRightCur = Input::isChordActive("boost_right");
+
+            if(boostUpCur) {
                 G.nxt = UP;
                 boosting = true;
-                em.raiseEvent(Engine::Events::InputChord("boost_up", &tl));
+                if(boostUpCur && !boostUpPrev) {
+                    em.raiseEvent(Engine::Events::InputChord("boost_up", &tl));
+                    if(em.isRecording()) std::cout << "Event: raised InputChord boost_up" << std::endl;
+                }
             }
-            else if(Input::isChordActive("boost_down")) {
+            else if(boostDownCur) {
                 G.nxt = DOWN;
                 boosting = true;
-                em.raiseEvent(Engine::Events::InputChord("boost_down", &tl));
+                if(boostDownCur && !boostDownPrev) {
+                    em.raiseEvent(Engine::Events::InputChord("boost_down", &tl));
+                    if(em.isRecording()) std::cout << "Event: raised InputChord boost_down" << std::endl;
+                }
             }
-            else if(Input::isChordActive("boost_left")) {
+            else if(boostLeftCur) {
                 G.nxt = LEFT;
                 boosting = true;
-                em.raiseEvent(Engine::Events::InputChord("boost_left", &tl));
+                if(boostLeftCur && !boostLeftPrev) {
+                    em.raiseEvent(Engine::Events::InputChord("boost_left", &tl));
+                    if(em.isRecording()) std::cout << "Event: raised InputChord boost_left" << std::endl;
+                }
             }
-            else if(Input::isChordActive("boost_right")) {
+            else if(boostRightCur) {
                 G.nxt = RIGHT;
                 boosting = true;
-                em.raiseEvent(Engine::Events::InputChord("boost_right", &tl));
+                if(boostRightCur && !boostRightPrev) {
+                    em.raiseEvent(Engine::Events::InputChord("boost_right", &tl));
+                    if(em.isRecording()) std::cout << "Event: raised InputChord boost_right" << std::endl;
+                }
+            } else {
+                bool upCur = Input::isKeyPressed(SDL_SCANCODE_UP);
+                bool downCur = Input::isKeyPressed(SDL_SCANCODE_DOWN);
+                bool leftCur = Input::isKeyPressed(SDL_SCANCODE_LEFT);
+                bool rightCur = Input::isKeyPressed(SDL_SCANCODE_RIGHT);
+
+                if(upCur) {
+                    G.nxt = UP;
+                    if(upCur && !upPrev) {
+                        em.raiseEvent(Engine::Events::Input("up", true, &tl));
+                        if(em.isRecording()) std::cout << "Event: raised Input up" << std::endl;
+                    }
+                }
+                else if(downCur) {
+                    G.nxt = DOWN;
+                    if(downCur && !downPrev) {
+                        em.raiseEvent(Engine::Events::Input("down", true, &tl));
+                        if(em.isRecording()) std::cout << "Event: raised Input down" << std::endl;
+                    }
+                }
+                else if(leftCur) {
+                    G.nxt = LEFT;
+                    if(leftCur && !leftPrev) {
+                        em.raiseEvent(Engine::Events::Input("left", true, &tl));
+                        if(em.isRecording()) std::cout << "Event: raised Input left" << std::endl;
+                    }
+                }
+                else if(rightCur) {
+                    G.nxt = RIGHT;
+                    if(rightCur && !rightPrev) {
+                        em.raiseEvent(Engine::Events::Input("right", true, &tl));
+                        if(em.isRecording()) std::cout << "Event: raised Input right" << std::endl;
+                    }
+                }
+
+                upPrev = upCur; downPrev = downCur; leftPrev = leftCur; rightPrev = rightCur;
             }
-            else if(Input::isKeyPressed(SDL_SCANCODE_UP)) {
-                G.nxt=UP;
-                em.raiseEvent(Engine::Events::Input("up", true, &tl));
-            }
-            else if(Input::isKeyPressed(SDL_SCANCODE_DOWN)) {
-                G.nxt=DOWN;
-                em.raiseEvent(Engine::Events::Input("down", true, &tl));
-            }
-            else if(Input::isKeyPressed(SDL_SCANCODE_LEFT)) {
-                G.nxt=LEFT;
-                em.raiseEvent(Engine::Events::Input("left", true, &tl));
-            }
-            else if(Input::isKeyPressed(SDL_SCANCODE_RIGHT)) {
-                G.nxt=RIGHT;
-                em.raiseEvent(Engine::Events::Input("right", true, &tl));
-            }
-            
+
+            boostUpPrev = boostUpCur; boostDownPrev = boostDownCur; boostLeftPrev = boostLeftCur; boostRightPrev = boostRightCur;
+
             if(boosting) {
                 G.step = G.boostStep;
                 G.isBoosting = true;
