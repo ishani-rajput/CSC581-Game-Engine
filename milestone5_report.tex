@@ -1,0 +1,437 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{amsmath}
+
+\definecolor{codegray}{gray}{0.95}
+\lstset{
+  backgroundcolor=\color{codegray},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=flexible,
+  tabsize=2,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red}
+}
+
+\singlespacing
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+\title{\vspace{-2cm}\textbf{CSC 581: Milestone 5 Individual Write-Up}}
+\author{Poorna Subramanian \\ psubram3}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-1em}
+
+% ==========================================================
+\section{Introduction and Milestone Evolution}
+% ==========================================================
+
+Over the course of this semester, the engine has evolved from a basic SDL3 rendering framework into a comprehensive, event-driven game development platform supporting multiplayer networking, deterministic replay, and now—with Milestone 5 - \textbf{advanced memory management} and \textbf{input abstraction}.
+
+This milestone represents a crucial step toward production-ready game engine architecture by addressing two fundamental challenges:
+\begin{enumerate}
+  \item \textbf{Memory Management (Section 1):} Implementing custom pool allocators to eliminate dynamic allocation overhead and improve cache performance for frequently created game objects.
+  \item \textbf{Input Chords (Section 2):} Extending the input system to detect simultaneous multi-key combinations, enabling advanced player techniques without hardcoding input logic into gameplay code.
+  \item \textbf{Engine Reusability (Sections 3 \& 4):} Demonstrating the engine's versatility by building two complete non-platformer games - \emph{Space Invaders} and \emph{Brick Breaker} - using the same core systems developed for the platformer in Milestones 1–4.
+\end{enumerate}
+
+The assignment's requirement to quantify code reuse through diff analysis forced a critical examination of what makes an engine truly modular versus what constitutes game-specific implementation.
+
+% ==========================================================
+\section{Section 1: Custom Memory Pool Allocator}
+% ==========================================================
+
+\subsection{Motivation and Design Philosophy}
+
+Dynamic memory allocation using \texttt{new}/\texttt{delete} or \texttt{std::make\_unique} introduces several performance problems in real-time games. Every allocation requires traversing the heap's free list, fragmenting memory and introducing unpredictable latency. Objects scattered across memory trigger CPU cache misses during iteration, while allocation times vary making frame timing unreliable. These issues compound in real-time scenarios where consistent frame pacing is critical.
+
+For Milestone 5, We implemented a \textbf{template-based pool allocator} that pre-allocates a fixed capacity of objects and reuses them through a free list. This design guarantees O(1) allocation/deallocation and improves spatial locality by keeping objects contiguous in memory.
+
+\subsection{Implementation Architecture}
+
+The \texttt{PoolAllocator<T>} class defined in \texttt{include/memory\_pool.h} provides a type-safe memory pool using raw memory blocks, occupation bitmaps, and free lists for O(1) allocation/deallocation. The allocator reserves a contiguous block of raw memory using \texttt{new char[capacity * sizeof(T)]}, ensuring proper alignment and avoiding constructor calls until objects are explicitly created. An occupation bitmap tracks which slots are in use, while a free list maintains indices of available slots for fast lookup.
+
+\paragraph{Object Creation and Destruction.}
+The \texttt{create()} method uses \textbf{placement new} to construct objects in pre-allocated memory without triggering heap allocation. Perfect forwarding via \texttt{std::forward<Args>(args)...} ensures constructor arguments are passed efficiently, maintaining the same semantics as \texttt{std::make\_unique}. The \texttt{destroy()} method explicitly calls the destructor and returns the slot to the free list—a two-step process that mirrors manual memory management but with automatic lifetime tracking and thread safety via \texttt{std::mutex} locks.
+
+\subsection{Integration with Registry}
+
+To integrate the pool allocator with the existing \texttt{Registry} system from Milestone 3, We introduced a \textbf{PoolDeleter} custom deleter for \texttt{std::unique\_ptr} that checks whether an object is owned by a pool before calling either \texttt{pool->destroy()} or \texttt{delete}. This hybrid design allows the \texttt{Registry} to use pool allocation when available while falling back to heap allocation if the pool is exhausted or not provided. The Registry's \texttt{upsert()} method attempts pool creation first, then falls back to \texttt{new} if necessary, ensuring consistent lifetime management through RAII and the custom deleter.
+
+\subsection{Design Reflection}
+
+The pool allocator eliminated all heap allocations during gameplay, reducing frame time variance. We chose a template-based design with custom deleters to integrate seamlessly with the existing Registry system. The \texttt{PoolDeleter} enables hybrid allocation where pools handle common cases while falling back to heap allocation for overflow, maintaining a consistent \texttt{upsert()} interface.
+
+The fixed-capacity design trades memory efficiency for predictable performance—no surprise allocations during intense gameplay and improved cache locality through contiguous layout. Determining correct pool sizes requires iterative tuning; experimentation showed that 1.5–2× expected maximum usage provides reasonable safety margins. Production use would benefit from runtime diagnostics warning when utilization exceeds configurable thresholds.
+
+The template-based design handles both transient objects (bullets created/destroyed every frame) and persistent objects (brick grids initialized once). Games can choose multiple small type-specific pools or single large pools for homogeneous objects—the Registry interface supports both without modifications, validating our principle of flexible mechanisms over rigid policies.
+
+% ==========================================================
+\section{Section 2: Input Chord System}
+% ==========================================================
+
+\subsection{Motivation and Input Abstraction Evolution}
+
+In Milestones 1–4, input handling was direct and imperative: the game loop polled \texttt{SDL\_SCANCODE\_*} keys and immediately executed corresponding actions. While simple, this approach had several drawbacks. Changing key mappings required modifying game code since bindings were hardcoded. Complex inputs like "dash while moving" required manual state tracking, making the code verbose and error-prone. Most problematically, input logic was embedded in gameplay code rather than abstracted into the engine, preventing reuse across different games.
+
+For Milestone 5, We extended the \texttt{Input} class (in \texttt{include/input.h}) to support \textbf{input chords}—combinations of multiple keys pressed simultaneously that trigger distinct actions. This abstraction separates \emph{what keys are pressed} from \emph{what actions they represent}, enabling gameplay code to operate at a higher semantic level.
+
+\subsection{InputChord Representation}
+
+The \texttt{InputChord} structure represents a named multi-key combination:
+
+\begin{lstlisting}[language=C++]
+struct InputChord {
+    std::string name;
+    std::vector<SDL_Scancode> keys;
+    
+    InputChord(const std::string& n, 
+               const std::vector<SDL_Scancode>& k)
+        : name(n), keys(k) {}
+};
+\end{lstlisting}
+
+Chords are registered globally through the \texttt{Input} class and checked every frame during input polling:
+
+\begin{lstlisting}[language=C++]
+class Input {
+    static std::vector<InputChord> registeredChords;
+    static std::unordered_map<std::string, bool> chordActiveLastFrame;
+    static const Uint8* keystate;
+    
+public:
+    static void registerChord(const InputChord& chord);
+    static bool isChordActive(const std::string& name);
+    static bool isChordJustPressed(const std::string& name);
+    static void poll();  // Update chord states
+};
+\end{lstlisting}
+
+\subsection{Chord Detection Algorithm}
+
+The \texttt{isChordActive()} checks if all chord keys are currently pressed, while \texttt{isChordJustPressed()} provides edge detection by comparing current and previous frame states, returning true only on rising edge transitions. This prevents repeated triggering during holds, essential for one-shot actions like dashing. The \texttt{Input::poll()} updates previous frame state each tick to enable this detection.
+
+\subsection{Engine Implementation Example}
+
+The key engine-level implementation shows the registration and detection mechanism:
+
+\begin{lstlisting}[language=C++]
+// Registration in Input class
+void Input::registerChord(const InputChord& chord) {
+    registeredChords.push_back(chord);
+    chordActiveLastFrame[chord.name] = false;
+}
+
+// Detection in game code
+Input::registerChord(InputChord("super_shot", 
+    {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_SPACE}));
+
+if (Input::isChordJustPressed("super_shot")) {
+    // Execute special ability
+    eventManager.raiseEvent(
+        Engine::Events::InputChord("super_shot", &gameTimeline));
+}
+\end{lstlisting}
+
+The chord system's declarative nature makes it easy to add new abilities—simply register a chord and check it in the game loop, without modifying the input infrastructure. Both Space Invaders and Brick Breaker leverage this system extensively for advanced player mechanics, as detailed in their respective sections below.
+
+\subsection{Design Reflection}
+
+The input chord system abstracted multi-key detection from gameplay logic through two core principles: declarative registration (chords as data, not code) and automatic event integration for replay/networking compatibility. Runtime registration balances flexibility with simplicity—games programmatically register named chords without configuration files while separating key combinations from actions, making controls easier to rebind than hardcoded checks.
+
+Handling overlapping chords was a critical design challenge. We implemented independent detection where all matching chords trigger, providing simpler implementation and predictable behavior. Production use would benefit from a priority field sorting by key count (longer chords first) and optional fallthrough prevention for multi-key override cases.
+
+Integrating chords with the event system by raising \texttt{EventType::InputChord} events proved valuable: chord actions are automatically recorded for replay, serialized for network synchronization, and maintain separation of concerns. The \texttt{isChordJustPressed()} method's edge detection (tracking frame-to-frame transitions) proved essential for one-shot actions across different game genres.
+
+% ==========================================================
+\section{Section 3: Space Invaders – First Non-Platformer Game}
+% ==========================================================
+
+\subsection{Game Design and Scope}
+
+\emph{Space Invaders} tests synchronized entity management (55 aliens in a 5×11 grid), multi-type collision detection (bullet-alien, bullet-player, alien-player), event-driven gameplay (Death, Collision, InputChord events), and pool allocator stress testing through frequent bullet creation/destruction. The game includes horizontal player movement, three alien types with different point values, lives/respawn mechanics, score tracking, and full Timeline/Event/Registry/PoolAllocator/Input chord integration.
+
+\subsection{Engine Feature Usage}
+
+\paragraph{Pool Allocators for Bullets and Aliens.}
+Space Invaders uses multiple small type-specific pools to segregate objects by lifecycle:
+
+\begin{lstlisting}[language=C++]
+// Type-segregated pools for different object lifecycles
+Engine::PoolAllocator<Engine::GameObject> bulletPool(150);
+Engine::PoolAllocator<Engine::GameObject> alienPool(60);
+Engine::PoolAllocator<Engine::GameObject> explosionPool(30);
+
+// Registries using pools
+Engine::Registry bulletRegistry(&bulletPool);
+Engine::Registry alienRegistry(&alienPool);
+Engine::Registry explosionRegistry(&explosionPool);
+\end{lstlisting}
+
+This segregation matches object lifecycles to allocation patterns. Bullets use a 150-capacity pool for frequently created and destroyed objects with 2-3 second lifetimes, handling the constant churn of projectiles during combat. Aliens use a 60-capacity pool since they're created once at initialization and destroyed when hit, matching the static enemy count. Explosions use a 30-capacity pool for short-lived visual effects lasting only 0.5 seconds, providing enough capacity for simultaneous effects without excessive memory overhead.
+
+The capacity values were determined through playtesting. Initially, I set the bullet pool to 50, but discovered this was insufficient during rapid-fire scenarios—particularly when using the "super shot" chord that fires three bullets simultaneously. The pool would silently exhaust, causing bullets to fail spawning without visual feedback. I increased the capacity to 150 (3× typical usage) and added a debug overlay (D key) showing real-time pool utilization. This taught me that pool allocators need runtime diagnostics to identify capacity issues before they cause gameplay bugs.
+
+\paragraph{Creating Pooled Objects.}
+Object creation uses the same Registry interface whether pools are enabled or not:
+
+\begin{lstlisting}[language=C++]
+// Creating a bullet from the pool (O(1) allocation)
+auto& bullet = bulletRegistry.upsert("bullet_" + std::to_string(id));
+bullet.set<float>("x", playerX);
+bullet.set<float>("y", playerY - 20);
+bullet.set<float>("vy", -BULLET_SPEED);
+\end{lstlisting}
+
+The \texttt{PoolDeleter} custom deleter (from Section 1) handles cleanup automatically—when bullets go out of scope or are explicitly destroyed, the pool slot is returned to the free list without manual memory management.
+
+\paragraph{Engine Integration.}
+Space Invaders demonstrates full integration with all engine systems from previous milestones. The game uses Timeline for pause/resume (P key) and speed control (1/2/3 keys for 0.5x/1.0x/2.0x speeds), ensuring all physics, alien movement, and bullet trajectories respect the scaled \texttt{dt} for consistent behavior. The event system raises Collision, Death, InputChord, and Spawn events that listeners use to update score, trigger explosions, and synchronize state across networked clients, proving the event architecture designed for the platformer works equally well for completely different game genres.
+
+\subsection{Unique Gameplay Features}
+
+\paragraph{Alien Grid Movement.}
+Aliens move as a synchronized wave using the Registry to iterate all alien entities, updating their positions horizontally and triggering synchronized drops when any alien reaches screen edges. This pattern demonstrates the engine's GameObject iteration capabilities and timer-based coordinated behavior.
+
+\paragraph{Input Chords for Advanced Techniques.}
+Space Invaders implements three input chords demonstrating the system from Section 2. The Super Shot chord (Shift+Space) fires three bullets simultaneously in a spread pattern using the bullet pool with a 3-second cooldown timer, providing a powerful offensive option that tests pool capacity under burst allocation. The Dash Left and Dash Right chords (Ctrl+A/D) enable instant horizontal teleportation with 1-second cooldowns, raising InputChord events for replay and network synchronization.
+
+These cooldown-based abilities showcase how the declarative chord system enables complex mechanics without nested input checks, while automatic event integration ensures they work seamlessly with replay and networking systems.
+
+% ==========================================================
+\section{Section 4: Brick Breaker – Second Non-Platformer Game}
+% ==========================================================
+
+\subsection{Game Design and Scope}
+
+\emph{Brick Breaker} validates velocity-based reflection physics (distinct from gravity-based platforming and grid-based shooting), precise paddle-ball collision response, Timeline-driven temporary effects (spin decay), and pool allocator burst initialization (144 bricks created upfront). The game includes keyboard-controlled paddle, ball bounce physics with spin mechanics, three brick types with varying health, lives/score tracking, and input chords for advanced techniques (paddle dashing, curve shots).
+
+\subsection{Engine Feature Usage}
+
+\paragraph{Pool Allocator for Bricks.}
+Brick Breaker uses a single large pool for all bricks since they are homogeneous objects with similar lifetimes:
+
+\begin{lstlisting}[language=C++]
+// Single large pool for brick grid (8 rows x 18 cols = 144 bricks)
+Engine::PoolAllocator<Engine::GameObject> brickPool(200);
+Engine::Registry brickRegistry(&brickPool);
+\end{lstlisting}
+
+Unlike Space Invaders which creates/destroys objects dynamically during gameplay, Brick Breaker creates all bricks upfront during initialization:
+
+\begin{lstlisting}[language=C++]
+// Static initialization: all bricks created at startup
+for (int row = 0; row < BRICK_ROWS; row++) {
+    int health = (row < 2) ? 3 : (row < 5) ? 2 : 1;
+    for (int col = 0; col < BRICK_COLS; col++) {
+        std::string id = "brick_" + std::to_string(row) 
+                       + "_" + std::to_string(col);
+        auto& brick = brickRegistry.upsert(id);
+        brick.set<float>("x", startX + col * spacing);
+        brick.set<float>("y", startY + row * spacing);
+        brick.set<int>("health", health);
+        brick.set<bool>("active", true);
+    }
+}
+\end{lstlisting}
+
+This pattern demonstrates the pool allocator's versatility—it handles both burst allocation where 144 objects are created in a tight loop without heap fragmentation, and persistent objects where bricks exist for the entire game but may be deactivated (\texttt{active=false}) rather than destroyed. This design avoids allocation churn while maintaining clean object lifecycle semantics.
+
+The 200-capacity pool provides 40\% overhead (56 extra slots) to handle level variations or future expansion. During development, I considered using a smaller pool (150) but chose the larger size after testing showed that having extra capacity costs minimal memory (~4KB) while providing flexibility for different brick layouts.
+
+\paragraph{Ball Physics and Collision.}
+The ball uses velocity-based movement with reflection physics for wall collisions (reversing velocity on boundary contact) and paddle collision with spin mechanics. When the ball hits the paddle off-center, horizontal velocity is added proportional to the hit offset, creating angled shots for strategic gameplay. The spin mechanic demonstrates how the property-based GameObject system allows storing arbitrary physics state (position, velocity, spin) without engine modifications.
+
+\paragraph{Input Chords for Advanced Mechanics.}
+Brick Breaker implements three input chords from Section 2's chord system. The Paddle Dash chords (Shift+A/D) enable instant 150-pixel horizontal movement with 1-second cooldowns, allowing players to react quickly to ball trajectories. The Curve Ball chord (Space+C) adds temporary spin to the ball mid-flight with 200 units of spin that decays at 0.95 per frame, demonstrating time-based physics effects with a 2-second cooldown.
+
+The curve ball mechanic particularly demonstrates time-based effects modifying physics temporarily—the Timeline system's \texttt{dt} drives the gradual spin decay, while the event system can record these actions for replay. This would be difficult to implement cleanly without the Timeline abstraction providing consistent temporal control.
+
+% ==========================================================
+\section{Code Diff Analysis and Engine Reusability}
+% ==========================================================
+
+\subsection{Shared Engine Code}
+
+All three games share the following engine components (located in \texttt{include/} and \texttt{src/}):
+
+\begin{lstlisting}[language=C++]
+// Shared engine systems (~1200 lines total)
+entity.h/cpp           // Entity rendering with scaling (150 lines)
+input.h                // Input polling + chord detection (120 lines)
+physics.h              // AABB collision detection (80 lines)
+scaling.h/cpp          // Window scaling transformation (100 lines)
+timeline.h/cpp         // Time management (150 lines)
+event_manager.h/cpp    // Event queue and dispatch (200 lines)
+registry.h             // GameObject registry (100 lines)
+object_model.h         // Property-based GameObject (80 lines)
+memory_pool.h          // Pool allocator template (150 lines)
+collision.h            // AABB intersection (40 lines)
+\end{lstlisting}
+
+\subsection{Quantitative Comparison}
+
+The assignment requires analyzing code reuse across the three games. Line counts:
+
+\begin{table}[h]
+\centering
+\caption{Line counts for each game implementation.}
+\label{tab:lines}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Game & Total Lines & Game-Specific Logic \\ \midrule
+Platformer (main.cpp) & 638 & ~450 \\
+Space Invaders & 749 & ~600 \\
+Brick Breaker & 627 & ~480 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Code Reuse Percentage Calculation}
+
+Engine infrastructure (~1,200 lines) includes entity rendering, input/chord detection, physics, scaling, timeline, events, registry, object model, memory pools, and collision—all shared across games. Comparing total project lines to shared engine lines yields:
+
+\begin{table}[h]
+\centering
+\caption{Code reuse analysis across three games.}
+\label{tab:reuse}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Metric & Platformer & Space Invaders & Brick Breaker \\ \midrule
+Total Game Lines & 638 & 749 & 627 \\
+Shared Engine Lines & 1{,}200 & 1{,}200 & 1{,}200 \\
+Total Project Lines & 1{,}838 & 1{,}949 & 1{,}827 \\
+Engine Reuse \% & 65.3\% & 61.6\% & 65.7\% \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Interpretation of Results}
+
+The \textbf{~62--66\%} reuse rate demonstrates two-thirds of any new game comes from shared infrastructure. Three mechanically distinct games (platformer with gravity, top-down shooter with grid movement, paddle-based reflection) required zero modifications to core systems (Timeline, Events, Registry, PoolAllocator, Input, Scaling), validating the \emph{mechanisms over policies} principle. Timeline's \texttt{dt} scaling worked identically across all genres, collision detection handled all interaction types without changes, and pool allocators/input chords integrated without per-game work. The property-based GameObject model allows game-specific schemas (\texttt{row/col} for aliens, \texttt{health} for bricks) while the engine provides storage and iteration—the correct abstraction level between low-level APIs and rigid frameworks.
+
+\subsection{What Code Was NOT Reused?}
+
+The game-specific code (~400--600 lines per game) includes:
+
+\begin{itemize}
+  \item \textbf{Game Loop Structure:} While all games use \texttt{Timeline::tick()}, the specific update order (input → physics → collision → rendering) varies.
+  \item \textbf{Collision Logic:} Each game defines its own collision pairs (bullet-alien, ball-brick, player-spike).
+  \item \textbf{Rendering:} Sprite loading, draw order, and UI layout are game-specific.
+  \item \textbf{Game Rules:} Score calculation, win/loss conditions, and respawn logic differ across games.
+  \item \textbf{Level Design:} Alien grid layout, brick patterns, and platform placement are unique to each game.
+\end{itemize}
+
+This is appropriate—an engine should provide \emph{mechanisms} (how to detect collisions) but not \emph{policies} (what to do when a collision happens). The high reuse percentage confirms that the engine successfully separates these concerns.
+
+
+% ==========================================================
+\section{Reflection and Lessons Learned}
+% ==========================================================
+
+\subsection{What Worked Well}
+
+Three core systems proved their value across all games. The pool allocator eliminated heap allocations during gameplay, providing consistent frame timing without heap fragmentation or unpredictable allocation delays. The input chord system enabled advanced mechanics without hardcoded logic—adding abilities required only two lines of code, making the codebase significantly more maintainable than nested conditional checks. Engine modularity demonstrated its worth: Timeline worked identically across all games without modification, proving time abstractions transcend genres; the event system uniformly handled Collision, Death, and InputChord events across different gameplay styles; Registry and PoolAllocator integrated seamlessly with both static patterns (brick grids) and dynamic patterns (bullet streams), validating the property-based GameObject model's flexibility. This validates the architectural decisions made in Milestones 1--4.
+
+\subsection{Challenges and Resolutions}
+
+\paragraph{Pool Capacity Tuning.}
+Determining correct pool sizes proved challenging. In Space Invaders, I initially set the bullet pool to 50, but rapid use of the "super shot" chord (firing three bullets simultaneously) exhausted it within seconds, causing bullets to silently fail spawning. The debugging revealed a critical design flaw: when \texttt{pool->create()} returns \texttt{nullptr}, games have no player feedback.
+
+\textbf{Resolution:} I increased capacity to 150 (3× typical usage) and added a debug overlay (D key) showing real-time utilization. This experience revealed that fixed-capacity structures introduce silent failure modes unlike dynamic allocation. Production engines should implement configurable exhaustion policies: fail-fast (current approach—maintains performance, requires tuning), fallback allocation (heap backup for reliability), or ring buffer (recycle oldest objects for transient effects). Future work should add runtime diagnostics warning when usage exceeds thresholds (e.g., 80\% capacity).
+
+\paragraph{Chord Ambiguity.}
+When multiple chords share keys, detection order becomes important. If "power\_launch" (Shift+Space) and "paddle\_dash" (Shift+A) both exist, pressing Shift+Space+A would trigger multiple chords. For this milestone, all matching chords trigger independently, which worked fine with careful chord design.
+
+\textbf{Resolution:} Future engines should add: a priority field sorting by key count (longer chords first), an exclusive flag preventing sub-chord triggers, and conflict warnings during registration to identify overlapping combinations early. This provides fine-grained control while maintaining declarative registration.
+
+\paragraph{Ball Rendering Artifacts.}
+Brick Breaker's ball initially used Entity sprite rendering, but flickered and appeared clipped at certain positions. The Scaling system's viewport offset works for rectangular sprites at pixel boundaries but causes texture coordinate rounding errors for circular sprites at fractional positions.
+
+\textbf{Resolution:} I switched to SDL's procedural circle rendering using scanline fill based on $(x^2 + y^2 = r^2)$, eliminating artifacts. This revealed an architectural limitation: Entity assumes rectangular sprites, forcing some objects to bypass the Entity system. Future work should extend Entity with a shape type enum (sprite/circle/polygon/line), polymorphic rendering dispatch, and shape-aware collision detection to unify rendering while maintaining consistent transformations.
+
+\subsection{Lessons Learned About Engine Design}
+
+\paragraph{Abstractions Must Be Proven with Multiple Use Cases.}
+You cannot evaluate an abstraction's quality with only one implementation. Building the platformer alone would have led to over-specialized systems. The Registry's pool integration had to work for both transient objects (bullets created/destroyed every frame) and persistent objects (bricks deactivated but not destroyed), revealing design requirements that single-genre testing would have missed. The 62-66\% code reuse metric validates that our engine systems required no modification across three mechanically different genres—the strongest evidence of appropriate abstraction.
+
+\paragraph{Performance Optimization Requires Measurement.}
+Pool allocators provide predictable O(1) allocation and improved cache locality, but performance issues often hide at small scales and only emerge under realistic gameplay conditions with many simultaneous objects. Engine features should include built-in diagnostics from the start—pool allocators tracking peak utilization and providing runtime warnings. You can't optimize what you can't measure, and adding measurement after the fact is always harder than designing it in from the beginning.
+
+\paragraph{Input Abstraction Enables Gameplay Iteration.}
+The chord system's biggest benefit was design iteration speed. Experimenting with new abilities required only registering a chord and checking it in the game loop—a declarative approach that's faster and more maintainable than inserting nested conditional checks. Good abstractions enable faster experimentation, which is critical for game development where fun emerges from iteration. The faster a developer can test an idea, the more ideas they can explore.
+
+\subsection{Future Work}
+
+Three improvements would enhance the engine: (1) Dynamic pool resizing with two-tier memory (fixed pool + overflow heap) to eliminate capacity tuning while maintaining performance, (2) Input remapping UI with JSON-based chord definitions and in-game rebinding menu, automatically compatible with replay/networking, and (3) Collision shape abstraction supporting circles, OBB, and polygons with polymorphic dispatch based on shape pairs, improving accuracy for non-rectangular objects.
+
+% ==========================================================
+\section*{Conclusion}
+% ==========================================================
+
+Milestone 5 represents the culmination of a semester-long effort to build a modular, extensible, and performant 2D game engine. The addition of custom memory management through pool allocators and advanced input handling through chord detection completed the engine's core feature set, enabling the development of three distinct games from a shared codebase.
+
+The quantitative analysis revealing 62--66\% code reuse across platformer, shooter, and paddle genres validates the engine's design philosophy: \textbf{provide flexible mechanisms, not rigid policies}. By keeping systems like Timeline, Events, Registry, and PoolAllocator generic and composable, the engine supports diverse gameplay without per-game modifications. Key architectural decisions include: property-based GameObjects allowing custom data schemas, event-driven architecture unifying input/collision/state changes for replay and networking, Timeline abstraction providing single time-scaling for all temporal effects, pool allocator integration making optimization opt-in through custom deleters, and declarative input chords supporting runtime rebinding.
+
+The most valuable lesson from this milestone was that \emph{constraints drive better design}. The assignment's requirement to implement pool allocators forced us to confront memory management issues we would have otherwise deferred. Similarly, the chord system emerged from the constraint that multi-key inputs needed better abstraction—a restriction that led to a more maintainable input architecture than direct polling would have produced.
+
+Looking forward, this engine provides a solid foundation for future work in areas like AI scripting, procedural content generation, and advanced rendering techniques. The systems designed across five milestones—Timeline, Events, Registry, PoolAllocator, Input—form a cohesive whole that demonstrates the power of thoughtful abstraction and incremental refinement through team collaboration.
+
+% ==========================================================
+\clearpage
+\section{Appendix: Screenshots and Code Samples}
+% ==========================================================
+
+\begin{figure}[h]
+\centering
+\fbox{\includegraphics[width=0.85\linewidth]{space_invaders_start.png}}
+\caption{Space Invaders start screen showing controls including input chord instructions (Shift+Space for super shot, Ctrl+A/D for dashes).}
+\label{fig:si_start}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\fbox{\includegraphics[width=0.85\linewidth]{space_invaders_gameplay.png}}
+\caption{Space Invaders gameplay with alien grid, player bullets, and HUD showing lives, score, and cooldown timers.}
+\label{fig:si_game}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\fbox{\includegraphics[width=0.85\linewidth]{space_invaders_victory.png}}
+\caption{Space Invaders victory screen displaying final score after clearing all aliens.}
+\label{fig:si_victory}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\fbox{\includegraphics[width=0.85\linewidth]{brick_breaker_start.png}}
+\caption{Brick Breaker start screen with comprehensive control instructions including chord mechanics.}
+\label{fig:bb_start}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\fbox{\includegraphics[width=0.85\linewidth]{brick_breaker_gameplay.png}}
+\caption{Brick Breaker gameplay showing brick grid with color-coded health, paddle, ball, and status messages.}
+\label{fig:bb_game}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\fbox{\includegraphics[width=0.85\linewidth]{brick_breaker_gameover.png}}
+\caption{Brick Breaker game over screen with final score and replay option.}
+\label{fig:bb_gameover}
+\end{figure}
+\end{document}

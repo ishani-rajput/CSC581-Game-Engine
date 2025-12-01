@@ -100,3 +100,23 @@ if (ZeroMQ_FOUND)
 else()
     target_link_libraries(hybrid_client PRIVATE SDL3::SDL3 SDL3_image::SDL3_image ${ZMQ_LIB})
 endif()
+
+# Space Invaders game (Section 3)
+add_executable(space_invaders
+    ./src/space_invaders.cpp
+    ${ENGINE_COMMON}
+)
+
+target_link_libraries(space_invaders
+    PRIVATE SDL3::SDL3 SDL3_image::SDL3_image
+)
+
+# Brick Breaker game (Section 4)
+add_executable(brick_breaker
+    ./src/brick_breaker.cpp
+    ${ENGINE_COMMON}
+)
+
+target_link_libraries(brick_breaker
+    PRIVATE SDL3::SDL3 SDL3_image::SDL3_image
+)

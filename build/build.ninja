@@ -422,13 +422,164 @@ build hybrid_client.exe: CXX_EXECUTABLE_LINKER__hybrid_client_ CMakeFiles/hybrid
   TARGET_IMPLIB = libhybrid_client.dll.a
   TARGET_PDB = hybrid_client.exe.dbg
 
+# =============================================================================
+# Object build statements for EXECUTABLE target space_invaders
+
+
+#############################################
+# Order-only phony target for space_invaders
+
+build cmake_object_order_depends_target_space_invaders: phony || .
+
+build CMakeFiles/space_invaders.dir/src/space_invaders.cpp.obj: CXX_COMPILER__space_invaders_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/space_invaders.cpp || cmake_object_order_depends_target_space_invaders
+  DEP_FILE = CMakeFiles\space_invaders.dir\src\space_invaders.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  OBJECT_FILE_DIR = CMakeFiles\space_invaders.dir\src
+
+build CMakeFiles/space_invaders.dir/src/entity.cpp.obj: CXX_COMPILER__space_invaders_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/entity.cpp || cmake_object_order_depends_target_space_invaders
+  DEP_FILE = CMakeFiles\space_invaders.dir\src\entity.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  OBJECT_FILE_DIR = CMakeFiles\space_invaders.dir\src
+
+build CMakeFiles/space_invaders.dir/src/input.cpp.obj: CXX_COMPILER__space_invaders_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/input.cpp || cmake_object_order_depends_target_space_invaders
+  DEP_FILE = CMakeFiles\space_invaders.dir\src\input.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  OBJECT_FILE_DIR = CMakeFiles\space_invaders.dir\src
+
+build CMakeFiles/space_invaders.dir/src/physics.cpp.obj: CXX_COMPILER__space_invaders_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/physics.cpp || cmake_object_order_depends_target_space_invaders
+  DEP_FILE = CMakeFiles\space_invaders.dir\src\physics.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  OBJECT_FILE_DIR = CMakeFiles\space_invaders.dir\src
+
+build CMakeFiles/space_invaders.dir/src/scaling.cpp.obj: CXX_COMPILER__space_invaders_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/scaling.cpp || cmake_object_order_depends_target_space_invaders
+  DEP_FILE = CMakeFiles\space_invaders.dir\src\scaling.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  OBJECT_FILE_DIR = CMakeFiles\space_invaders.dir\src
+
+build CMakeFiles/space_invaders.dir/src/timeline.cpp.obj: CXX_COMPILER__space_invaders_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/timeline.cpp || cmake_object_order_depends_target_space_invaders
+  DEP_FILE = CMakeFiles\space_invaders.dir\src\timeline.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  OBJECT_FILE_DIR = CMakeFiles\space_invaders.dir\src
+
+build CMakeFiles/space_invaders.dir/src/event_manager.cpp.obj: CXX_COMPILER__space_invaders_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_space_invaders
+  DEP_FILE = CMakeFiles\space_invaders.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  OBJECT_FILE_DIR = CMakeFiles\space_invaders.dir\src
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target space_invaders
+
+
+#############################################
+# Link the executable space_invaders.exe
+
+build space_invaders.exe: CXX_EXECUTABLE_LINKER__space_invaders_ CMakeFiles/space_invaders.dir/src/space_invaders.cpp.obj CMakeFiles/space_invaders.dir/src/entity.cpp.obj CMakeFiles/space_invaders.dir/src/input.cpp.obj CMakeFiles/space_invaders.dir/src/physics.cpp.obj CMakeFiles/space_invaders.dir/src/scaling.cpp.obj CMakeFiles/space_invaders.dir/src/timeline.cpp.obj CMakeFiles/space_invaders.dir/src/event_manager.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3_image.dll.a  C:/msys2/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\space_invaders.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = space_invaders.exe
+  TARGET_IMPLIB = libspace_invaders.dll.a
+  TARGET_PDB = space_invaders.exe.dbg
+
+# =============================================================================
+# Object build statements for EXECUTABLE target brick_breaker
+
+
+#############################################
+# Order-only phony target for brick_breaker
+
+build cmake_object_order_depends_target_brick_breaker: phony || .
+
+build CMakeFiles/brick_breaker.dir/src/brick_breaker.cpp.obj: CXX_COMPILER__brick_breaker_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/brick_breaker.cpp || cmake_object_order_depends_target_brick_breaker
+  DEP_FILE = CMakeFiles\brick_breaker.dir\src\brick_breaker.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  OBJECT_FILE_DIR = CMakeFiles\brick_breaker.dir\src
+
+build CMakeFiles/brick_breaker.dir/src/entity.cpp.obj: CXX_COMPILER__brick_breaker_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/entity.cpp || cmake_object_order_depends_target_brick_breaker
+  DEP_FILE = CMakeFiles\brick_breaker.dir\src\entity.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  OBJECT_FILE_DIR = CMakeFiles\brick_breaker.dir\src
+
+build CMakeFiles/brick_breaker.dir/src/input.cpp.obj: CXX_COMPILER__brick_breaker_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/input.cpp || cmake_object_order_depends_target_brick_breaker
+  DEP_FILE = CMakeFiles\brick_breaker.dir\src\input.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  OBJECT_FILE_DIR = CMakeFiles\brick_breaker.dir\src
+
+build CMakeFiles/brick_breaker.dir/src/physics.cpp.obj: CXX_COMPILER__brick_breaker_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/physics.cpp || cmake_object_order_depends_target_brick_breaker
+  DEP_FILE = CMakeFiles\brick_breaker.dir\src\physics.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  OBJECT_FILE_DIR = CMakeFiles\brick_breaker.dir\src
+
+build CMakeFiles/brick_breaker.dir/src/scaling.cpp.obj: CXX_COMPILER__brick_breaker_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/scaling.cpp || cmake_object_order_depends_target_brick_breaker
+  DEP_FILE = CMakeFiles\brick_breaker.dir\src\scaling.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  OBJECT_FILE_DIR = CMakeFiles\brick_breaker.dir\src
+
+build CMakeFiles/brick_breaker.dir/src/timeline.cpp.obj: CXX_COMPILER__brick_breaker_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/timeline.cpp || cmake_object_order_depends_target_brick_breaker
+  DEP_FILE = CMakeFiles\brick_breaker.dir\src\timeline.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  OBJECT_FILE_DIR = CMakeFiles\brick_breaker.dir\src
+
+build CMakeFiles/brick_breaker.dir/src/event_manager.cpp.obj: CXX_COMPILER__brick_breaker_unscanned_ C$:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/src/event_manager.cpp || cmake_object_order_depends_target_brick_breaker
+  DEP_FILE = CMakeFiles\brick_breaker.dir\src\event_manager.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/include
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  OBJECT_FILE_DIR = CMakeFiles\brick_breaker.dir\src
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target brick_breaker
+
+
+#############################################
+# Link the executable brick_breaker.exe
+
+build brick_breaker.exe: CXX_EXECUTABLE_LINKER__brick_breaker_ CMakeFiles/brick_breaker.dir/src/brick_breaker.cpp.obj CMakeFiles/brick_breaker.dir/src/entity.cpp.obj CMakeFiles/brick_breaker.dir/src/input.cpp.obj CMakeFiles/brick_breaker.dir/src/physics.cpp.obj CMakeFiles/brick_breaker.dir/src/scaling.cpp.obj CMakeFiles/brick_breaker.dir/src/timeline.cpp.obj CMakeFiles/brick_breaker.dir/src/event_manager.cpp.obj | C$:/msys2/mingw64/lib/libSDL3_image.dll.a C$:/msys2/mingw64/lib/libSDL3.dll.a
+  LINK_LIBRARIES = C:/msys2/mingw64/lib/libSDL3_image.dll.a  C:/msys2/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\brick_breaker.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = brick_breaker.exe
+  TARGET_IMPLIB = libbrick_breaker.dll.a
+  TARGET_PDB = brick_breaker.exe.dbg
+
 
 #############################################
 # Utility command for edit_cache
 
 build CMakeFiles/edit_cache.util: CUSTOM_COMMAND
-  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine\build && C:\msys2\mingw64\bin\cmake.exe -E echo "No interactive CMake dialog available.""
-  DESC = No interactive CMake dialog available...
+  COMMAND = cmd.exe /C "cd /D C:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine\build && "C:\Program Files\CMake\bin\cmake-gui.exe" -SC:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine -BC:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine\build"
+  DESC = Running CMake cache editor...
+  pool = console
   restat = 1
 
 build edit_cache: phony CMakeFiles/edit_cache.util
@@ -438,7 +589,7 @@ build edit_cache: phony CMakeFiles/edit_cache.util
 # Utility command for rebuild_cache
 
 build CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
-  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine\build && C:\msys2\mingw64\bin\cmake.exe --regenerate-during-build -SC:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine -BC:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine\build"
+  COMMAND = cmd.exe /C "cd /D C:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine\build && C:\msys2\mingw64\bin\cmake.exe --regenerate-during-build -SC:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine -BC:\Poorna\Courses\GameEngine\Engine\CSC581-Game-Engine\build"
   DESC = Running CMake to regenerate build system...
   pool = console
   restat = 1
@@ -447,6 +598,8 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 
 # =============================================================================
 # Target aliases.
+
+build brick_breaker: phony brick_breaker.exe
 
 build client: phony client.exe
 
@@ -460,6 +613,8 @@ build perf_main: phony perf_main.exe
 
 build server: phony server.exe
 
+build space_invaders: phony space_invaders.exe
+
 # =============================================================================
 # Folder targets.
 
@@ -468,7 +623,7 @@ build server: phony server.exe
 #############################################
 # Folder: C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build
 
-build all: phony main.exe client.exe server.exe perf_main.exe hybrid_server.exe hybrid_client.exe
+build all: phony main.exe client.exe server.exe perf_main.exe hybrid_server.exe hybrid_client.exe space_invaders.exe brick_breaker.exe
 
 # =============================================================================
 # Built-in targets

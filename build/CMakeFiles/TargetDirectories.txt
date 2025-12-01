@@ -4,5 +4,7 @@ C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/server.d
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/perf_main.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/hybrid_server.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/hybrid_client.dir
+C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/space_invaders.dir
+C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/brick_breaker.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/edit_cache.dir
 C:/Poorna/Courses/GameEngine/Engine/CSC581-Game-Engine/build/CMakeFiles/rebuild_cache.dir
