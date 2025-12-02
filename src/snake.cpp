@@ -483,6 +483,9 @@ int main(){
     SDL_Window* win=SDL_CreateWindow("Neo Snake", int(W), int(H), SDL_WINDOW_RESIZABLE);
     SDL_Renderer* ren=SDL_CreateRenderer(win,nullptr);
 
+    SDL_SetRenderLogicalPresentation(ren, int(W), int(H), 
+        SDL_LOGICAL_PRESENTATION_LETTERBOX);
+
     SDL_Texture* loseTexture = IMG_LoadTexture(ren, "../assets/lose.png");
 
     Timeline tl; 
@@ -589,6 +592,13 @@ int main(){
             Scaling::setMode(
                 current == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel
             );
+            if(current == ScaleMode::Pixel) {
+                SDL_SetRenderLogicalPresentation(ren, int(W), int(H), 
+                    SDL_LOGICAL_PRESENTATION_LETTERBOX);
+            } else {
+                SDL_SetRenderLogicalPresentation(ren, 0, 0, 
+                    SDL_LOGICAL_PRESENTATION_DISABLED);
+            }
         }
         tPrev=tNow;
 

@@ -887,6 +887,9 @@ int main(int, char**) {
         return 1;
     }
 
+    SDL_SetRenderLogicalPresentation(renderer, WINDOW_WIDTH, WINDOW_HEIGHT,
+        SDL_LOGICAL_PRESENTATION_LETTERBOX);
+
     Scaling::setMode(ScaleMode::Pixel);
     srand((unsigned)time(nullptr));
 
@@ -946,6 +949,14 @@ int main(int, char**) {
             Scaling::setMode(
                 current == ScaleMode::Pixel ? ScaleMode::Proportional
                                              : ScaleMode::Pixel);
+            if (current == ScaleMode::Pixel) {
+                SDL_SetRenderLogicalPresentation(
+                    renderer, WINDOW_WIDTH, WINDOW_HEIGHT,
+                    SDL_LOGICAL_PRESENTATION_LETTERBOX);
+            } else {
+                SDL_SetRenderLogicalPresentation(
+                    renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+            }
         }
         prevT = tNow;
 
