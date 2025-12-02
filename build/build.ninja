@@ -359,6 +359,13 @@ build CMakeFiles/snake_game.dir/src/physics.cpp.obj: CXX_COMPILER__snake_game_un
   OBJECT_DIR = CMakeFiles\snake_game.dir
   OBJECT_FILE_DIR = CMakeFiles\snake_game.dir\src
 
+build CMakeFiles/snake_game.dir/src/scaling.cpp.obj: CXX_COMPILER__snake_game_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/scaling.cpp || cmake_object_order_depends_target_snake_game
+  DEP_FILE = CMakeFiles\snake_game.dir\src\scaling.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\snake_game.dir
+  OBJECT_FILE_DIR = CMakeFiles\snake_game.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target snake_game
@@ -367,7 +374,7 @@ build CMakeFiles/snake_game.dir/src/physics.cpp.obj: CXX_COMPILER__snake_game_un
 #############################################
 # Link the executable snake_game.exe
 
-build snake_game.exe: CXX_EXECUTABLE_LINKER__snake_game_ CMakeFiles/snake_game.dir/src/snake_game.cpp.obj CMakeFiles/snake_game.dir/src/input.cpp.obj CMakeFiles/snake_game.dir/src/physics.cpp.obj | libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
+build snake_game.exe: CXX_EXECUTABLE_LINKER__snake_game_ CMakeFiles/snake_game.dir/src/snake_game.cpp.obj CMakeFiles/snake_game.dir/src/input.cpp.obj CMakeFiles/snake_game.dir/src/physics.cpp.obj CMakeFiles/snake_game.dir/src/scaling.cpp.obj | libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
   LINK_LIBRARIES = libengine_events.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\snake_game.dir
   POST_BUILD = cd .

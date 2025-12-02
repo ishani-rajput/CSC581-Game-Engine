@@ -5,7 +5,6 @@
 #include <functional>
 #include <string>
 
-// Represents a chord: multiple keys that must be pressed simultaneously
 struct InputChord {
     std::vector<SDL_Scancode> keys;
     std::string name;
@@ -18,7 +17,6 @@ struct InputChord {
     }
 };
 
-// Hash function for InputChord to use in unordered_map
 namespace std {
     template<>
     struct hash<InputChord> {
@@ -33,22 +31,18 @@ public:
     static void poll(); 
     static bool isKeyPressed(SDL_Scancode sc);
     
-    // Chord detection
     static void registerChord(const InputChord& chord);
     static bool isChordActive(const std::string& chordName);
     static std::vector<std::string> getActiveChords();
     
-    // Check if a chord was just activated this frame (wasn't active last frame)
     static bool isChordJustPressed(const std::string& chordName);
     
-    // Get all registered chord names
     static std::vector<std::string> getAllChordNames();
 
 private:
     static const bool* s_state; 
     static int s_len;
     
-    // Chord management
     static std::unordered_map<std::string, InputChord> s_chords;
     static std::unordered_map<std::string, bool> s_chordPrevState;
     

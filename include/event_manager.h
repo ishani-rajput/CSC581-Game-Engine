@@ -15,7 +15,7 @@ enum class EventType {
     Death,
     Spawn,
     Input,
-    InputChord,      // NEW: For chord (simultaneous key press) events
+    InputChord,      
     ReplayStart,
     ReplayStop,
     ReplayPlay,
@@ -45,15 +45,12 @@ public:
     explicit EventManager(Timeline* tl = nullptr);
     Timeline* getTimeline() const;
 
-    // Registration
     void registerListener(EventType type, Listener callback);
     void unregisterListener(EventType type);
 
-    // Raising
     void raiseEvent(const Event& ev);
     void raiseEventFromNetwork(const std::string& serialized);
 
-    // Handling
     void dispatchEvents();
     void dispatchEvents(int maxCount);  
 

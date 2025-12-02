@@ -35,10 +35,8 @@ public:
     void sendInputDelta(bool left, bool right, bool jump,
                         float analogX, float analogY, uint64_t ticksMs);
 
-    // Broadcast an arbitrary string to all connected peers.
     void publishToPeers(const std::string& msg);
 
-    // Non-blocking drain of all pending messages from peers.
     std::vector<std::string> drainPeerMessages();
 
 private:

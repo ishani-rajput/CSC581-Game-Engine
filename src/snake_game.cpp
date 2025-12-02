@@ -13,6 +13,7 @@
 #include "collision.h"
 #include "physics.h"
 #include "memory_pool.h"
+#include "scaling.h"
 
 constexpr float SCREEN_WIDTH = 800.0f;
 constexpr float SCREEN_HEIGHT = 600.0f;
@@ -99,19 +100,49 @@ struct SnakeGame {
 
 SnakeGame gGame;
 
-void drawFilledRect(SDL_Renderer* renderer, float x, float y, float w, float h, SDL_Color color) {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_FRect rect = {x, y, w, h};
-    SDL_RenderFillRect(renderer, &rect);
+// Local scaling helper for snake game (800x600 base resolution)
+SDL_FRect computeSnakeScaling(const SDL_FRect& logical, SDL_Window* window) {
+    if (Scaling::mode() == ScaleMode::Pixel) {
+        return logical;
+    }
+    
+    int ww = 0, wh = 0;
+    SDL_GetWindowSize(window, &ww, &wh);
+    
+    float scaleX = ww / SCREEN_WIDTH;
+    float scaleY = wh / SCREEN_HEIGHT;
+    
+    SDL_FRect out;
+    out.x = logical.x * scaleX;
+    out.y = logical.y * scaleY;
+    out.w = logical.w * scaleX;
+    out.h = logical.h * scaleY;
+    
+    return out;
 }
 
-void drawCircle(SDL_Renderer* renderer, float cx, float cy, float radius, SDL_Color color) {
+void drawFilledRect(SDL_Renderer* renderer, SDL_Window* window, float x, float y, float w, float h, SDL_Color color) {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    int r = static_cast<int>(radius);
+    SDL_FRect logical = {x, y, w, h};
+    SDL_FRect scaled = computeSnakeScaling(logical, window);
+    SDL_RenderFillRect(renderer, &scaled);
+}
+
+void drawCircle(SDL_Renderer* renderer, SDL_Window* window, float cx, float cy, float radius, SDL_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    
+    // Apply scaling to the center point and radius
+    SDL_FRect logical = {cx - radius, cy - radius, radius * 2, radius * 2};
+    SDL_FRect scaled = computeSnakeScaling(logical, window);
+    float scaledCx = scaled.x + scaled.w / 2;
+    float scaledCy = scaled.y + scaled.h / 2;
+    float scaledRadius = scaled.w / 2;
+    
+    int r = static_cast<int>(scaledRadius);
     int r2 = r * r;
     for (int dy = -r; dy <= r; dy++) {
         int dx = static_cast<int>(std::sqrt(std::max(r2 - dy * dy, 0)));
-        SDL_RenderLine(renderer, cx - dx, cy + dy, cx + dx, cy + dy);
+        SDL_RenderLine(renderer, scaledCx - dx, scaledCy + dy, scaledCx + dx, scaledCy + dy);
     }
 }
 
@@ -269,9 +300,19 @@ void updateGame(SnakeGame& game, Engine::Registry& registry, Timeline& timeline,
     }
 }
 
-void renderGame(SDL_Renderer* renderer, const SnakeGame& game, Engine::Registry& registry) {
-    SDL_SetRenderDrawColor(renderer, 20, 20, 30, 255);
+void renderGame(SDL_Renderer* renderer, SDL_Window* window, const SnakeGame& game, Engine::Registry& registry) {
+    SDL_SetRenderDrawColor(renderer, 10, 10, 15, 255);
     SDL_RenderClear(renderer);
+    
+    // Draw game area background
+    SDL_FRect gameAreaLogical = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+    SDL_FRect gameArea = computeSnakeScaling(gameAreaLogical, window);
+    SDL_SetRenderDrawColor(renderer, 20, 20, 30, 255);
+    SDL_RenderFillRect(renderer, &gameArea);
+    
+    // Draw game area border
+    SDL_SetRenderDrawColor(renderer, 100, 100, 120, 255);
+    SDL_RenderRect(renderer, &gameArea);
     
     auto* food = registry.get("food");
     if (food && food->get<bool>("alive", true)) {
@@ -279,7 +320,7 @@ void renderGame(SDL_Renderer* renderer, const SnakeGame& game, Engine::Registry&
         int foodY = food->get<int>("gridY");
         float foodCenterX = foodX * GRID_SIZE + GRID_SIZE / 2;
         float foodCenterY = foodY * GRID_SIZE + GRID_SIZE / 2;
-        drawCircle(renderer, foodCenterX, foodCenterY, GRID_SIZE / 2 - 2, {255, 50, 50, 255});
+        drawCircle(renderer, window, foodCenterX, foodCenterY, GRID_SIZE / 2 - 2, {255, 50, 50, 255});
     }
     
     for (const auto& segId : game.snakeSegmentIds) {
@@ -294,9 +335,9 @@ void renderGame(SDL_Renderer* renderer, const SnakeGame& game, Engine::Registry&
         float y = gridY * GRID_SIZE;
         
         if (type == static_cast<int>(ObjectType::SnakeHead)) {
-            drawFilledRect(renderer, x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2, {100, 255, 100, 255});
+            drawFilledRect(renderer, window, x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2, {100, 255, 100, 255});
         } else {
-            drawFilledRect(renderer, x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2, {50, 200, 50, 255});
+            drawFilledRect(renderer, window, x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2, {50, 200, 50, 255});
         }
     }
     
@@ -305,8 +346,18 @@ void renderGame(SDL_Renderer* renderer, const SnakeGame& game, Engine::Registry&
         float cx = SCREEN_WIDTH / 2.0f;
         float cy = SCREEN_HEIGHT / 2.0f;
         
-        SDL_RenderLine(renderer, cx - 30, cy - 30, cx + 30, cy + 30);
-        SDL_RenderLine(renderer, cx - 30, cy + 30, cx + 30, cy - 30);
+        SDL_FRect line1Start = {cx - 30, cy - 30, 0, 0};
+        SDL_FRect line1End = {cx + 30, cy + 30, 0, 0};
+        SDL_FRect line2Start = {cx - 30, cy + 30, 0, 0};
+        SDL_FRect line2End = {cx + 30, cy - 30, 0, 0};
+        
+        SDL_FRect s1 = computeSnakeScaling(line1Start, window);
+        SDL_FRect e1 = computeSnakeScaling(line1End, window);
+        SDL_FRect s2 = computeSnakeScaling(line2Start, window);
+        SDL_FRect e2 = computeSnakeScaling(line2End, window);
+        
+        SDL_RenderLine(renderer, s1.x, s1.y, e1.x, e1.y);
+        SDL_RenderLine(renderer, s2.x, s2.y, e2.x, e2.y);
     }
     
     SDL_RenderPresent(renderer);
@@ -377,6 +428,7 @@ int main(int argc, char* argv[]) {
     bool running = true;
     bool prevP = false;
     bool prevR = false;
+    bool prevToggle = false;
     bool prev1 = false, prev2 = false, prev3 = false;
     
     while (running) {
@@ -390,6 +442,18 @@ int main(int argc, char* argv[]) {
         if (Input::isKeyPressed(SDL_SCANCODE_ESCAPE)) {
             running = false;
         }
+        
+        bool toggleNow = Input::isKeyPressed(SDL_SCANCODE_T);
+        if (toggleNow && !prevToggle) {
+            Scaling::setMode(Scaling::mode() == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel);
+            std::cout << "Scaling mode: " << (Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional") << "\n";
+            
+            Engine::Event toggleEvent = Engine::Events::Input("T", true, &gameTime);
+            toggleEvent.payload["action"] = std::string("toggle_scale");
+            toggleEvent.payload["state"] = std::string(Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional");
+            eventManager.raiseEvent(toggleEvent);
+        }
+        prevToggle = toggleNow;
         
         bool pNow = Input::isKeyPressed(SDL_SCANCODE_P);
         if (pNow && !prevP) {
@@ -496,7 +560,7 @@ int main(int argc, char* argv[]) {
         updateGame(gGame, registry, gameTime, eventManager, dt);
         eventManager.dispatchEvents();
         
-        renderGame(renderer, gGame, registry);
+        renderGame(renderer, window, gGame, registry);
     }
     
     std::cout << "\n=== Game Ended ===\n";

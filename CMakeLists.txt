@@ -114,6 +114,7 @@ add_executable(snake_game
     ./src/snake_game.cpp
     ./src/input.cpp
     ./src/physics.cpp
+    ./src/scaling.cpp
 )
 
 target_link_libraries(snake_game
