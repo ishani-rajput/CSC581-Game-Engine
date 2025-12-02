@@ -101,6 +101,7 @@ add_executable(bubble_shooter
     ./src/bubble_shooter.cpp
     ./src/input.cpp
     ./src/physics.cpp
+    ./src/scaling.cpp
 )
 
 target_link_libraries(bubble_shooter

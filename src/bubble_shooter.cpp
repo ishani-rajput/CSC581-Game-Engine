@@ -14,6 +14,7 @@
  #include "collision.h"
  #include "physics.h"
 #include "memory_pool.h"
+#include "scaling.h"
 
 constexpr float SCREEN_WIDTH = 800.0f;
  constexpr float SCREEN_HEIGHT = 600.0f;
@@ -55,6 +56,27 @@ struct GameState {
  
 GameState   gGameState;
 std::mt19937 gRng(std::random_device{}());
+
+// Local scaling helper for bubble shooter (800x600 base resolution)
+SDL_FRect computeBubbleScaling(const SDL_FRect& logical, SDL_Window* window) {
+    if (Scaling::mode() == ScaleMode::Pixel) {
+        return logical;
+    }
+    
+    int ww = 0, wh = 0;
+    SDL_GetWindowSize(window, &ww, &wh);
+    
+    float scaleX = ww / SCREEN_WIDTH;
+    float scaleY = wh / SCREEN_HEIGHT;
+    
+    SDL_FRect out;
+    out.x = logical.x * scaleX;
+    out.y = logical.y * scaleY;
+    out.w = logical.w * scaleX;
+    out.h = logical.h * scaleY;
+    
+    return out;
+}
 
 SDL_Color getColorFromEnum(BubbleColor color) {
      switch (color) {
@@ -254,7 +276,7 @@ void removeFloatingBubbles(Engine::Registry& registry, Engine::EventManager& eve
      }
  
      if (!toRemove.empty()) {
-         std::cout << "Removed " << toRemove.size() << " floating bubbles\n";
+         std::cout << "  > Removed " << toRemove.size() << " floating bubbles\n";
      }
 }
 
@@ -367,7 +389,7 @@ void checkWinCondition(GameState& state) {
      if (!anyBubblesLeft) {
          state.won = true;
          state.gameOver = true;
-         std::cout << "Final Score: " << state.score << "\n";
+         std::cout << " Final Score: " << state.score << "\n";
      }
 }
 
@@ -381,9 +403,9 @@ void checkLoseCondition(GameState& state, Engine::Registry& registry) {
                 gridToScreen(row, col, x, y, state.descendOffset);
                 
                 if (y + BUBBLE_RADIUS >= deathLineY) {
-                    std::cout << "\n GAME OVER: Bubbles reached red line! Final Score: " 
+                    std::cout << "\n*** GAME OVER *** Bubbles reached red line! Final Score: " 
                               << state.score << "\n";
-                    std::cout << "Auto resetting \n\n";
+                    std::cout << "Auto-resetting...\n\n";
                     
                     registry.clear();
                     
@@ -515,20 +537,38 @@ void updateGame(Engine::Registry& registry, Engine::EventManager& eventManager,
       checkLoseCondition(gGameState, registry);
 }
 
-void drawSimpleCircle(SDL_Renderer* renderer, float cx, float cy,
+void drawSimpleCircle(SDL_Renderer* renderer, SDL_Window* window, float cx, float cy,
                        float radius, SDL_Color color) {
      SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-     int r = static_cast<int>(radius);
+     
+     // Apply scaling to the center point and radius
+     SDL_FRect logical = {cx - radius, cy - radius, radius * 2, radius * 2};
+     SDL_FRect scaled = computeBubbleScaling(logical, window);
+     float scaledCx = scaled.x + scaled.w / 2;
+     float scaledCy = scaled.y + scaled.h / 2;
+     float scaledRadius = scaled.w / 2;
+     
+     int r = static_cast<int>(scaledRadius);
      int r2 = r * r;
      for (int dy = -r; dy <= r; dy++) {
          int dx = static_cast<int>(std::sqrt(std::max(r2 - dy * dy, 0)));
-         SDL_RenderLine(renderer, cx - dx, cy + dy, cx + dx, cy + dy);
+         SDL_RenderLine(renderer, scaledCx - dx, scaledCy + dy, scaledCx + dx, scaledCy + dy);
      }
 }
 
-void renderGame(SDL_Renderer* renderer, Engine::Registry& registry, GameState& state) {
-    SDL_SetRenderDrawColor(renderer, 20, 20, 40, 255);
+void renderGame(SDL_Renderer* renderer, SDL_Window* window, Engine::Registry& registry, GameState& state) {
+    SDL_SetRenderDrawColor(renderer, 10, 10, 15, 255);
     SDL_RenderClear(renderer);
+    
+    // Draw game area background
+    SDL_FRect gameAreaLogical = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+    SDL_FRect gameArea = computeBubbleScaling(gameAreaLogical, window);
+    SDL_SetRenderDrawColor(renderer, 20, 20, 40, 255);
+    SDL_RenderFillRect(renderer, &gameArea);
+    
+    // Draw game area border
+    SDL_SetRenderDrawColor(renderer, 100, 100, 120, 255);
+    SDL_RenderRect(renderer, &gameArea);
 
     for (const auto& [id, _] : registry) {
          auto* bubble = registry.get(id);
@@ -541,12 +581,12 @@ void renderGame(SDL_Renderer* renderer, Engine::Registry& registry, GameState& s
         int   color  = bubble->get<int>("color");
  
          SDL_Color sdlColor = getColorFromEnum(static_cast<BubbleColor>(color));
-        drawSimpleCircle(renderer, x, y, radius, sdlColor);
+        drawSimpleCircle(renderer, window, x, y, radius, sdlColor);
     }
 
     if (!state.firing) {
          SDL_Color nextColor = getColorFromEnum(state.nextBubbleColor);
-         drawSimpleCircle(renderer, state.cannonX, CANNON_BASE_Y,
+         drawSimpleCircle(renderer, window, state.cannonX, CANNON_BASE_Y,
                          BUBBLE_RADIUS * 0.9f, nextColor);
     }
 
@@ -558,20 +598,35 @@ void renderGame(SDL_Renderer* renderer, Engine::Registry& registry, GameState& s
          for (float dist = 25.0f; dist < 200.0f; dist += 10.0f) {
              float dotX = state.cannonX + cosAngle * dist;
              float dotY = CANNON_BASE_Y + sinAngle * dist;
-             SDL_RenderPoint(renderer, dotX, dotY);
+             SDL_FRect dotLogical = {dotX, dotY, 0, 0};
+             SDL_FRect dotScaled = computeBubbleScaling(dotLogical, window);
+             SDL_RenderPoint(renderer, dotScaled.x, dotScaled.y);
         }
     }
 
    SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
    float deathLine = CANNON_BASE_Y - BUBBLE_RADIUS * 3.0f;
-   SDL_RenderLine(renderer, 0, deathLine, SCREEN_WIDTH, deathLine);
+   SDL_FRect lineStart = {0, deathLine, 0, 0};
+   SDL_FRect lineEnd = {SCREEN_WIDTH, deathLine, 0, 0};
+   SDL_FRect scaledStart = computeBubbleScaling(lineStart, window);
+   SDL_FRect scaledEnd = computeBubbleScaling(lineEnd, window);
+   SDL_RenderLine(renderer, scaledStart.x, scaledStart.y, scaledEnd.x, scaledEnd.y);
 
    if (state.gameOver && state.won) {
         SDL_SetRenderDrawColor(renderer, 50, 255, 50, 255);
         float cx = SCREEN_WIDTH / 2.0f;
         float cy = SCREEN_HEIGHT / 2.0f;
-        SDL_RenderLine(renderer, cx - 30, cy,     cx - 10, cy + 20);
-        SDL_RenderLine(renderer, cx - 10, cy + 20, cx + 30, cy - 30);
+        
+        SDL_FRect p1 = {cx - 30, cy, 0, 0};
+        SDL_FRect p2 = {cx - 10, cy + 20, 0, 0};
+        SDL_FRect p3 = {cx + 30, cy - 30, 0, 0};
+        
+        SDL_FRect s1 = computeBubbleScaling(p1, window);
+        SDL_FRect s2 = computeBubbleScaling(p2, window);
+        SDL_FRect s3 = computeBubbleScaling(p3, window);
+        
+        SDL_RenderLine(renderer, s1.x, s1.y, s2.x, s2.y);
+        SDL_RenderLine(renderer, s2.x, s2.y, s3.x, s3.y);
     }
  
      SDL_RenderPresent(renderer);
@@ -620,6 +675,7 @@ void renderGame(SDL_Renderer* renderer, Engine::Registry& registry, GameState& s
     bool running = true;
     bool prevSpace = false;
     bool prevP     = false;
+    bool prevToggle = false;
     bool prev1 = false, prev2 = false, prev3 = false;
 
     while (running) {
@@ -633,6 +689,18 @@ void renderGame(SDL_Renderer* renderer, Engine::Registry& registry, GameState& s
         if (Input::isKeyPressed(SDL_SCANCODE_ESCAPE)) {
             running = false;
         }
+
+        bool toggleNow = Input::isKeyPressed(SDL_SCANCODE_T);
+        if (toggleNow && !prevToggle) {
+            Scaling::setMode(Scaling::mode() == ScaleMode::Pixel ? ScaleMode::Proportional : ScaleMode::Pixel);
+            std::cout << "Scaling mode: " << (Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional") << "\n";
+            
+            Engine::Event toggleEvent = Engine::Events::Input("T", true, &gameTime);
+            toggleEvent.payload["action"] = std::string("toggle_scale");
+            toggleEvent.payload["state"] = std::string(Scaling::mode() == ScaleMode::Pixel ? "Pixel" : "Proportional");
+            eventManager.raiseEvent(toggleEvent);
+        }
+        prevToggle = toggleNow;
 
         bool pNow = Input::isKeyPressed(SDL_SCANCODE_P);
         if (pNow && !prevP) {
@@ -723,11 +791,11 @@ void renderGame(SDL_Renderer* renderer, Engine::Registry& registry, GameState& s
         updateGame(registry, eventManager, gameTime, dt);
         eventManager.dispatchEvents();
 
-        renderGame(renderer, registry, gGameState);
+        renderGame(renderer, window, registry, gGameState);
      }
  
-    std::cout << "\n Game Ended\n";
-    std::cout << "Final Score: " << gGameState.score << "\n";
+    std::cout << "\nGame Ended\n";
+    std::cout << "  Final Score: " << gGameState.score << "\n";
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

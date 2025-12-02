@@ -312,6 +312,13 @@ build CMakeFiles/bubble_shooter.dir/src/physics.cpp.obj: CXX_COMPILER__bubble_sh
   OBJECT_DIR = CMakeFiles\bubble_shooter.dir
   OBJECT_FILE_DIR = CMakeFiles\bubble_shooter.dir\src
 
+build CMakeFiles/bubble_shooter.dir/src/scaling.cpp.obj: CXX_COMPILER__bubble_shooter_unscanned_ C$:/courses/GameEngine/CSC481-581-M1/src/scaling.cpp || cmake_object_order_depends_target_bubble_shooter
+  DEP_FILE = CMakeFiles\bubble_shooter.dir\src\scaling.cpp.obj.d
+  FLAGS = -std=gnu++17
+  INCLUDES = -IC:/courses/GameEngine/CSC481-581-M1/include
+  OBJECT_DIR = CMakeFiles\bubble_shooter.dir
+  OBJECT_FILE_DIR = CMakeFiles\bubble_shooter.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target bubble_shooter
@@ -320,7 +327,7 @@ build CMakeFiles/bubble_shooter.dir/src/physics.cpp.obj: CXX_COMPILER__bubble_sh
 #############################################
 # Link the executable bubble_shooter.exe
 
-build bubble_shooter.exe: CXX_EXECUTABLE_LINKER__bubble_shooter_ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.obj CMakeFiles/bubble_shooter.dir/src/input.cpp.obj CMakeFiles/bubble_shooter.dir/src/physics.cpp.obj | libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
+build bubble_shooter.exe: CXX_EXECUTABLE_LINKER__bubble_shooter_ CMakeFiles/bubble_shooter.dir/src/bubble_shooter.cpp.obj CMakeFiles/bubble_shooter.dir/src/input.cpp.obj CMakeFiles/bubble_shooter.dir/src/physics.cpp.obj CMakeFiles/bubble_shooter.dir/src/scaling.cpp.obj | libengine_events.a C$:/msys64/mingw64/lib/libSDL3.dll.a || libengine_events.a
   LINK_LIBRARIES = libengine_events.a  C:/msys64/mingw64/lib/libSDL3.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\bubble_shooter.dir
   POST_BUILD = cd .

@@ -238,8 +238,8 @@ void updateGame(SnakeGame& game, Engine::Registry& registry, Timeline& timeline,
         }
         
         if (newHeadY < 0 || newHeadY >= GRID_HEIGHT) {
-            std::cout << "*** GAME OVER *** Hit top/bottom wall! Final Score: " << game.score << "\n";
-            std::cout << "[GAME] Auto-resetting...\n\n";
+            std::cout << " GAME OVER  Hit top/bottom wall! Final Score: " << game.score << "\n";
+            std::cout << "Auto-resetting...\n\n";
             
             Engine::Event deathEvent = Engine::Events::Death("snake_head", &timeline);
             deathEvent.payload["reason"] = std::string("wall_collision");
@@ -252,8 +252,8 @@ void updateGame(SnakeGame& game, Engine::Registry& registry, Timeline& timeline,
         for (const auto& segId : game.snakeSegmentIds) {
             auto* seg = registry.get(segId);
             if (seg && seg->get<int>("gridX") == newHeadX && seg->get<int>("gridY") == newHeadY) {
-                std::cout << "*** GAME OVER *** Hit yourself! Final Score: " << game.score << "\n";
-                std::cout << "[GAME] Auto-resetting...\n\n";
+                std::cout << "GAME OVER Hit yourself! Final Score: " << game.score << "\n";
+                std::cout << "Auto-resetting...\n\n";
                 
                 Engine::Event deathEvent = Engine::Events::Death("snake_head", &timeline);
                 deathEvent.payload["reason"] = std::string("self_collision");
@@ -277,7 +277,7 @@ void updateGame(SnakeGame& game, Engine::Registry& registry, Timeline& timeline,
                 Engine::Event foodEvent = SnakeEvents::FoodEaten(game.score, &timeline);
                 eventManager.raiseEvent(foodEvent);
                 
-                std::cout << "[SNAKE] Food eaten! Score: " << game.score << "\n";
+                std::cout << "Food eaten! Score: " << game.score << "\n";
                 
                 spawnFood(registry, game);
             }
@@ -376,7 +376,7 @@ void resetGame(SnakeGame& game, Engine::Registry& registry, Engine::EventManager
     
     initializeSnake(game, registry);
     
-    std::cout << "[SNAKE] Game reset!\n";
+    std::cout << "Game reset!\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -458,7 +458,7 @@ int main(int argc, char* argv[]) {
         bool pNow = Input::isKeyPressed(SDL_SCANCODE_P);
         if (pNow && !prevP) {
             gGame.paused = !gGame.paused;
-            std::cout << "[GAME] " << (gGame.paused ? "PAUSED" : "RESUMED") << "\n";
+            std::cout << (gGame.paused ? "PAUSED" : "RESUMED") << "\n";
         }
         prevP = pNow;
         
@@ -474,15 +474,15 @@ int main(int argc, char* argv[]) {
         
         if (k1Now && !prev1) {
             gameTime.setScale(0.5);
-            std::cout << "[GAME] Time scale: 0.5x (slow motion)\n";
+            std::cout << "Time scale: 0.5x (slow motion)\n";
         }
         if (k2Now && !prev2) {
             gameTime.setScale(1.0);
-            std::cout << "[GAME] Time scale: 1.0x (normal)\n";
+            std::cout << "Time scale: 1.0x (normal)\n";
         }
         if (k3Now && !prev3) {
             gameTime.setScale(2.0);
-            std::cout << "[GAME] Time scale: 2.0x (fast forward)\n";
+            std::cout << "Time scale: 2.0x (fast forward)\n";
         }
         
         prev1 = k1Now;
@@ -563,7 +563,7 @@ int main(int argc, char* argv[]) {
         renderGame(renderer, window, gGame, registry);
     }
     
-    std::cout << "\n=== Game Ended ===\n";
+    std::cout << "\n Game Ended \n";
     std::cout << "  Final Score: " << gGame.score << "\n";
     
     SDL_DestroyRenderer(renderer);
